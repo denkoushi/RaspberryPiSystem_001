@@ -1,0 +1,14 @@
+# RaspberryPiServer モジュール
+
+このディレクトリは Pi5 上で稼働するサーバー機能をまとめる。REST / Socket.IO / PostgreSQL などの中枢機能をモジュール化し、既存リポジトリで安定していたコードを移設しやすい構成を目指す。
+
+## ディレクトリ構成（初期案）
+- `src/raspberrypiserver/` — Flask ベースのアプリケーション本体とモジュール群
+- `tests/` — サーバーモジュール向けのテストコード（将来的な自動テスト復帰用に保持）
+- `config/`（未作成） — systemd / 環境ファイルサンプルや設定テンプレート
+- `scripts/`（未作成） — USB やメンテナンス用スクリプト
+
+## 次のステップ
+1. Flask アプリケーションの雛形を `src/raspberrypiserver/app.py` に実装する。
+2. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
+3. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。
