@@ -5,6 +5,7 @@ Summary: Modular Raspberry Pi 5 server for tool management system rearchitecture
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: flask>=3.0.0
+Requires-Dist: tomli-w>=1.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.3.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"

@@ -5,10 +5,14 @@
 ## ディレクトリ構成（初期案）
 - `src/raspberrypiserver/` — Flask ベースのアプリケーション本体とモジュール群
 - `tests/` — サーバーモジュール向けのテストコード（将来的な自動テスト復帰用に保持）
-- `config/`（未作成） — systemd / 環境ファイルサンプルや設定テンプレート
+- `config/` — `default.toml` など設定テンプレートを保管
 - `scripts/`（未作成） — USB やメンテナンス用スクリプト
 
+## 現状の内容
+- `app.py` が Flask アプリの雛形と設定読込処理を提供する。
+- `config/default.toml` に基本設定（API prefix、ログ出力先など）を記述。
+- `tests/test_healthz.py` がヘルスチェックと設定上書きのユニットテストを実装。
+
 ## 次のステップ
-1. Flask アプリケーションの雛形を `src/raspberrypiserver/app.py` に実装する。
-2. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
-3. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。
+1. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
+2. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。

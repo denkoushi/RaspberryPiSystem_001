@@ -1,0 +1,14 @@
+# Default configuration for RaspberryPiServer module.
+
+APP_NAME = "RaspberryPiServer"
+REST_API_PREFIX = "/api/v1"
+SOCKETIO_NAMESPACE = "/socket.io"
+
+# Database connection placeholder (to be replaced with actual settings)
+[database]
+dsn = "postgresql://app:app@localhost:15432/sensordb"
+
+# Logging configuration placeholder
+[logging]
+level = "INFO"
+path = "/srv/rpi-server/logs/app.log"

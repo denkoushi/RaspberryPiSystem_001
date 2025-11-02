@@ -14,6 +14,7 @@ RaspberryPiServer（Pi5）を中核に据え、Window A（Pi4）や Pi Zero 2 W 
 - `client_window_a/` — Pi4 クライアント UI 再構築領域
 - `handheld/` — Pi Zero 2 W（ハンディ端末）向けモジュール
 - `docs/` — アーキテクチャ・テストハンドブック・手動テストログ
+- `docs/system/` — 今後のロードマップやタスク整理
 
 ## 構成と責務
 | コンポーネント | 主な責務 | 参照ドキュメント |
@@ -41,7 +42,7 @@ mac / Raspberry Pi のどちらでも以下のコマンドブロックをコピ�
 cd ~/RaspberryPiSystem_001/server
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e '.[dev]'
 ```
 
 ### 開発サーバーの起動
@@ -60,7 +61,20 @@ curl -i http://127.0.0.1:8501/healthz
 ```bash
 cd ~/RaspberryPiSystem_001/server
 source .venv/bin/activate
-pytest
+python -m pytest
+```
+
+### 設定ファイルのカスタマイズ（任意）
+```bash
+cd ~/RaspberryPiSystem_001/server
+cp config/default.toml config/local.toml
+# 任意の内容に編集した後で
+python -m raspberrypiserver.app  # または raspberrypiserver
+```
+`config/local.toml` を作成した場合は環境変数 `RPI_SERVER_CONFIG` でパスを指定できます。
+
+```bash
+export RPI_SERVER_CONFIG=~/RaspberryPiSystem_001/server/config/local.toml
 ```
 
 ### Pi 側でリポジトリを最新化する例
