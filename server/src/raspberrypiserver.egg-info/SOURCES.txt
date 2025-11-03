@@ -8,4 +8,10 @@ src/raspberrypiserver.egg-info/dependency_links.txt
 src/raspberrypiserver.egg-info/entry_points.txt
 src/raspberrypiserver.egg-info/requires.txt
 src/raspberrypiserver.egg-info/top_level.txt
+src/raspberrypiserver/api/__init__.py
+src/raspberrypiserver/api/scans.py
+src/raspberrypiserver/repositories/__init__.py
+src/raspberrypiserver/repositories/scans.py
+tests/test_api_scans.py
 tests/test_healthz.py
+tests/test_repositories.py

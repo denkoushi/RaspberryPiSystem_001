@@ -8,8 +8,13 @@ and exposes hooks for future persistence.
 
 from __future__ import annotations
 
+import logging
 from collections import deque
-from typing import Deque, Dict, Iterable, Protocol
+from typing import Callable, Deque, Dict, Iterable, Protocol
+
+import psycopg
+from psycopg import sql
+from psycopg.types.json import Jsonb
 
 
 class ScanRepository(Protocol):
@@ -37,6 +42,9 @@ class InMemoryScanRepository:
         return list(self._items)[-limit:]
 
 
+logger = logging.getLogger(__name__)
+
+
 class DatabaseScanRepository:
     """
     Placeholder repository that represents the future database-backed implementation.
@@ -45,17 +53,42 @@ class DatabaseScanRepository:
     「TODO: persist」ログを残す実装とする。
     """
 
-    def __init__(self, dsn: str, buffer_size: int = 500) -> None:
+    def __init__(
+        self,
+        dsn: str,
+        buffer_size: int = 500,
+        connect_factory: Callable[[str], psycopg.Connection] | None = None,
+    ) -> None:
         self._dsn = dsn
         self._buffer: Deque[Dict] = deque(maxlen=buffer_size)
+        self._connect_factory = connect_factory or psycopg.connect
 
     @property
     def dsn(self) -> str:
         return self._dsn
 
     def save(self, payload: Dict) -> None:
-        # TODO: replace with actual INSERT/UPSERT against PostgreSQL
         self._buffer.append(payload)
+
+        if not self._dsn:
+            logger.warning("SCAN_REPOSITORY_BACKEND='db' だが DSN が空です。payload=%s", payload)
+            return
+
+        try:
+            with self._connect_factory(self._dsn) as conn, conn.cursor() as cur:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        INSERT INTO scan_ingest_backlog (payload, received_at)
+                        VALUES (%s, NOW())
+                        ON CONFLICT DO NOTHING
+                        """
+                    ),
+                    (Jsonb(payload),),
+                )
+                conn.commit()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Scan payload persistence failed: %s", exc)
 
     def recent(self, limit: int = 10) -> Iterable[Dict]:
         if limit <= 0:

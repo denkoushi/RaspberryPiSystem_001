@@ -51,11 +51,12 @@
    - 同一 `scan_id` と `HTTP 200` が記録されているか確認。  
    - `journalctl -u raspi-server.service -n 50` でエラーがないか確認。
 4. **データベース反映確認**  
-   ```bash
-   PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
-     -c "SELECT order_code, location_code, updated_at FROM part_locations ORDER BY updated_at DESC LIMIT 5;"
-   ```  
-   - 最新レコードが期待通りの `order_code` / `location_code` で更新されているかを見る。
+   - `SCAN_REPOSITORY_BACKEND` が `memory` の場合は `scan_ingest_backlog` ではなくアプリの内部バッファで確認する。  
+   - `db` を利用する場合は以下のように PostgreSQL テーブル（例: `scan_ingest_backlog`）を参照し、JSON ペイロードが登録されていることを確認する。  
+     ```bash
+     PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
+       -c "SELECT payload->>'order_code', payload->>'location_code', received_at FROM scan_ingest_backlog ORDER BY received_at DESC LIMIT 5;"
+     ```
 5. **Window A UI 確認**  
    - 所在一覧で該当オーダーを検索し、リアルタイム更新または REST フォールバック（20 秒以内）で反映されるか目視する。  
    - 必要に応じ `journalctl -u toolmgmt.service -n 50` を確認。
