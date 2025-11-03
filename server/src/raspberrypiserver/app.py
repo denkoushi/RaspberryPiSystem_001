@@ -121,7 +121,12 @@ def initialize_services(app: Flask) -> None:
         )
 
     if backend == "db":
-        backlog_service = BacklogDrainService(database_cfg.get("dsn", ""))
+        backlog_service = BacklogDrainService(
+            dsn=database_cfg.get("dsn", ""),
+            limit=int(app.config.get("BACKLOG_DRAIN_LIMIT", 200)),
+            backlog_table=app.config.get("BACKLOG_TABLE", "scan_ingest_backlog"),
+            target_table=app.config.get("TARGET_TABLE", "part_locations"),
+        )
         app.config["BACKLOG_DRAIN_SERVICE"] = backlog_service
     else:
         app.config["BACKLOG_DRAIN_SERVICE"] = None

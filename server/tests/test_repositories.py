@@ -110,7 +110,13 @@ def test_backlog_drain_service(monkeypatch):
         def commit(self):
             executed.append(("commit", None))
 
-    service = BacklogDrainService("postgresql://user:pass@db/sensordb", limit=5, connect=lambda dsn: FakeConn())
+    service = BacklogDrainService(
+        "postgresql://user:pass@db/sensordb",
+        limit=5,
+        backlog_table="scan_ingest_backlog",
+        target_table="part_locations",
+        connect=lambda dsn: FakeConn(),
+    )
 
     assert service.drain_once() == 2
     assert executed[0][0].startswith("SELECT drain_scan_backlog")

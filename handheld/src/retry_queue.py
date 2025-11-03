@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -20,6 +21,12 @@ def save_queue(queue: List[Dict], path: Path = QUEUE_FILE) -> None:
 
 def enqueue(payload: Dict, path: Path = QUEUE_FILE) -> None:
     queue = load_queue(path)
+    payload.setdefault("metadata", {})
+    payload["metadata"].update({
+        "queued_at": datetime.utcnow().isoformat(),
+        "retries": 0,
+        "status": "queued",
+    })
     queue.append(payload)
     save_queue(queue, path)
 

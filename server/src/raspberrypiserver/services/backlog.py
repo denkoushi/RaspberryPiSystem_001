@@ -13,9 +13,18 @@ logger = logging.getLogger(__name__)
 class BacklogDrainService:
     """Service to drain scan backlog into canonical tables."""
 
-    def __init__(self, dsn: str, limit: int = 100, connect=psycopg.connect) -> None:
+    def __init__(
+        self,
+        dsn: str,
+        limit: int = 100,
+        backlog_table: str = "scan_ingest_backlog",
+        target_table: str = "part_locations",
+        connect=psycopg.connect,
+    ) -> None:
         self.dsn = dsn
         self.limit = limit
+        self.backlog_table = backlog_table
+        self.target_table = target_table
         self._connect = connect
 
     def is_configured(self) -> bool:
