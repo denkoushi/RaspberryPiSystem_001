@@ -6,6 +6,7 @@
 - `/api/v1/scans` を含む既存エンドポイントをモジュール化して移設（現在はエコー用プレースホルダー）。
 - `SCAN_REPOSITORY_BACKEND = "db"` を有効活用できるよう、PostgreSQL upsert 実装と接続プールを実装（`config/schema.sql` で基礎テーブルを管理）。
 - `scan_ingest_backlog` → 本番テーブル（例: `part_locations`）への移送バッチ／ストリーム処理を設計し、旧 Window A 連携と整合させる。
+- バックログ処理状況を監視するためのメトリクス（件数、滞留時間）とアラート条件を定義する。
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
 - クライアント（Window A / DocumentViewer）向けに `scan.ingested` イベントの取り扱い仕様を決め、受信テストを追加。
 - USB 運用スクリプト（INGEST/DIST/BACKUP）の新構成への対応。
