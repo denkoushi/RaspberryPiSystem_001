@@ -21,12 +21,10 @@ def save_queue(queue: List[Dict], path: Path = QUEUE_FILE) -> None:
 
 def enqueue(payload: Dict, path: Path = QUEUE_FILE) -> None:
     queue = load_queue(path)
-    payload.setdefault("metadata", {})
-    payload["metadata"].update({
-        "queued_at": datetime.utcnow().isoformat(),
-        "retries": 0,
-        "status": "queued",
-    })
+    metadata = payload.setdefault("metadata", {})
+    metadata.setdefault("queued_at", datetime.utcnow().isoformat())
+    metadata.setdefault("retries", 0)
+    metadata.setdefault("status", "queued")
     queue.append(payload)
     save_queue(queue, path)
 
