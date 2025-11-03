@@ -14,9 +14,17 @@ def test_retry_loop(tmp_path: Path):
     def send_func(item):
         return item["payload"] == 1
 
-    retry_failed_sends(send_func, batch_size=2, path=queue_file)
+    mirrorctl_calls = []
+
+    retry_failed_sends(
+        send_func,
+        batch_size=2,
+        path=queue_file,
+        mirrorctl_hook=lambda ok, ng: mirrorctl_calls.append((ok, ng)),
+    )
 
     queue = load_queue(queue_file)
     assert len(queue) == 1
     assert queue[0]["payload"] == 2
     assert queue[0]["metadata"]["retries"] == 1
+    assert mirrorctl_calls == [(1, 1)]
