@@ -43,3 +43,13 @@ python scripts/drain_backlog.py --dsn "postgresql://app:app@localhost:15432/sens
 python scripts/seed_backlog.py --dsn "postgresql://app:app@localhost:15432/sensordb" \
   --order TEST-123 --location RACK-A1
 ```
+
+## ローカル PostgreSQL の起動（docker-compose）
+
+```bash
+cd ~/RaspberryPiSystem_001/server
+docker compose up -d
+./scripts/init_db.sh "postgresql://app:app@localhost:15432/sensordb"
+```
+
+> `psql` コマンドが必要です。macOS では `brew install postgresql` などで導入してください。
