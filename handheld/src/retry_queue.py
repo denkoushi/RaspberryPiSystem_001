@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
+
+from .types import RetryItem, ScanPayload
 
 QUEUE_FILE = Path("/var/lib/handheld/scan_queue.json")
 
@@ -19,13 +22,20 @@ def save_queue(queue: List[Dict], path: Path = QUEUE_FILE) -> None:
     path.write_text(json.dumps(queue))
 
 
-def enqueue(payload: Dict, path: Path = QUEUE_FILE) -> None:
+def enqueue(payload: Union[Dict, RetryItem, ScanPayload], path: Path = QUEUE_FILE) -> None:
     queue = load_queue(path)
-    metadata = payload.setdefault("metadata", {})
+    if isinstance(payload, ScanPayload):
+        item = {"payload": asdict(payload)}
+    elif isinstance(payload, RetryItem):
+        item = {"payload": asdict(payload.payload), "metadata": payload.metadata}
+    else:
+        item = payload
+
+    metadata = item.setdefault("metadata", {})
     metadata.setdefault("queued_at", datetime.utcnow().isoformat())
     metadata.setdefault("retries", 0)
     metadata.setdefault("status", "queued")
-    queue.append(payload)
+    queue.append(item)
     save_queue(queue, path)
 
 

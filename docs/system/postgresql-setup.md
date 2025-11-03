@@ -9,3 +9,4 @@
 - drain / seed スクリプトをローカルで動かす場合は `brew install postgresql` 等でインストールが必要。
 - 2025-11-03: `psql --version` は引き続き未導入。DB 検証は PostgreSQL のある環境で実施する。
 - `server/docker-compose.yml` を用意した。`docker compose up -d` でローカルに PostgreSQL を立ち上げ、`scripts/init_db.sh` で `schema.sql` を適用する。
+- Docker Desktop などで Docker デーモンを起動しておく必要がある。未起動の場合は `Cannot connect to the Docker daemon` エラーになる。

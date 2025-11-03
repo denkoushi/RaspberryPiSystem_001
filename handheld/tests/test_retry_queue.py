@@ -1,12 +1,7 @@
 from pathlib import Path
 
-from handheld.src.retry_queue import (
-    enqueue,
-    load_queue,
-    dequeue,
-    save_queue,
-    update_retry_status,
-)
+from handheld.src.retry_queue import enqueue, load_queue, dequeue, save_queue, update_retry_status
+from handheld.src.types import RetryItem, ScanPayload
 
 
 def test_enqueue_metadata(tmp_path: Path):
@@ -40,3 +35,11 @@ def test_update_retry_status():
 
     update_retry_status(payload, success=True)
     assert payload["metadata"]["status"] == "sent"
+
+
+def test_enqueue_dataclass(tmp_path: Path):
+    queue_file = tmp_path / "queue.json"
+    item = RetryItem(payload=ScanPayload(order_code="DC-1", location_code="R1"))
+    enqueue(item, path=queue_file)
+    queue = load_queue(path=queue_file)
+    assert queue[0]["payload"]["order_code"] == "DC-1"
