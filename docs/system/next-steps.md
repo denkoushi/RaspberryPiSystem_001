@@ -7,7 +7,7 @@
 - `SCAN_REPOSITORY_BACKEND = "db"` を有効活用できるよう、PostgreSQL upsert 実装と接続プールを実装（`config/schema.sql` で基礎テーブルを管理）。
 - `scan_ingest_backlog` → 本番テーブル（例: `part_locations`）への移送バッチ／ストリーム処理を設計し、旧 Window A 連携と整合させる。
 - バックログ処理状況を監視するためのメトリクス（件数、滞留時間）とアラート条件を定義し、`docs/system/migrations.md` に検証結果を記録する。
-- `drain_scan_backlog`（schema.sql）をジョブ化し、処理失敗時のリトライ・アラートを決める（`scripts/drain_backlog.py` や `BacklogDrainService` を systemd timer/管理 API から呼び出す）。
+- `drain_scan_backlog`（schema.sql）をジョブ化し、処理失敗時のリトライ・アラートを決める（`scripts/drain_backlog.py` や `BacklogDrainService` を systemd timer/管理 API から呼び出す）。`docs/system/postgresql-setup.md` に psql 導入メモを集約。
 - 実テーブル構成（例: `part_locations` のカラム整合）を確認し、マイグレーション手順とテストデータ適用方法を `docs/system/migrations.md` にまとめる。
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
 - クライアント（Window A / DocumentViewer）向けに `scan.ingested` イベントの取り扱い仕様を決め、受信テストを追加。
