@@ -78,6 +78,19 @@ python -m raspberrypiserver.app  # または raspberrypiserver
 export RPI_SERVER_CONFIG=~/RaspberryPiSystem_001/server/config/local.toml
 ```
 
+#### リポジトリバックエンドの切り替え
+`config/*.toml` の `SCAN_REPOSITORY_BACKEND` を `memory`（既定）または `db` に設定できます。
+
+- `memory`: `InMemoryScanRepository` が指定容量だけペイロードを保持（開発・テスト向け）
+- `db`: PostgreSQL 用のプレースホルダー `DatabaseScanRepository` を初期化。現状は実際の upsert を実装していないため、後続タスクで差し替える想定です。
+
+```toml
+SCAN_REPOSITORY_BACKEND = "db"
+SCAN_REPOSITORY_BUFFER = 500
+[database]
+dsn = "postgresql://app:app@localhost:15432/sensordb"
+```
+
 ### Pi 側でリポジトリを最新化する例
 ```bash
 cd ~/RaspberryPiSystem_001

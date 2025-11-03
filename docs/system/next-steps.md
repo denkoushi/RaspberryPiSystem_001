@@ -4,7 +4,7 @@
 
 ## server（Pi5）
 - `/api/v1/scans` を含む既存エンドポイントをモジュール化して移設（現在はエコー用プレースホルダー）。
-- 取り込み後に PostgreSQL へ upsert する層（ORM/リポジトリ）を実装。
+- `SCAN_REPOSITORY_BACKEND = "db"` を有効活用できるよう、PostgreSQL upsert 実装と接続プールを実装。
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
 - USB 運用スクリプト（INGEST/DIST/BACKUP）の新構成への対応。
 - `mirrorctl` 連携スクリプトの移行と設定テンプレートの整備。

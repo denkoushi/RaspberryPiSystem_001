@@ -3,6 +3,9 @@
 APP_NAME = "RaspberryPiServer"
 REST_API_PREFIX = "/api/v1"
 SOCKETIO_NAMESPACE = "/socket.io"
+SCAN_REPOSITORY_BACKEND = "memory"
+SCAN_REPOSITORY_CAPACITY = 250
+SCAN_REPOSITORY_BUFFER = 500
 
 # Database connection placeholder (to be replaced with actual settings)
 [database]

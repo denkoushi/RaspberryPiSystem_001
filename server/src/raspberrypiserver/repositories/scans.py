@@ -35,3 +35,29 @@ class InMemoryScanRepository:
         if limit <= 0:
             return []
         return list(self._items)[-limit:]
+
+
+class DatabaseScanRepository:
+    """
+    Placeholder repository that represents the future database-backed implementation.
+
+    For現在の段階では実際の DB 書き込みを行わず、内部バッファに保持しつつ
+    「TODO: persist」ログを残す実装とする。
+    """
+
+    def __init__(self, dsn: str, buffer_size: int = 500) -> None:
+        self._dsn = dsn
+        self._buffer: Deque[Dict] = deque(maxlen=buffer_size)
+
+    @property
+    def dsn(self) -> str:
+        return self._dsn
+
+    def save(self, payload: Dict) -> None:
+        # TODO: replace with actual INSERT/UPSERT against PostgreSQL
+        self._buffer.append(payload)
+
+    def recent(self, limit: int = 10) -> Iterable[Dict]:
+        if limit <= 0:
+            return []
+        return list(self._buffer)[-limit:]

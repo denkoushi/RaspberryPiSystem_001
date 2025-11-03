@@ -14,7 +14,9 @@
 - `config/default.toml` に基本設定（API prefix、ログ出力先など）を記述。
 - `tests/test_healthz.py` がヘルスチェックと設定上書きのユニットテストを実装。
 - `tests/test_api_scans.py` がスキャン受信エンドポイントのエコーバックを検証。
+- `tests/test_repositories.py` がメモリ/DB プレースホルダーリポジトリの挙動と切替を検証。
 
 ## 次のステップ
 1. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
-2. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。
+2. `SCAN_REPOSITORY_BACKEND = "db"` を有効化できるよう PostgreSQL 向け実装を用意し、Socket.IO など周辺ロジックを統合する。
+3. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。

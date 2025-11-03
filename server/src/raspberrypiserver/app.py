@@ -13,13 +13,20 @@ from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify
 
-from raspberrypiserver.repositories import InMemoryScanRepository, ScanRepository
+from raspberrypiserver.repositories import (
+    DatabaseScanRepository,
+    InMemoryScanRepository,
+    ScanRepository,
+)
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
     "REST_API_PREFIX": "/api/v1",
     "SOCKETIO_NAMESPACE": "/socket.io",
     "SCAN_REPOSITORY_CAPACITY": 250,
+    "SCAN_REPOSITORY_BACKEND": "memory",
+    "SCAN_REPOSITORY_BUFFER": 500,
+    "database": {"dsn": ""},
 }
 
 
@@ -87,7 +94,16 @@ def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
 def initialize_services(app: Flask) -> None:
     """Initialize service instances and attach to the app context."""
     capacity = int(app.config.get("SCAN_REPOSITORY_CAPACITY", 250))
-    repo: ScanRepository = InMemoryScanRepository(capacity=capacity)
+    backend = str(app.config.get("SCAN_REPOSITORY_BACKEND", "memory")).lower()
+
+    if backend == "db":
+        database_cfg = app.config.get("database") or {}
+        dsn = database_cfg.get("dsn", "")
+        buffer_size = int(app.config.get("SCAN_REPOSITORY_BUFFER", 500))
+        repo = DatabaseScanRepository(dsn=dsn, buffer_size=buffer_size)
+    else:
+        repo = InMemoryScanRepository(capacity=capacity)
+
     app.config["SCAN_REPOSITORY"] = repo
 
 
