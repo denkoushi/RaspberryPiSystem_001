@@ -8,6 +8,8 @@ from typing import Any, Dict
 
 from flask import Blueprint, current_app, jsonify, request
 
+from raspberrypiserver.repositories import ScanRepository
+
 logger = logging.getLogger(__name__)
 
 scans_bp = Blueprint("scans", __name__, url_prefix="/api/v1")
@@ -20,6 +22,8 @@ def ingest_scan():
 
     # TODO: integrate with actual persistence / Socket.IO broadcast
     logger.info("Received scan payload: %s", payload)
+    repo: ScanRepository = current_app.config["SCAN_REPOSITORY"]
+    repo.save(payload)
 
     response = {
         "status": "accepted",

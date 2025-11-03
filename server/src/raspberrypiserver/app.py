@@ -13,10 +13,13 @@ from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify
 
+from raspberrypiserver.repositories import InMemoryScanRepository, ScanRepository
+
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
     "REST_API_PREFIX": "/api/v1",
     "SOCKETIO_NAMESPACE": "/socket.io",
+    "SCAN_REPOSITORY_CAPACITY": 250,
 }
 
 
@@ -24,6 +27,7 @@ def create_app() -> Flask:
     """Create and configure the Flask application instance."""
     app = Flask(__name__)
     load_configuration(app)
+    initialize_services(app)
     register_blueprints(app)
 
     @app.route("/healthz", methods=["GET"])
@@ -78,6 +82,13 @@ def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
             app.config.update(data)
         except Exception as exc:  # pylint: disable=broad-except
             app.logger.warning("Failed to load config %s: %s", config_file, exc)  # noqa: PLE1205
+
+
+def initialize_services(app: Flask) -> None:
+    """Initialize service instances and attach to the app context."""
+    capacity = int(app.config.get("SCAN_REPOSITORY_CAPACITY", 250))
+    repo: ScanRepository = InMemoryScanRepository(capacity=capacity)
+    app.config["SCAN_REPOSITORY"] = repo
 
 
 def run() -> None:
