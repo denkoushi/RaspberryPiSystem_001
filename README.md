@@ -51,6 +51,7 @@ cd ~/RaspberryPiSystem_001/server
 source .venv/bin/activate
 raspberrypiserver
 ```
+> Flask の開発サーバーは前面で実行されるため、処理が完了するまで次のコマンドが入力できません。動作確認が済んだら `Ctrl+C` で必ず終了してください。
 
 ### ヘルスチェック
 ```bash

@@ -24,6 +24,7 @@ def create_app() -> Flask:
     """Create and configure the Flask application instance."""
     app = Flask(__name__)
     load_configuration(app)
+    register_blueprints(app)
 
     @app.route("/healthz", methods=["GET"])
     def healthz():
@@ -40,6 +41,13 @@ def create_app() -> Flask:
         )
 
     return app
+
+
+def register_blueprints(app: Flask) -> None:
+    """Register Flask blueprints for REST APIs."""
+    from raspberrypiserver.api import scans_bp
+
+    app.register_blueprint(scans_bp)
 
 
 def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
