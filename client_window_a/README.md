@@ -6,3 +6,13 @@ Window A（Pi4）で稼働する UI と周辺機器連携を再構築する領�
 - Socket.IO で `scan.ingested` イベントを受信し、所在一覧の更新と REST フォールバックを維持する。
 - DocumentViewer iframe や工具一覧 UI を段階的に移設し、テスト容易性を確保する。
 - systemd ドロップインや環境ファイルを新構成に合わせて整備する。
+
+## テストの準備
+
+```
+cd client_window_a
+npm install
+npm test
+```
+
+`ts-jest` を利用したユニットテストを追加中。テスト結果は `tests/` ディレクトリに記録する。
