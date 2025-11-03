@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from handheld.src.retry_queue import enqueue, load_queue, dequeue, save_queue
+from handheld.src.retry_queue import (
+    enqueue,
+    load_queue,
+    dequeue,
+    save_queue,
+    update_retry_status,
+)
 
 
 def test_enqueue_metadata(tmp_path: Path):
@@ -23,3 +29,14 @@ def test_dequeue(tmp_path: Path):
     assert batch == [{"payload": 1}]
     remaining = load_queue(path=queue_file)
     assert remaining == [{"payload": 2}]
+
+
+def test_update_retry_status():
+    payload = {"metadata": {"retries": 1}}
+    update_retry_status(payload, success=False)
+    assert payload["metadata"]["status"] == "queued"
+    assert payload["metadata"]["retries"] == 2
+    assert "last_retry_at" in payload["metadata"]
+
+    update_retry_status(payload, success=True)
+    assert payload["metadata"]["status"] == "sent"

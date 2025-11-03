@@ -36,3 +36,11 @@ def dequeue(limit: int = 10, path: Path = QUEUE_FILE) -> List[Dict]:
     batch = queue[:limit]
     save_queue(queue[limit:], path)
     return batch
+
+
+def update_retry_status(payload: Dict, success: bool) -> None:
+    metadata = payload.setdefault("metadata", {})
+    metadata["status"] = "sent" if success else "queued"
+    if not success:
+        metadata["retries"] = metadata.get("retries", 0) + 1
+        metadata["last_retry_at"] = datetime.utcnow().isoformat()

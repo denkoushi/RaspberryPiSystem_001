@@ -13,3 +13,15 @@
 ## 3. テスト
 - 手動テスト: `docs/test-handbook.md` の DB 確認手順を参照。
 - 自動テスト: BacklogDrainService のモックテストを維持しつつ、将来的に Integration テストを追加検討。
+
+### 手動検証の例
+```bash
+# 1) 一時テーブルへサンプルデータ挿入
+psql "$DSN" -c "INSERT INTO scan_ingest_backlog (payload) VALUES ('{"order_code":"TEST-001","location_code":"RACK-A1"}')"
+
+# 2) drain を実行
+python server/scripts/drain_backlog.py --dsn "$DSN" --limit 10
+
+# 3) part_locations を確認
+psql "$DSN" -c "SELECT order_code, location_code FROM part_locations WHERE order_code='TEST-001'"
+```
