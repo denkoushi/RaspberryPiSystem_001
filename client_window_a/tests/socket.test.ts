@@ -1,17 +1,20 @@
 import { ScanSocket } from "../src";
 
+const events: Record<string, any> = {};
+const mockOn = jest.fn((event: string, handler: any) => {
+  events[event] = handler;
+});
+const mockDisconnect = jest.fn();
+
+jest.mock("socket.io-client", () => ({
+  io: jest.fn(() => ({
+    on: mockOn,
+    disconnect: mockDisconnect,
+  })),
+}));
+
 describe("ScanSocket", () => {
   it("should register handler on connect", () => {
-    const events: Record<string, any> = {};
-    jest.mock("socket.io-client", () => ({
-      io: jest.fn(() => ({
-        on: (event: string, handler: any) => {
-          events[event] = handler;
-        },
-        disconnect: jest.fn(),
-      })),
-    }));
-
     const socket = new ScanSocket({ baseUrl: "http://localhost:8501" });
     const handler = jest.fn();
     socket.connect(handler);

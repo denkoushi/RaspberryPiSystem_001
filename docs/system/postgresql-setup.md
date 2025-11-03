@@ -7,3 +7,4 @@
 ## 備考（2025-11-03）
 - `psql --version` を再度実行したところ、`command not found` のまま。macOS 側に psql が入っていない状態。
 - drain / seed スクリプトをローカルで動かす場合は `brew install postgresql` 等でインストールが必要。
+- 2025-11-03: `psql --version` は引き続き未導入。DB 検証は PostgreSQL のある環境で実施する。
