@@ -82,7 +82,7 @@ def test_database_repository_selection(tmp_path: Path, monkeypatch):
 
 
 def test_backlog_drain_service(monkeypatch):
-    drained = []
+    executed = []
 
     class FakeCursor:
         def __enter__(self):
@@ -92,10 +92,10 @@ def test_backlog_drain_service(monkeypatch):
             return False
 
         def execute(self, query, params):
-            drained.append(params[0])
+            executed.append((str(query), params[0]))
 
         def fetchone(self):
-            return (1,)
+            return (2,)
 
     class FakeConn:
         def __enter__(self):
@@ -108,9 +108,10 @@ def test_backlog_drain_service(monkeypatch):
             return FakeCursor()
 
         def commit(self):
-            pass
+            executed.append(("commit", None))
 
-    service = BacklogDrainService("postgresql://user:pass@db/sensordb", limit=3, connect=lambda dsn: FakeConn())
+    service = BacklogDrainService("postgresql://user:pass@db/sensordb", limit=5, connect=lambda dsn: FakeConn())
 
-    assert service.drain_once() == 1
-    assert drained == [3]
+    assert service.drain_once() == 2
+    assert executed[0][0].startswith("SELECT drain_scan_backlog")
+    assert executed[-1][0] == "commit"
