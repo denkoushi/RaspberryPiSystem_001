@@ -92,6 +92,12 @@ dsn = "postgresql://app:app@localhost:15432/sensordb"
 ```
 `db` バックエンドを利用する際は、サーバー側で `scan_ingest_backlog` など受け皿テーブルを作成しておきます（現状は挿入のみ行い、今後 upsert ロジックへ差し替える予定です）。
 
+```bash
+cd ~/RaspberryPiSystem_001/server
+source .venv/bin/activate
+psql "postgresql://app:app@localhost:15432/sensordb" -f config/schema.sql
+```
+
 ### Pi 側でリポジトリを最新化する例
 ```bash
 cd ~/RaspberryPiSystem_001
