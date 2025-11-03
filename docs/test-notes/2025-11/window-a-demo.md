@@ -1,5 +1,4 @@
 # Window A デモテストメモ (2025-11-03)
 
 - `LocationState` / `DemoApp` で REST + Socket の挙動を確認。
-- 実機テストは未開始。実施時はテンプレート (`templates/window-a-manual.md`) を利用予定。
-- 2025-11-05: `/api/v1/part-locations` が未実装のため、デモアプリの実機テストは保留。
+- 2025-11-05: `/api/v1/part-locations` が実装されたので `scripts/check_part_locations.py` で API 応答を確認予定。
