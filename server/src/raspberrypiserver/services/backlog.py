@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 class BacklogDrainService:
     """Service to drain scan backlog into canonical tables."""
 
-    def __init__(self, dsn: str, limit: int = 100) -> None:
+    def __init__(self, dsn: str, limit: int = 100, connect=psycopg.connect) -> None:
         self.dsn = dsn
         self.limit = limit
+        self._connect = connect
 
     def is_configured(self) -> bool:
         return bool(self.dsn)
@@ -27,7 +28,7 @@ class BacklogDrainService:
 
         rows = 0
         try:
-            with psycopg.connect(self.dsn) as conn, conn.cursor() as cur:
+            with self._connect(self.dsn) as conn, conn.cursor() as cur:
                 cur.execute("SELECT drain_scan_backlog(%s)", (limit or self.limit,))
                 rows = cur.fetchone()[0]
                 conn.commit()
