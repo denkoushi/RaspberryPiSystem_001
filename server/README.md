@@ -33,3 +33,5 @@ python scripts/drain_backlog.py --dsn "postgresql://app:app@localhost:15432/sens
 ```
 
 > 注意: 上記コマンドはローカルで PostgreSQL が起動していない場合エラーになります。実際に実行するときは DB が利用可能な環境で行ってください。
+
+アプリケーション内でも `BACKLOG_DRAIN_SERVICE` を通じて同様の処理を呼び出せるため、今後 systemd timer や管理 API から利用できる設計を想定しています。

@@ -18,7 +18,11 @@ from raspberrypiserver.repositories import (
     InMemoryScanRepository,
     ScanRepository,
 )
-from raspberrypiserver.services import BroadcastService, SocketIOBroadcastService
+from raspberrypiserver.services import (
+    BroadcastService,
+    SocketIOBroadcastService,
+    BacklogDrainService,
+)
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
@@ -115,6 +119,12 @@ def initialize_services(app: Flask) -> None:
             namespace=namespace,
             default_event=event_name,
         )
+
+    if backend == "db":
+        backlog_service = BacklogDrainService(database_cfg.get("dsn", ""))
+        app.config["BACKLOG_DRAIN_SERVICE"] = backlog_service
+    else:
+        app.config["BACKLOG_DRAIN_SERVICE"] = None
 
 
 def run() -> None:

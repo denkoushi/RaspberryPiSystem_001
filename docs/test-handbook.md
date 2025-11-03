@@ -72,6 +72,7 @@
    - `/var/log/document-viewer/client.log` に `Document lookup success` が残ることを確認。
 7. **証跡保存**  
    - ログ断片や UI スクリーンショットをまとめ、`docs/test-notes/<YYYY-MM-DD>-handheld-flow.md` に貼り付ける。
+   - `drain_scan_backlog` を実行した場合は処理件数と対象時間帯をログに残す。
 
 ### 期待結果
 - 各ステップでエラーなしに進む。UI が最新状態を表示する。
