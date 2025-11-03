@@ -12,7 +12,7 @@
 - 実テーブル構成（例: `part_locations` のカラム整合）を確認し、マイグレーション手順とテストデータ適用方法を `docs/system/migrations.md` にまとめる。
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
 - クライアント（Window A / DocumentViewer）向けに `scan.ingested` イベントの取り扱い仕様を決め、受信テストを追加。
-- `client_window_a/src/state.ts` を用いたデモは API `/api/v1/part-locations` 未実装のため保留。サーバー側のエンドポイント実装後に再実施する。
+- `/api/v1/part-locations` エンドポイントを実装済み。Window A デモの実機テストを実施予定。
 - USB 運用スクリプト（INGEST/DIST/BACKUP）の新構成への対応。
 - `mirrorctl` 連携スクリプトの移行と設定テンプレートの整備。
 

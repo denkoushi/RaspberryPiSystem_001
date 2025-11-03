@@ -23,6 +23,7 @@
 ### 前提条件
 - Pi Zero の `onsitelogistics` サービスが起動し、`mirror_mode=true` で設定済み。
 - Pi5 の REST API が `/api/v1/scans` を受け付ける状態で稼働している。
+- `/api/v1/part-locations` が動作し、Window A の REST フォールバックで利用できる。
 - Window A クライアントおよび DocumentViewer が Pi5 の Socket.IO / REST を参照する設定になっている。
 - 共通 Bearer トークンが Pi Zero / Pi5 / Window A / DocumentViewer で一致している。
 - テスト用移動票（例: `ORDER-CODE=TEST-001`, `LOCATION=RACK-A1`）が準備され、DocumentViewer で該当 PDF を表示できる。

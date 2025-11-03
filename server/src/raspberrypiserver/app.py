@@ -14,8 +14,11 @@ from typing import Any, Dict, Optional
 from flask import Flask, jsonify
 
 from raspberrypiserver.repositories import (
+    DatabasePartLocationRepository,
     DatabaseScanRepository,
+    InMemoryPartLocationRepository,
     InMemoryScanRepository,
+    PartLocationRepository,
     ScanRepository,
 )
 from raspberrypiserver.services import (
@@ -62,9 +65,10 @@ def create_app() -> Flask:
 
 def register_blueprints(app: Flask) -> None:
     """Register Flask blueprints for REST APIs."""
-    from raspberrypiserver.api import scans_bp
+    from raspberrypiserver.api import scans_bp, part_locations_bp
 
     app.register_blueprint(scans_bp)
+    app.register_blueprint(part_locations_bp)
 
 
 def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
@@ -128,8 +132,12 @@ def initialize_services(app: Flask) -> None:
             target_table=app.config.get("TARGET_TABLE", "part_locations"),
         )
         app.config["BACKLOG_DRAIN_SERVICE"] = backlog_service
+        part_repo: PartLocationRepository = DatabasePartLocationRepository(database_cfg.get("dsn", ""))
     else:
         app.config["BACKLOG_DRAIN_SERVICE"] = None
+        part_repo = InMemoryPartLocationRepository(repo)
+
+    app.config["PART_LOCATION_REPOSITORY"] = part_repo
 
 
 def run() -> None:

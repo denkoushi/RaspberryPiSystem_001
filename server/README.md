@@ -11,6 +11,7 @@
 ## 現状の内容
 - `app.py` が Flask アプリの雛形と設定読込処理を提供する。
 - `api/` 配下に `/api/v1/scans` のプレースホルダー Blueprint を用意（POST 受信の疎通確認用）。
+- `api/` 配下に `/api/v1/part-locations` を追加し、最新所在情報を返せるようにした。
 - `config/default.toml` に基本設定（API prefix、ログ出力先など）を記述。
 - `config/schema.sql` に `scan_ingest_backlog` / `part_locations` テーブルと `drain_scan_backlog` 関数の雛形を含め、バックログ→本番テーブル移行の入口を用意。
 - `tests/test_healthz.py` がヘルスチェックと設定上書きのユニットテストを実装。
