@@ -6,6 +6,7 @@
 - 現在の再構築では Flask ベースの雛形と `/api/v1/scans` の Blueprint プレースホルダーを作成済みで、段階的に既存ロジックを移設する。
 - リポジトリ層は `SCAN_REPOSITORY_BACKEND` で切替可能とし、現状は `memory` が既定、`db` を指定すると PostgreSQL 用プレースホルダーが初期化される。
 - `server/config/schema.sql` に受け皿テーブル `scan_ingest_backlog` などの定義を保持し、将来的なリプレースでマイグレーションを整理する。
+- Socket.IO ブロードキャストは `SocketIOBroadcastService` がプレースホルダーとなっており、`scan.ingested`（設定で変更可）イベントを発火できるよう準備している。
 - Pi Zero 2 W からのスキャンを唯一の受信点とし、Pi4 へは Socket.IO などで状態をブロードキャストする。
 
 ## Window A (Pi4)

@@ -6,6 +6,7 @@
 - `/api/v1/scans` を含む既存エンドポイントをモジュール化して移設（現在はエコー用プレースホルダー）。
 - `SCAN_REPOSITORY_BACKEND = "db"` を有効活用できるよう、PostgreSQL upsert 実装と接続プールを実装（`config/schema.sql` で基礎テーブルを管理）。
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
+- クライアント（Window A / DocumentViewer）向けに `scan.ingested` イベントの取り扱い仕様を決め、受信テストを追加。
 - USB 運用スクリプト（INGEST/DIST/BACKUP）の新構成への対応。
 - `mirrorctl` 連携スクリプトの移行と設定テンプレートの整備。
 

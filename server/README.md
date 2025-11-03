@@ -15,6 +15,7 @@
 - `tests/test_healthz.py` がヘルスチェックと設定上書きのユニットテストを実装。
 - `tests/test_api_scans.py` がスキャン受信エンドポイントのエコーバックを検証。
 - `tests/test_repositories.py` がメモリ/DB プレースホルダーリポジトリの挙動と切替を検証。
+- `services/` に Socket.IO ブロードキャストのプレースホルダーを追加し、スキャン受信時に `scan.ingested` イベントを発火（設定で変更可）。
 
 ## 次のステップ
 1. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。

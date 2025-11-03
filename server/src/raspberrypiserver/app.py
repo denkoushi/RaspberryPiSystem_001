@@ -18,6 +18,7 @@ from raspberrypiserver.repositories import (
     InMemoryScanRepository,
     ScanRepository,
 )
+from raspberrypiserver.services import BroadcastService, SocketIOBroadcastService
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
@@ -26,6 +27,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "SCAN_REPOSITORY_CAPACITY": 250,
     "SCAN_REPOSITORY_BACKEND": "memory",
     "SCAN_REPOSITORY_BUFFER": 500,
+    "SOCKET_BROADCAST_EVENT": "scan.ingested",
     "database": {"dsn": ""},
 }
 
@@ -105,6 +107,14 @@ def initialize_services(app: Flask) -> None:
         repo = InMemoryScanRepository(capacity=capacity)
 
     app.config["SCAN_REPOSITORY"] = repo
+
+    if not app.config.get("BROADCAST_SERVICE"):
+        namespace = app.config.get("SOCKETIO_NAMESPACE", "/socket.io")
+        event_name = app.config.get("SOCKET_BROADCAST_EVENT", "scan.ingested")
+        app.config["BROADCAST_SERVICE"] = SocketIOBroadcastService(
+            namespace=namespace,
+            default_event=event_name,
+        )
 
 
 def run() -> None:

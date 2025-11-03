@@ -9,6 +9,7 @@ from typing import Any, Dict
 from flask import Blueprint, current_app, jsonify, request
 
 from raspberrypiserver.repositories import ScanRepository
+from raspberrypiserver.services import BroadcastService
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,10 @@ def ingest_scan():
     logger.info("Received scan payload: %s", payload)
     repo: ScanRepository = current_app.config["SCAN_REPOSITORY"]
     repo.save(payload)
+
+    broadcaster: BroadcastService | None = current_app.config.get("BROADCAST_SERVICE")
+    if broadcaster:
+        broadcaster.emit("scan.ingested", payload)
 
     response = {
         "status": "accepted",

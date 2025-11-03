@@ -60,7 +60,9 @@
 5. **Window A UI 確認**  
    - 所在一覧で該当オーダーを検索し、リアルタイム更新または REST フォールバック（20 秒以内）で反映されるか目視する。  
    - 必要に応じ `journalctl -u toolmgmt.service -n 50` を確認。
-6. **DocumentViewer 表示確認**  
+6. **Socket.IO ブロードキャスト確認（任意）**  
+   - Window A または別のクライアントで `scan.ingested`（既定）イベントを受信できるか確認。  
+   - クライアントが別イベント名を期待する場合は `SOCKET_BROADCAST_EVENT` を合わせる。  
    - DocumentViewer で該当オーダーが自動表示される／検索で即時表示されるか確認。  
    - `/var/log/document-viewer/client.log` に `Document lookup success` が残ることを確認。
 7. **証跡保存**  
