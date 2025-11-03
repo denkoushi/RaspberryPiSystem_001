@@ -26,6 +26,10 @@ python server/scripts/drain_backlog.py --dsn "$DSN" --limit 10
 psql "$DSN" -c "SELECT order_code, location_code FROM part_locations WHERE order_code='TEST-001'"
 ```
 
+### Jenkins（CI）での簡易検証案
+- docker-compose を利用して PostgreSQL を起動。
+- pytest 前に `schema.sql` を適用し、ドレイン用の統合テストを追加する。
+
 ## 4. 実 DB での検証スケジュール（案）
 1. テスト環境で `schema.sql` を適用し、アプリから `SCAN_REPOSITORY_BACKEND=db` 設定でスキャンを送信。
 2. 日次で drain を実行し、`part_locations` 更新・Socket.IO イベントまでを確認。
