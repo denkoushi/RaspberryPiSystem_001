@@ -106,6 +106,7 @@
 - `/api/v1/scans` のサーバー側ロジックがテスト環境で DB 反映・イベント発火まで確認できたタイミング。
 - Window A クライアントの Socket.IO 受信と REST フォールバックが新構成へ切り替わったタイミング。
 - ハンディ送信モジュールが新 API に向けた送信テストをローカルで完了し、ログ上で 200 応答が取得できたタイミング。
+- `docs/test-notes/templates/window-a-manual.md` を用いた手動テストが一巡し、想定どおり動作したタイミング。
 
 上記のいずれかを満たした段階で、Pi Zero → Pi5 → Window A/DocumentViewer の統合テストを実機で実施する。
 

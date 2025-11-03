@@ -2,4 +2,4 @@
 
 - DSN: `postgresql://app:app@localhost:15432/sensordb`
 - 1件だけ `scan_ingest_backlog` に投入し、`scripts/drain_backlog.py --limit 10` を実行。
-- `part_locations` に `TEST-001` が upsert されたことを確認。
+- `part_locations` に `TEST-001` が upsert されたことを確認（ローカルでは psql が未導入のため、本番環境で実施する）。
