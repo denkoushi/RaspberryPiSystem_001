@@ -8,3 +8,4 @@
 ## mirrorctl 連携
 - `mirrorctl status` の OK/NOK で再送状態を確認し、14 日カウントを更新する。
 - 再送上限超過やバックログ滞留が発生した場合は `mirrorctl disable` → 原因調査 → `mirrorctl enable` の手順を明文化。
+- `retry_loop` から成功/失敗件数を出力し、`mirrorctl status` に記録する項目を整理する予定。
