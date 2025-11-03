@@ -12,6 +12,7 @@
 - `app.py` が Flask アプリの雛形と設定読込処理を提供する。
 - `api/` 配下に `/api/v1/scans` のプレースホルダー Blueprint を用意（POST 受信の疎通確認用）。
 - `config/default.toml` に基本設定（API prefix、ログ出力先など）を記述。
+- `config/schema.sql` に `scan_ingest_backlog` / `part_locations` テーブルと `drain_scan_backlog` 関数の雛形を含め、バックログ→本番テーブル移行の入口を用意。
 - `tests/test_healthz.py` がヘルスチェックと設定上書きのユニットテストを実装。
 - `tests/test_api_scans.py` がスキャン受信エンドポイントのエコーバックを検証。
 - `tests/test_repositories.py` がメモリ/DB プレースホルダーリポジトリの挙動と切替を検証。
@@ -21,3 +22,14 @@
 1. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
 2. `SCAN_REPOSITORY_BACKEND = "db"` を有効化できるよう PostgreSQL 向け実装を用意し、Socket.IO など周辺ロジックを統合する。
 3. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。
+
+## バックログのドレイン（手動）
+PostgreSQL が稼働している環境では、以下のスクリプトで `scan_ingest_backlog` から本番テーブルへ移送できます。
+
+```bash
+cd ~/RaspberryPiSystem_001/server
+source .venv/bin/activate
+python scripts/drain_backlog.py --dsn "postgresql://app:app@localhost:15432/sensordb" --limit 200
+```
+
+> 注意: 上記コマンドはローカルで PostgreSQL が起動していない場合エラーになります。実際に実行するときは DB が利用可能な環境で行ってください。

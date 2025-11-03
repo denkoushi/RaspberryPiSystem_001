@@ -57,6 +57,11 @@
      PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
        -c "SELECT payload->>'order_code', payload->>'location_code', received_at FROM scan_ingest_backlog ORDER BY received_at DESC LIMIT 5;"
      ```
+   - バックログ処理後に `part_locations` へ反映される場合は、下記クエリで upsert 結果を確認する。  
+      ```bash
+      PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
+        -c "SELECT order_code, location_code, updated_at FROM part_locations ORDER BY updated_at DESC LIMIT 5;"
+      ```
 5. **Window A UI 確認**  
    - 所在一覧で該当オーダーを検索し、リアルタイム更新または REST フォールバック（20 秒以内）で反映されるか目視する。  
    - 必要に応じ `journalctl -u toolmgmt.service -n 50` を確認。
