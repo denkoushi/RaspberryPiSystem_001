@@ -22,16 +22,17 @@
 
 ### 前提条件
 - Pi Zero の `onsitelogistics` サービスが起動し、`mirror_mode=true` で設定済み。
-- Pi5 の REST API が `/api/v1/scans` を受け付ける状態で稼働している。
+- Pi5 の REST API が `/api/v1/scans` を受け付ける状態で稼働している（`order_code` / `location_code` が必須、空文字は 400）。
 - `/api/v1/part-locations` が動作し、Window A の REST フォールバックで利用できる。
 - Window A クライアントおよび DocumentViewer が Pi5 の Socket.IO / REST を参照する設定になっている。
+- macOS などでローカル動作を確認する際は、クライアント（`scripts/listen_for_scans.ts` 等）の接続先を `http://127.0.0.1:8501` に指定する（`localhost` は IPv6(::1) を指すため接続に失敗する場合がある）。
 - 共通 Bearer トークンが Pi Zero / Pi5 / Window A / DocumentViewer で一致している。
 - テスト用移動票（例: `ORDER-CODE=TEST-001`, `LOCATION=RACK-A1`）が準備され、DocumentViewer で該当 PDF を表示できる。
 - Pi5・Window A・DocumentViewer のログ参照コマンドが実行できる権限を持つ。
 
 ### 事前確認
 - Pi Zero: `sudo mirrorctl status` → `mirror_mode=true`、`Next run` が未来時刻。
-- Pi5: `curl -I http://127.0.0.1:8501/healthz` が `200 OK`。
+  - Pi5: `curl -I http://127.0.0.1:8501/healthz` が `200 OK`。
 - Window A: ステータスバー等で接続状態が「LIVE」であること。
 - DocumentViewer: `/viewer` を開きロードエラーが無いこと、環境変数が Pi5 を指すこと。
 
@@ -53,27 +54,36 @@
    - `journalctl -u raspi-server.service -n 50` でエラーがないか確認。
 4. **データベース反映確認**  
    - `SCAN_REPOSITORY_BACKEND` が `memory` の場合は `scan_ingest_backlog` ではなくアプリの内部バッファで確認する。  
-   - `db` を利用する場合は以下のように PostgreSQL テーブル（例: `scan_ingest_backlog`）を参照し、JSON ペイロードが登録されていることを確認する。  
-     ```bash
-     PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
-       -c "SELECT payload->>'order_code', payload->>'location_code', received_at FROM scan_ingest_backlog ORDER BY received_at DESC LIMIT 5;"
-     ```
-   - バックログ処理後に `part_locations` へ反映される場合は、下記クエリで upsert 結果を確認する。  
-      ```bash
-      PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
-        -c "SELECT order_code, location_code, updated_at FROM part_locations ORDER BY updated_at DESC LIMIT 5;"
-      ```
+- `db` を利用する場合は以下のように PostgreSQL テーブル（例: `scan_ingest_backlog`）を参照し、JSON ペイロードが登録されていることを確認する。  
+  ```bash
+  PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
+    -c "SELECT payload->>'order_code', payload->>'location_code', received_at FROM scan_ingest_backlog ORDER BY received_at DESC LIMIT 5;"
+  ```
+- バックログ処理後に `part_locations` へ反映される場合は、下記クエリで upsert 結果を確認する。  
+   ```bash
+   PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb \
+     -c "SELECT order_code, location_code, updated_at FROM part_locations ORDER BY updated_at DESC LIMIT 5;"
+   ```
+- バックログの滞留件数だけ確認したい場合は `GET /api/v1/admin/backlog-status` を利用できる（`pending` フィールドで件数を返す）。
 5. **Window A UI 確認**  
    - 所在一覧で該当オーダーを検索し、リアルタイム更新または REST フォールバック（20 秒以内）で反映されるか目視する。  
    - 必要に応じ `journalctl -u toolmgmt.service -n 50` を確認。
 6. **Socket.IO ブロードキャスト確認（任意）**  
-   - Window A または別のクライアントで `scan.ingested`（既定）イベントを受信できるか確認。  
+   - Window A または別のクライアントで `scan.ingested`（既定）イベントを受信できるか確認。ローカル検証では IPv4 ループバックを利用し、下記のように接続する。  
+     ```bash
+     cd ~/RaspberryPiSystem_001/client_window_a
+     npx ts-node scripts/listen_for_scans.ts --api http://127.0.0.1:8501
+     ```  
    - クライアントが別イベント名を期待する場合は `SOCKET_BROADCAST_EVENT` を合わせる。  
    - DocumentViewer で該当オーダーが自動表示される／検索で即時表示されるか確認。  
    - `/var/log/document-viewer/client.log` に `Document lookup success` が残ることを確認。
 7. **証跡保存**  
    - ログ断片や UI スクリーンショットをまとめ、`docs/test-notes/<YYYY-MM-DD>-handheld-flow.md` に貼り付ける。
    - `drain_scan_backlog` を実行した場合は処理件数と対象時間帯をログに残す。
+
+### 後片付け（備忘）
+- Window A リスナー: `Ctrl+C` で停止（バックグラウンド起動した場合は `lsof -i :8501` で PID を確認して kill する）。
+- Flask サーバー: フォアグラウンドなら `Ctrl+C`、バックグラウンド時は `lsof -i :8501` で PID を確認し `kill <PID>`。
 
 ### 期待結果
 - 各ステップでエラーなしに進む。UI が最新状態を表示する。

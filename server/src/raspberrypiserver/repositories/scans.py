@@ -81,7 +81,6 @@ class DatabaseScanRepository:
                         """
                         INSERT INTO scan_ingest_backlog (payload, received_at)
                         VALUES (%s, NOW())
-                        ON CONFLICT DO NOTHING
                         """
                     ),
                     (Jsonb(payload),),

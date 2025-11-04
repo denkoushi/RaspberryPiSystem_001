@@ -8,10 +8,12 @@ server code into a more modular structure.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, current_app
+from flask_socketio import SocketIO
 
 from raspberrypiserver.repositories import (
     DatabasePartLocationRepository,
@@ -30,18 +32,23 @@ from raspberrypiserver.services import (
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
     "REST_API_PREFIX": "/api/v1",
-    "SOCKETIO_NAMESPACE": "/socket.io",
+    "SOCKETIO_NAMESPACE": "/",
     "SCAN_REPOSITORY_CAPACITY": 250,
     "SCAN_REPOSITORY_BACKEND": "memory",
     "SCAN_REPOSITORY_BUFFER": 500,
     "SOCKET_BROADCAST_EVENT": "scan.ingested",
+    "AUTO_DRAIN_ON_INGEST": 0,
     "database": {"dsn": ""},
 }
+
+socketio = SocketIO(async_mode="gevent", cors_allowed_origins="*")
 
 
 def create_app() -> Flask:
     """Create and configure the Flask application instance."""
     app = Flask(__name__)
+    app.config['SECRET_KEY'] = app.config.get('SECRET_KEY', 'dev-secret')
+    socketio.init_app(app, cors_allowed_origins="*")
     load_configuration(app)
     initialize_services(app)
     register_blueprints(app)
@@ -65,10 +72,16 @@ def create_app() -> Flask:
 
 def register_blueprints(app: Flask) -> None:
     """Register Flask blueprints for REST APIs."""
-    from raspberrypiserver.api import scans_bp, part_locations_bp
+    from raspberrypiserver.api import scans_bp, part_locations_bp, maintenance_bp
 
     app.register_blueprint(scans_bp)
     app.register_blueprint(part_locations_bp)
+    app.register_blueprint(maintenance_bp)
+
+
+@socketio.on("connect")
+def handle_socket_connect(auth):
+    current_app.logger.info("Socket.IO client connected auth=%s", auth)
 
 
 def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
@@ -83,7 +96,7 @@ def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
     """
     app.config.from_mapping(DEFAULT_CONFIG)
 
-    explicit_path = config_path or app.config.get("RPI_SERVER_CONFIG")
+    explicit_path = config_path or os.environ.get("RPI_SERVER_CONFIG") or app.config.get("RPI_SERVER_CONFIG")
 
     if explicit_path:
         config_file = Path(explicit_path).expanduser()
@@ -105,6 +118,7 @@ def initialize_services(app: Flask) -> None:
     """Initialize service instances and attach to the app context."""
     capacity = int(app.config.get("SCAN_REPOSITORY_CAPACITY", 250))
     backend = str(app.config.get("SCAN_REPOSITORY_BACKEND", "memory")).lower()
+    app.config["SOCKETIO_INSTANCE"] = socketio
 
     if backend == "db":
         database_cfg = app.config.get("database") or {}
@@ -117,9 +131,10 @@ def initialize_services(app: Flask) -> None:
     app.config["SCAN_REPOSITORY"] = repo
 
     if not app.config.get("BROADCAST_SERVICE"):
-        namespace = app.config.get("SOCKETIO_NAMESPACE", "/socket.io")
+        namespace = app.config.get("SOCKETIO_NAMESPACE", "/")
         event_name = app.config.get("SOCKET_BROADCAST_EVENT", "scan.ingested")
         app.config["BROADCAST_SERVICE"] = SocketIOBroadcastService(
+            socketio=app.config.get("SOCKETIO_INSTANCE"),
             namespace=namespace,
             default_event=event_name,
         )
@@ -143,7 +158,7 @@ def initialize_services(app: Flask) -> None:
 def run() -> None:
     """Run the development server (for local testing only)."""
     app = create_app()
-    app.run(host="0.0.0.0", port=8501, debug=True)
+    socketio.run(app, host="0.0.0.0", port=8501, debug=True, use_reloader=False)
 
 
 if __name__ == "__main__":

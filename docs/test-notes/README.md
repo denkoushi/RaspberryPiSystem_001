@@ -13,6 +13,8 @@
 ```bash
 cp docs/test-notes/templates/daily-handheld.md \
   docs/test-notes/$(date +%F)-handheld-flow.md
+cp docs/test-notes/templates/pi-zero-integration.md \
+  docs/test-notes/$(date +%F)-pi-zero-integration.md
 ```
 
 ## 3. 記録する内容
@@ -42,3 +44,4 @@ git push
 
 ## 5. テンプレートの更新
 テンプレートを改訂した場合は、変更理由と適用対象をこの `README.md` に追記し、既存ログへの反映要否を記録する。
+- 例: `pi-zero-integration.md` を更新した場合、Pi Zero 実機テスト記録にどこまで再適用するか検討する。

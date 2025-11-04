@@ -8,6 +8,9 @@ dependencies = [
     "flask>=3.0.0",
     "tomli-w>=1.0.0",
     "psycopg[binary]>=3.2.0",
+    "flask-socketio>=5.5.1",
+    "gevent>=22.10.2",
+    "gevent-websocket>=0.10.1",
 ]
 
 [project.optional-dependencies]

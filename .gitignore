@@ -1,0 +1,14 @@
+# Python 仮想環境／ビルド成果物
+server/.venv/
+server/**/__pycache__/
+server/**/*.py[cod]
+server/.pytest_cache/
+
+# Node.js ビルド成果物
+client_window_a/dist/
+client_window_a/node_modules/
+client_window_a/coverage/
+
+# ルート共通
+.DS_Store
+/tmp/

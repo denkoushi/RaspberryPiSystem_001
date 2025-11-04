@@ -44,3 +44,22 @@ class BacklogDrainService:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Backlog drain failed: %s", exc)
         return rows
+
+    def count_backlog(self) -> int:
+        """Return number of pending backlog records."""
+        if not self.dsn:
+            logger.debug("Backlog count skipped: DSN not configured")
+            return 0
+
+        try:
+            with self._connect(self.dsn) as conn, conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM scan_ingest_backlog
+                    """
+                )
+                (count,) = cur.fetchone()
+                return int(count)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Backlog count failed: %s", exc)
+            return 0

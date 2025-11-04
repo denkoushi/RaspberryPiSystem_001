@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Protocol
 
+from flask import has_app_context, current_app
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,17 +20,48 @@ class BroadcastService(Protocol):
 class SocketIOBroadcastService:
     """Placeholder Socket.IO broadcaster."""
 
-    def __init__(self, socketio=None, namespace: str = "/scans", default_event: str | None = None) -> None:
+    def __init__(self, socketio=None, namespace: str = "/", default_event: str | None = None) -> None:
         self._socketio = socketio
         self._namespace = namespace
         self._default_event = default_event
 
     def emit(self, event: str, payload: Dict[str, Any]) -> None:
         actual_event = event or self._default_event
+        if has_app_context():
+            current_app.logger.warning(
+                "Broadcast emit request: event=%s namespace=%s payload=%s",
+                actual_event,
+                self._namespace,
+                payload,
+            )
+        else:
+            logger.debug(
+                "Broadcast emit request: event=%s namespace=%s payload=%s",
+                actual_event,
+                self._namespace,
+                payload,
+            )
         if self._socketio is None:
             logger.debug("SocketIO not configured; skipping broadcast for %s", actual_event)
             return
         try:
             self._socketio.emit(actual_event, payload, namespace=self._namespace)
+            if has_app_context():
+                current_app.logger.warning(
+                    "Socket.IO emit succeeded: event=%s namespace=%s payload=%s",
+                    actual_event,
+                    self._namespace,
+                    payload,
+                )
+            else:
+                logger.info(
+                    "Socket.IO emit succeeded: event=%s namespace=%s payload=%s",
+                    actual_event,
+                    self._namespace,
+                    payload,
+                )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Socket.IO emit failed: %s", exc)
+            if has_app_context():
+                current_app.logger.warning("Socket.IO emit failed: %s", exc)
+            else:
+                logger.warning("Socket.IO emit failed: %s", exc)

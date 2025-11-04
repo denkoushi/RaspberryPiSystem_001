@@ -13,6 +13,13 @@
 - Socket.IO ブロードキャストのイベント構造を整理し、テストダブルを用意。
 - クライアント（Window A / DocumentViewer）向けに `scan.ingested` イベントの取り扱い仕様を決め、受信テストを追加。
 - `/api/v1/part-locations` エンドポイントを実装済み。Window A デモの実機テストを実施予定。
+- `client_window_a/tests/location-state.test.ts` で REST + Socket 更新の単体テストを整備済み。サーバー側は `tests/test_backlog_service.py` を追加し、DB バックログ処理の動作をモックで検証。
+- `client_window_a/docs/manual-test.md` に REST/Socket の手動テスト手順を整理済み。近日中に実施。
+- `POST /api/v1/admin/drain-backlog` を追加し、バックログドレインをリモート操作できるようにした。`tests/test_api_maintenance.py` で動作確認済み。
+- `/api/v1/scans` で必須フィールドをバリデーションし、DB バックエンド時には `scan_ingest_backlog` へ保存する。`AUTO_DRAIN_ON_INGEST` 設定で自動ドレインを行えるよう拡張済み。
+- Socket.IO ブロードキャストは現状プレースホルダーのため、実イベント配信（Flask-SocketIO など）への置き換えと Window A での受信確認を実装する。
+- Flask-SocketIO を `async_mode="gevent"` で導入し、Window A リスナー（IPv4 で接続）までイベント受信を確認済み。
+- Pi Zero → Pi5 → Window A / DocumentViewer の統合テストに向けて、`docs/system/pi-zero-integration.md` のチェックリストに沿って実機準備（mirrorctl 状態、共通トークン、DocumentViewer の Socket.IO 設定）を進める。
 - USB 運用スクリプト（INGEST/DIST/BACKUP）の新構成への対応。
 - `mirrorctl` 連携スクリプトの移行と設定テンプレートの整備。
 
@@ -35,3 +42,4 @@
 - `docs/test-handbook.md` に USB フローや DocumentViewer シナリオを追加。
 - `docs/test-notes/templates/` に追加テンプレート（USB、Viewer）を整備。
 - 既存リポジトリから引き継ぐ要件を `docs/system/next-steps.md` に順次追記。
+2025-11-05 07:51:12 JST: Reviewed AGENTS.md before continuing.
