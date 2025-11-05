@@ -42,13 +42,21 @@ python client_window_a/scripts/check_part_locations.py
    ```
    - `API_BASE` や `SOCKET_BASE` を変更したい場合は `--api`／`--socket` または環境変数で指定する。
 2. 別ターミナルからテスト用のスキャンを送信する。
-   ```bash
-   curl -X POST http://localhost:8501/api/v1/scans \
-     -H "Content-Type: application/json" \
-     -d '{"order_code":"TEST-900","location_code":"RACK-Z9","device_id":"HANDHELD-99"}'
-   ```
-   - リスナー画面に `scan.ingested` イベントのペイロードが表示されることを確認する。
-   - `order_code` / `location_code` は必須。空文字や欠落時は `HTTP 400` が返る点を確認する。
+   - 新しいヘルパースクリプト（`send_scan.py`）を利用する場合:
+     ```bash
+     cd ~/RaspberryPiSystem_001
+     source server/.venv/bin/activate
+     python client_window_a/scripts/send_scan.py \
+       --order TEST-900 --location RACK-Z9 --device HANDHELD-99
+     ```
+     - `--order` / `--location` を省略するとタイムスタンプ由来の値が自動生成される。
+   - `curl` を直接叩く場合:
+     ```bash
+     curl -X POST http://127.0.0.1:8501/api/v1/scans \
+       -H "Content-Type: application/json" \
+       -d '{"order_code":"TEST-900","location_code":"RACK-Z9","device_id":"HANDHELD-99"}'
+     ```
+   - リスナー画面に `scan.ingested` イベントのペイロードが表示されること、`order_code` / `location_code` 未設定時に `HTTP 400` が返ることを確認する。
 3. 必要に応じてバックログをドレインし、REST 応答が更新されることを再確認する。
    ```bash
    cd ~/RaspberryPiSystem_001/server
