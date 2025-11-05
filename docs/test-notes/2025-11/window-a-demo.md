@@ -48,3 +48,4 @@
   pi-zero-logs/pi-zero.local-20251105-104200/systemctl-status.txt
   pi-zero-logs/pi-zero.local-20251105-104200/system-info.txt
   ```
+- 2025-11-05 10:45 (JST): 事前チェックログを `docs/test-notes/2025-11/pi-zero-precheck.md` にまとめ、実機検証開始前の状態を記録。
