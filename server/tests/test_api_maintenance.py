@@ -1,6 +1,7 @@
 from flask.testing import FlaskClient
 
 from raspberrypiserver.app import create_app
+from raspberrypiserver.services.backlog import BacklogDrainService
 
 
 class FakeDrainService:
@@ -92,4 +93,29 @@ def test_backlog_status_reports_metrics():
         "pending": 42,
         "drain_limit": 75,
         "auto_drain_on_ingest": 15,
+    }
+
+
+def test_backlog_status_handles_service_errors():
+    def failing_connect(_dsn: str):
+        raise RuntimeError("connection refused")
+
+    app = create_app()
+    broken_service = BacklogDrainService(
+        dsn="postgresql://app:app@localhost:15432/sensordb",
+        limit=33,
+        connect=failing_connect,
+    )
+    app.config["BACKLOG_DRAIN_SERVICE"] = broken_service
+    app.config["AUTO_DRAIN_ON_INGEST"] = 5
+
+    client: FlaskClient = app.test_client()
+    resp = client.get("/api/v1/admin/backlog-status")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {
+        "status": "ok",
+        "pending": 0,
+        "drain_limit": 33,
+        "auto_drain_on_ingest": 5,
     }

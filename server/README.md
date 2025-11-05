@@ -18,6 +18,7 @@
 - `tests/test_api_scans.py` がスキャン受信エンドポイントのエコーバックを検証。
 - `tests/test_repositories.py` がメモリ/DB プレースホルダーリポジトリの挙動と切替を検証。
 - `services/` に Socket.IO ブロードキャストのプレースホルダーを追加し、スキャン受信時に `scan.ingested` イベントを発火（設定で変更可）。
+- Flask-SocketIO は `async_mode="gevent"` で動作し、依存として `gevent` / `gevent-websocket` が必要。
 
 ## 次のステップ
 1. 旧 `RaspberryPiServer` リポジトリから API ハンドラや設定ファイルを段階的に移設。
@@ -54,3 +55,59 @@ docker compose up -d
 ```
 
 > `psql` コマンドが必要です。macOS では `brew install postgresql` などで導入してください。
+>
+> トラブルシュートや Homebrew 導入手順の詳細は `docs/system/postgresql-setup.md` を参照。
+
+## ローカル設定ファイル
+- `config/local.toml` を作成し、`SCAN_REPOSITORY_BACKEND = "db"` とローカル DSN（例: `postgresql://app:app@localhost:15432/sensordb`）を設定する。
+- Flask 起動時は環境変数で設定ファイルを指定する。
+  ```bash
+  cd ~/RaspberryPiSystem_001/server
+  source .venv/bin/activate
+  RPI_SERVER_CONFIG=~/RaspberryPiSystem_001/server/config/local.toml python -m raspberrypiserver.app
+  ```
+
+## `/api/v1/scans`（スキャン受信 API）
+- 必須フィールドは `order_code` と `location_code`（どちらも空文字不可）。`device_id` は任意だが指定する場合は空でない文字列にする。
+- 受信したペイロードはサーバー側でトリミング後に保存・ブロードキャストされる。余分なキーは保持されない。
+- バリデーションに失敗した場合は `HTTP 400`／`{"status":"error","reason":"missing-order_code"}` のように返す。
+- `AUTO_DRAIN_ON_INGEST` を設定すると、受信後に `BacklogDrainService.drain_once(limit=設定値)` を自動実行する。
+- 正常時のレスポンス例:
+  ```json
+  {
+    "status": "accepted",
+    "received": {
+      "order_code": "TEST-001",
+      "location_code": "RACK-A1",
+      "device_id": "HANDHELD-01"
+    },
+    "app": "RaspberryPiServer"
+  }
+  ```
+
+## 管理 API（バックログドレイン）
+- `POST /api/v1/admin/drain-backlog` で `BacklogDrainService` を 1 回だけ起動できる（`SCAN_REPOSITORY_BACKEND="db"` かつ DSN 設定済みの場合のみ有効）。
+- リクエスト例:
+  ```bash
+  curl -X POST http://localhost:8501/api/v1/admin/drain-backlog \
+    -H "Content-Type: application/json" \
+    -d '{"limit": 50}'
+  ```
+- 応答例:
+  ```json
+  {"status": "ok", "drained": 5, "limit": 50}
+  ```
+- `GET /api/v1/admin/backlog-status` で滞留件数とドレイン設定を確認できる。
+  ```bash
+  curl http://localhost:8501/api/v1/admin/backlog-status
+  ```
+  ```json
+  {
+    "status": "ok",
+    "pending": 12,
+    "drain_limit": 200,
+    "auto_drain_on_ingest": 50
+  }
+  ```
+
+> Pi Zero 連携や DocumentViewer 連携の手順・チェックリストは `docs/system/pi-zero-integration.md` と `docs/system/documentviewer-integration.md` に整理している。
