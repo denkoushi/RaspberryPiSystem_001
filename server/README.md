@@ -58,6 +58,19 @@ docker compose up -d
 >
 > トラブルシュートや Homebrew 導入手順の詳細は `docs/system/postgresql-setup.md` を参照。
 
+## 仮想環境の初期化
+- `scripts/bootstrap_venv.sh` で `server/.venv` を作成し、`pip install -e ".[dev]"` まで自動化できる。
+- 既存の仮想環境が壊れている場合も再作成してくれる。
+  ```bash
+  cd ~/RaspberryPiSystem_001/server
+  ./scripts/bootstrap_venv.sh
+  source .venv/bin/activate
+  ```
+- 以降、テスト実行などは以下のように実行する。
+  ```bash
+  pytest
+  ```
+
 ## ローカル設定ファイル
 - `config/local.toml` を作成し、`SCAN_REPOSITORY_BACKEND = "db"` とローカル DSN（例: `postgresql://app:app@localhost:15432/sensordb`）を設定する。
 - Flask 起動時は環境変数で設定ファイルを指定する。
