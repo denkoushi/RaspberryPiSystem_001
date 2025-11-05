@@ -96,6 +96,84 @@ def test_backlog_status_reports_metrics():
     }
 
 
+def test_admin_drain_backlog_uses_real_service():
+    rows = [
+        (1, "ORD-1", "LOC-1", "DEV-1"),
+        (2, None, "LOC-MISSING", None),
+    ]
+
+    class FakeCursor:
+        def __init__(self, conn):
+            self.conn = conn
+            self.select_done = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def execute(self, query, params=None):
+            self.conn.queries.append((str(query), params))
+            if "DELETE" in str(query):
+                self.conn.deleted_ids = params[0]
+            if "INSERT INTO" in str(query):
+                self.conn.insert_params.append(params)
+
+        def fetchall(self):
+            if not self.select_done:
+                self.select_done = True
+                return rows
+            return []
+
+    class FakeConnection:
+        def __init__(self):
+            self.queries = []
+            self.deleted_ids = None
+            self.insert_calls = []
+            self.committed = False
+            self.insert_params: list = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def cursor(self):
+            return FakeCursor(self)
+
+        def commit(self):
+            self.committed = True
+
+    connections: list[FakeConnection] = []
+
+    def fake_connect(_dsn: str) -> FakeConnection:
+        conn = FakeConnection()
+        connections.append(conn)
+        return conn
+
+    app = create_app()
+    service = BacklogDrainService(
+        dsn="postgresql://example",
+        limit=10,
+        connect=fake_connect,
+    )
+    app.config["BACKLOG_DRAIN_SERVICE"] = service
+
+    client: FlaskClient = app.test_client()
+    resp = client.post("/api/v1/admin/drain-backlog")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "ok", "drained": 1, "limit": 10}
+
+    assert connections, "expected BacklogDrainService to open a connection"
+    conn = connections[0]
+    assert any("INSERT INTO" in query for query, _ in conn.queries)
+    assert conn.deleted_ids == [1]
+    assert conn.committed is True
+
+
 def test_backlog_status_handles_service_errors():
     def failing_connect(_dsn: str):
         raise RuntimeError("connection refused")

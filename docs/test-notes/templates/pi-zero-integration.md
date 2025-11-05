@@ -36,7 +36,8 @@
    - 観察メモ:
 2. Pi Zero 送信ログ
    ```bash
-   sudo journalctl -u handheld@tools01.service -n 40 --no-pager
+   ./scripts/pi_zero_pull_logs.sh <pi-zero-host> --service handheld@tools01.service --output ./pi-zero-logs
+   cat ./pi-zero-logs/<pi-zero-host>-YYYYMMDD-HHMMSS/journalctl-handheld@tools01.service.log
    ```
    - 抜粋:
 3. Pi5 受信ログ

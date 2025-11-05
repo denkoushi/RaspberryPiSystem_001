@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from flask.testing import FlaskClient
@@ -109,3 +110,15 @@ def test_scans_endpoint_emits_socket_event():
     events = [packet for packet in received if packet.get("name") == "scan.ingested"]
     assert events, f"Socket.IO events not received: {received!r}"
     assert events[0]["args"][0]["order_code"] == "TEST-SOCKET"
+
+
+def test_socketio_uses_configured_path(monkeypatch, tmp_path):
+    config_path = Path(tmp_path) / "config.toml"
+    config_path.write_text('SOCKETIO_PATH = "/custom.io"\n', encoding="utf-8")
+    monkeypatch.setenv("RPI_SERVER_CONFIG", str(config_path))
+
+    try:
+        app = create_app()
+        assert app.config["SOCKETIO_PATH"] == "/custom.io"
+    finally:
+        monkeypatch.delenv("RPI_SERVER_CONFIG", raising=False)

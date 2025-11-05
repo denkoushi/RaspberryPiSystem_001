@@ -81,23 +81,37 @@ def test_database_repository_selection(tmp_path: Path, monkeypatch):
     assert fake_conn.cursor_obj.executed, "Expected SQL execution"
 
 
-def test_backlog_drain_service(monkeypatch):
-    executed = []
+def test_backlog_drain_service_uses_upsert(monkeypatch):
+    rows = [(1, "ORD-1", "LOC-1", "DEV-1")]
 
     class FakeCursor:
+        def __init__(self, conn):
+            self.conn = conn
+            self.step = 0
+
         def __enter__(self):
             return self
 
         def __exit__(self, *exc):
             return False
 
-        def execute(self, query, params):
-            executed.append((str(query), params[0]))
+        def execute(self, query, params=None):
+            self.conn.queries.append((str(query), params))
+            if "DELETE" in str(query):
+                self.conn.deleted = params[0]
 
-        def fetchone(self):
-            return (2,)
+        def fetchall(self):
+            self.step += 1
+            if self.step == 1:
+                return rows
+            return []
 
     class FakeConn:
+        def __init__(self):
+            self.queries = []
+            self.deleted = None
+            self.committed = False
+
         def __enter__(self):
             return self
 
@@ -105,19 +119,22 @@ def test_backlog_drain_service(monkeypatch):
             return False
 
         def cursor(self):
-            return FakeCursor()
+            return FakeCursor(self)
 
         def commit(self):
-            executed.append(("commit", None))
+            self.committed = True
+
+    conn = FakeConn()
 
     service = BacklogDrainService(
         "postgresql://user:pass@db/sensordb",
         limit=5,
         backlog_table="scan_ingest_backlog",
         target_table="part_locations",
-        connect=lambda dsn: FakeConn(),
+        connect=lambda dsn: conn,
     )
 
-    assert service.drain_once() == 2
-    assert executed[0][0].startswith("SELECT drain_scan_backlog")
-    assert executed[-1][0] == "commit"
+    assert service.drain_once() == 1
+    assert any("INSERT INTO" in q for q, _ in conn.queries)
+    assert conn.deleted == [1]
+    assert conn.committed is True

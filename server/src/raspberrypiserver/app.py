@@ -33,6 +33,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
     "REST_API_PREFIX": "/api/v1",
     "SOCKETIO_NAMESPACE": "/",
+    "SOCKETIO_PATH": "/socket.io",
     "SCAN_REPOSITORY_CAPACITY": 250,
     "SCAN_REPOSITORY_BACKEND": "memory",
     "SCAN_REPOSITORY_BUFFER": 500,
@@ -48,8 +49,12 @@ def create_app() -> Flask:
     """Create and configure the Flask application instance."""
     app = Flask(__name__)
     app.config['SECRET_KEY'] = app.config.get('SECRET_KEY', 'dev-secret')
-    socketio.init_app(app, cors_allowed_origins="*")
     load_configuration(app)
+    socketio.init_app(
+        app,
+        cors_allowed_origins="*",
+        path=app.config.get("SOCKETIO_PATH", "/socket.io"),
+    )
     initialize_services(app)
     register_blueprints(app)
 

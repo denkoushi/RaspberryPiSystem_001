@@ -79,6 +79,13 @@ docker compose up -d
   source .venv/bin/activate
   RPI_SERVER_CONFIG=~/RaspberryPiSystem_001/server/config/local.toml python -m raspberrypiserver.app
   ```
+- Socket.IO を別パスで提供したい場合は `SOCKETIO_PATH = "/custom.io"` のように指定すると、サーバー側もそのパスで待ち受ける（クライアントも同じパスに合わせる）。
+- 起動～送信～停止をまとめて確認したい場合はスモークスクリプトを利用できる。
+  ```bash
+  cd ~/RaspberryPiSystem_001/server
+  ./scripts/smoke_scan.sh
+  ```
+  - ポート占有を検知した場合は自動で中断する。成功時には `SMOKE-<timestamp>` のオーダーが 202 応答で受理され、ログ末尾に Socket.IO emit の結果が表示される。
 
 ## `/api/v1/scans`（スキャン受信 API）
 - 必須フィールドは `order_code` と `location_code`（どちらも空文字不可）。`device_id` は任意だが指定する場合は空でない文字列にする。
@@ -110,6 +117,8 @@ docker compose up -d
   ```json
   {"status": "ok", "drained": 5, "limit": 50}
   ```
+- `AUTO_DRAIN_ON_INGEST` を設定している場合は `/api/v1/scans` のレスポンスに `"backlog_drained"` が含まれ、同時に backlog-status からも最新件数を取得できる。
+- 失敗時（DSN 未設定や SQL エラー）は `HTTP 503` で `{"status":"skipped","reason":"backlog-drain-disabled"}` が返る。PiZero 側からのスキャンは継続するため、ログ（`api_actions.log` / `socket.log`）を確認し再実行する。
 - `GET /api/v1/admin/backlog-status` で滞留件数とドレイン設定を確認できる。
   ```bash
   curl http://localhost:8501/api/v1/admin/backlog-status
