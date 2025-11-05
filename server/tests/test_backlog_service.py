@@ -105,6 +105,21 @@ def test_backlog_drain_skips_invalid_rows() -> None:
     assert conn.insert_calls[0][0:2] == ("ORD-3", "LOC-3")
 
 
+def test_backlog_drain_handles_empty_selection() -> None:
+    rows: list[tuple[int, Optional[str], Optional[str], Optional[str]]] = []
+    conn = _StubConnection(rows)
+
+    def fake_connect(_dsn: str) -> _StubConnection:
+        return conn
+
+    service = BacklogDrainService(dsn="postgresql://example", connect=fake_connect)
+    drained = service.drain_once(10)
+
+    assert drained == 0
+    assert conn.committed is True
+    assert conn.deleted_ids is None
+
+
 def test_backlog_drain_skips_when_not_configured() -> None:
     service = BacklogDrainService(dsn="")
     assert service.drain_once() == 0

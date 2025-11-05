@@ -32,9 +32,9 @@ API_TOKEN=<SHARED_TOKEN>
    - `Document lookup success` などのレンダリング成功ログ
 4. 表示中の PDF が注文番号に合わせて切り替わるか目視し、必要ならブラウザのデベロッパーツールで Console/Network を確認。
 5. 再接続・障害対応
-   - DocumentViewer の Socket.IO クライアントでは `reconnection: true`（デフォルト）とし、失敗時は 5 秒おきに再接続する設定を保持する。
-   - Pi5 側では `/srv/rpi-server/logs/socket.log` に `Socket.IO emit` ログが出力されるため、切断時は Pi5 → Viewer 双方のログを突き合わせる。
-   - 永続的に失敗する場合は `AUTO_DRAIN_ON_INGEST` の設定値と DB 側の upsert 成功状況（`part_locations` 更新時刻）も確認し、イベント/REST 両面で整合を取る。
+- DocumentViewer の Socket.IO クライアントでは `reconnection: true`（デフォルト）を維持し、`reconnectionDelay=5000`, `reconnectionAttempts=0`（無制限）とする。
+- Pi5 側では `/srv/rpi-server/logs/socket.log` に `Broadcast emit request` / `Socket.IO emit succeeded` / `Socket.IO emit failed` が出力される。切断時は Pi5 のログと DocumentViewer 側ログを突き合わせて原因を追う。
+- 永続的に失敗する場合は `AUTO_DRAIN_ON_INGEST` の設定値と DB 反映状況（`part_locations` の `updated_at`）を確認し、イベントと REST の整合を取る。必要に応じて `GET /api/v1/admin/backlog-status` で backlog 件数を確認する。
 
 ## 3. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。

@@ -45,6 +45,9 @@ class BacklogDrainService:
             with self._connect(self.dsn) as conn, conn.cursor() as cur:
                 candidates = self._select_candidates(cur, requested_limit)
                 if not candidates:
+                    logger.debug(
+                        "Backlog drain skipped: no rows available (limit=%s)", requested_limit
+                    )
                     conn.commit()
                     return 0
 
@@ -52,6 +55,12 @@ class BacklogDrainService:
                 if valid_rows:
                     self._delete_backlog_rows(cur, [row[0] for row in valid_rows])
                     drained = len(valid_rows)
+                    logger.info(
+                        "Backlog drain succeeded: processed=%s limit=%s table=%s",
+                        drained,
+                        requested_limit,
+                        self.backlog_table,
+                    )
                 else:
                     logger.warning("No valid backlog rows processed (missing order/location codes)")
 

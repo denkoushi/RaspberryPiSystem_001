@@ -77,6 +77,19 @@ def test_scans_endpoint_triggers_auto_drain_when_configured():
     assert drain_service.called_with == 15
 
 
+def test_scans_endpoint_auto_drain_skipped_when_service_missing():
+    app = create_app()
+    app.config["AUTO_DRAIN_ON_INGEST"] = 20
+    app.config["BACKLOG_DRAIN_SERVICE"] = None
+
+    client: FlaskClient = app.test_client()
+    response = client.post("/api/v1/scans", json={"order_code": "Z", "location_code": "L"})
+
+    assert response.status_code == 202
+    body = response.get_json()
+    assert "backlog_drained" not in body
+
+
 def test_socketio_emission_occurs():
     app = create_app()
     client: FlaskClient = app.test_client()
