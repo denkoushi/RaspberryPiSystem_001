@@ -25,6 +25,13 @@ source .venv/bin/activate
 RPI_SERVER_CONFIG=~/RaspberryPiSystem_001/server/config/local.toml python -m raspberrypiserver.app
 ```
 - 別ターミナルで以下の検証を進める。終了時は `Ctrl+C` で停止する。
+- 最短確認は自動スモーク (`server/scripts/smoke_scan.sh`) を利用できる。
+  ```bash
+  cd ~/RaspberryPiSystem_001/server
+  ./scripts/smoke_scan.sh
+  ```
+  - サーバー起動 → スキャン送信 → 停止まで自動実行し、ログの尻尾も出力される。
+  - 詳細確認や複数イベント検証が必要な場合は以下の手順を続行する。
 
 ## 2. REST `/api/v1/part-locations` の確認
 ```bash

@@ -27,6 +27,7 @@
 - Window A クライアントおよび DocumentViewer が Pi5 の Socket.IO / REST を参照する設定になっている。
 - macOS などでローカル動作を確認する際は、クライアント（`scripts/listen_for_scans.ts` 等）の接続先を `http://127.0.0.1:8501` に指定する（`localhost` は IPv6(::1) を指すため接続に失敗する場合がある）。
 - `/api/v1/scans` の疎通チェックは `client_window_a/scripts/send_scan.py` を利用すると CLI から実行しやすい。`--order` / `--location` / `--device` を指定でき、省略時はタイムスタンプ由来の値が自動生成される。`--dry-run` で送信せず確認のみも可能。
+- 簡易スモークについては `server/scripts/smoke_scan.sh` を実行すると、サーバー起動・送信・停止まで自動化できる（詳細検証が必要な場合は手順を個別に実行する）。
 - 共通 Bearer トークンが Pi Zero / Pi5 / Window A / DocumentViewer で一致している。
 - テスト用移動票（例: `ORDER-CODE=TEST-001`, `LOCATION=RACK-A1`）が準備され、DocumentViewer で該当 PDF を表示できる。
 - Pi5・Window A・DocumentViewer のログ参照コマンドが実行できる権限を持つ。
