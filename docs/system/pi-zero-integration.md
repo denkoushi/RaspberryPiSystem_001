@@ -61,10 +61,16 @@ RestartSec=2
   }
   ```
 - 再送キュー (`~/.onsitelogistics/scan_queue.db`) には上記 JSON がそのまま入る。Pi5 の API を変更した場合は `_normalize_payload` の条件に合わせてクライアント側も必ず更新する。
-- 既存 `OnSiteLogistics/scripts/handheld_scan_display.py` を更新する際は、このリポジトリ内のパッチ `handheld/docs/patches/2025-11-07-handheld-payload.patch` を適用する。  
+- 既存 `OnSiteLogistics/scripts/handheld_scan_display.py` を更新する際は、このリポジトリ内のパッチ `handheld/docs/patches/2025-11-07-handheld-payload.patch` を適用する。Pi Zero に本リポジトリを clone していない場合は、以下のように Mac 側から patch を転送して適用する。  
   ```bash
+  # Mac 側: patch をファイル出力して Pi Zero へ転送
+  cd ~/RaspberryPiSystem_001
+  ./scripts/export_handheld_payload_patch.sh > /tmp/handheld_payload.patch
+  scp /tmp/handheld_payload.patch tools01@pi-zero:/home/tools01/
+
+  # Pi Zero 側
   cd /home/tools01/OnSiteLogistics
-  git apply ~/RaspberryPiSystem_001/handheld/docs/patches/2025-11-07-handheld-payload.patch
+  git apply /home/tools01/handheld_payload.patch
   sudo systemctl restart handheld@tools01.service
   ```
 
