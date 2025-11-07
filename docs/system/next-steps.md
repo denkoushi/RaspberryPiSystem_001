@@ -12,20 +12,22 @@
 | コード実装 | 未着手 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld リポジトリ参照 |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 準備中 | Pi Zero → Pi5 → Window A 統合テスト（非ローカル環境） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
+| 体制整備 | 未着手 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一 | docs/system/repo-structure-plan.md, AGENTS.md |
 | 実機検証 | 準備中 | DocumentViewer / Window A Socket.IO 実機テスト | docs/test-notes/2025-11/window-a-socket-plan.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル） | 本ファイル |
 | ドキュメント更新 | 完了 | スモーク手順・イベントペイロードの整備 | server/README.md, docs/system/documentviewer-integration.md |
 
 ## 次に着手する優先タスク
-1. **Pi Zero 実機検証準備**  
+1. **リポジトリ統一プランの実行**  
+   - `docs/system/repo-structure-plan.md` をもとに Mac / Pi Zero / Pi5 のフォルダ構成を洗い出し、Pi Zero の `~/OnSiteLogistics` を `~/RaspberryPiSystem_001` へ移行する手順をスクリプト化する。  
+   - AGENTS.md と `docs/system/pi-zero-integration.md` に「各デバイスは RaspberryPiSystem_001 1 本で運用する」という方針を明記する。  
+2. **Pi Zero 実機検証準備**  
    - `docs/system/pi-zero-integration.md` のチェックリストを最終化し、API トークン配布〜ログ収集のサンプル記録を `docs/test-notes/2025-11/window-a-demo.md` に追加。  
    - `scripts/pi_zero_pull_logs.sh` の実行手順と出力例をテンプレートへ反映し、実機での再現性を確保する。
-2. **Socket.IO 運用仕様の仕上げ**  
+3. **Socket.IO 運用仕様の仕上げ**  
    - Window A / DocumentViewer の再接続・イベント設定を確認し、必要な設定値を `server/config/default.toml` や関連ドキュメントに統合。  
    - テストケース（再接続・失敗ログなど）を補強し、設定変更が回帰しないようにする。
-3. **差分整理とコミット準備**  
-   - 現在のコード／ドキュメント変更を整え、不要ファイルを削除したうえでまとまったコミットに備える。
 
 ## メモ
 - 進捗・課題は本ファイルで集約管理し、別ドキュメントへの分散を避ける。  

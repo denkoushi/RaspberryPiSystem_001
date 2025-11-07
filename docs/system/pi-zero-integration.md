@@ -7,11 +7,13 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
 
 ### 0.1 ベース環境
 1. `tools01` ユーザーを作成（`sudo adduser --disabled-password --gecos "" tools01`）し、`input gpio spi i2c dialout` グループに追加。
-2. ホーム配下に作業ツリーを複製  
-   ```bash
-   sudo rsync -a /home/denkonzero/OnSiteLogistics/ /home/tools01/OnSiteLogistics/
-   sudo chown -R tools01:tools01 /home/tools01
-   ```
+2. **RaspberryPiSystem_001 の clone**  
+   - 旧 `~/OnSiteLogistics` は `~/OnSiteLogistics_legacy_$(date +%Y%m%d)` に退避し、以下で新リポジトリを取得する。  
+     ```bash
+     git clone https://github.com/denkoushi/RaspberryPiSystem_001.git /home/tools01/RaspberryPiSystem_001
+     sudo chown -R tools01:tools01 /home/tools01/RaspberryPiSystem_001
+     ```
+   - 旧ディレクトリにしかない `.env` や `config.json` などは手動でマージする。
 3. venv 準備  
    ```bash
    sudo -u tools01 -H python3 -m venv /home/tools01/.venv-handheld
@@ -20,8 +22,8 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
    ```
 4. Waveshare ドライバ  
    ```bash
-   sudo rsync -a /home/denkonzero/e-Paper/ /home/tools01/OnSiteLogistics/e-Paper/
-   sudo chown -R tools01:tools01 /home/tools01/OnSiteLogistics/e-Paper
+   sudo rsync -a /home/denkonzero/e-Paper/ /home/tools01/RaspberryPiSystem_001/handheld/e-Paper/
+   sudo chown -R tools01:tools01 /home/tools01/RaspberryPiSystem_001/handheld/e-Paper
    ```
 
 ### 0.2 systemd テンプレート
@@ -33,14 +35,14 @@ Wants=dev-ttyACM0.device
 
 [Service]
 SupplementaryGroups=input dialout gpio spi i2c
-WorkingDirectory=/home/%i/OnSiteLogistics
+WorkingDirectory=/home/%i/RaspberryPiSystem_001/handheld
 Environment=PYTHONUNBUFFERED=1
 Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
-Environment=PYTHONPATH=/home/%i/OnSiteLogistics/e-Paper/RaspberryPi_JetsonNano/python/lib
+Environment=PYTHONPATH=/home/%i/RaspberryPiSystem_001/handheld/e-Paper/RaspberryPi_JetsonNano/python/lib
 Environment=GPIOZERO_PIN_FACTORY=lgpio
 ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/ttyACM0 ] && exit 0; sleep 2; done; echo 'no serial device'; exit 1"
 ExecStart=
-ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/OnSiteLogistics/scripts/handheld_scan_display.py
+ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py
 Restart=on-failure
 RestartSec=2
 ```
@@ -61,10 +63,10 @@ RestartSec=2
   }
   ```
 - 再送キュー (`~/.onsitelogistics/scan_queue.db`) には上記 JSON がそのまま入る。Pi5 の API を変更した場合は `_normalize_payload` の条件に合わせてクライアント側も必ず更新する。
-- 既存 `OnSiteLogistics/scripts/handheld_scan_display.py` を更新する際は、このリポジトリ内のパッチ `handheld/docs/patches/2025-11-07-handheld-payload.patch` を適用する。  
+- 既存 `handheld/scripts/handheld_scan_display.py` を更新する際は、このリポジトリ内のパッチ `handheld/docs/patches/2025-11-07-handheld-payload.patch` を適用する。  
   ```bash
-  cd /home/tools01/OnSiteLogistics
-  git apply ~/RaspberryPiSystem_001/handheld/docs/patches/2025-11-07-handheld-payload.patch
+  cd /home/tools01/RaspberryPiSystem_001
+  git apply handheld/docs/patches/2025-11-07-handheld-payload.patch
   sudo systemctl restart handheld@tools01.service
   ```
 
