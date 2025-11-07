@@ -8,12 +8,13 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
 ### 0.1 ベース環境
 1. `tools01` ユーザーを作成（`sudo adduser --disabled-password --gecos "" tools01`）し、`input gpio spi i2c dialout` グループに追加。
 2. **RaspberryPiSystem_001 の clone**  
-   - 旧 `~/OnSiteLogistics` は `~/OnSiteLogistics_legacy_$(date +%Y%m%d)` に退避し、以下で新リポジトリを取得する。  
+   - `scripts/pi_zero_migrate_repo.sh` を実行すると、旧 `~/OnSiteLogistics` を `~/OnSiteLogistics_legacy_<timestamp>` に退避し、新しい `~/RaspberryPiSystem_001` を clone する（git がインストールされている前提）。  
      ```bash
-     git clone https://github.com/denkoushi/RaspberryPiSystem_001.git /home/tools01/RaspberryPiSystem_001
-     sudo chown -R tools01:tools01 /home/tools01/RaspberryPiSystem_001
+     cd ~/RaspberryPiSystem_001/scripts   # Mac 側で差分を pull した後を想定
+     scp pi-zero-mac:~/RaspberryPiSystem_001/scripts/pi_zero_migrate_repo.sh tools01@pi-zero:/home/tools01/
+     ssh tools01@pi-zero 'bash ~/pi_zero_migrate_repo.sh'
      ```
-   - 旧ディレクトリにしかない `.env` や `config.json` などは手動でマージする。
+   - スクリプト実行後、旧ディレクトリにしかない `.env` や `config.json` などはバックアップから手動でマージする。
 3. venv 準備  
    ```bash
    sudo -u tools01 -H python3 -m venv /home/tools01/.venv-handheld

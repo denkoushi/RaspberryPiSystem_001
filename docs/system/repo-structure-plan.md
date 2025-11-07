@@ -26,7 +26,7 @@
    - Pi 側で作業する場合も `~/RaspberryPiSystem_001` で `git checkout <branch>` を使用し、旧ディレクトリは参照専用にする。
 
 ## ToDo
-- [ ] Pi Zero 移行スクリプトと手順書の作成 (`scripts/pi_zero_migrate_repo.sh`)
+- [x] Pi Zero 移行スクリプトと手順書の作成 (`scripts/pi_zero_migrate_repo.sh`, `docs/system/pi-zero-integration.md`)
 - [ ] Pi5 向けドキュメント追記 (`docs/system/postgresql-setup.md` に systemd の WorkingDirectory 更新手順)
-- [ ] AGENTS.md へ「各デバイスのディレクトリ名統一」ポリシーを明記
+- [x] AGENTS.md へ「各デバイスのディレクトリ名統一」ポリシーを明記
 - [ ] 旧ディレクトリ削除の前にバックアップ保管先を決定
