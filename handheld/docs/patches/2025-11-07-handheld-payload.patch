@@ -1,8 +1,8 @@
 diff --git a/scripts/handheld_scan_display.py b/scripts/handheld_scan_display.py
-index 1234567..89abcde 100755
+index 7f2e221..c4d7434 100755
 --- a/scripts/handheld_scan_display.py
 +++ b/scripts/handheld_scan_display.py
-@@ -556,13 +556,17 @@ def main():
+@@ -553,13 +553,17 @@ def main():
              else:
                  ui.update(a=format_line("A", code_a, True),
                            b=format_line("B", code_b, True),
@@ -27,4 +27,3 @@ index 1234567..89abcde 100755
 +                }
                  transmitter.send_or_queue(transmitter.scan_api_url, payload)
                  transmitter.send_logistics_job(code_a, code_b)
-         transmitter.drain()
