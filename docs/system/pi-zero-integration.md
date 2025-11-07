@@ -2,6 +2,74 @@
 
 Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映確認 → 片付け」までを一気通貫で確認するためのチェックリスト。各ステップの結果は `docs/test-notes/templates/pi-zero-integration.md` をベースに記録する。
 
+## 0. Pi Zero (tools01) セットアップ手順メモ
+今回のハンディ復旧で踏んだステップをそのまま残す。新しい Pi Zero を用意した場合もこの手順で整備してから Git / Pi5 側のテストに入る。
+
+### 0.1 ベース環境
+1. `tools01` ユーザーを作成（`sudo adduser --disabled-password --gecos "" tools01`）し、`input gpio spi i2c dialout` グループに追加。
+2. ホーム配下に作業ツリーを複製  
+   ```bash
+   sudo rsync -a /home/denkonzero/OnSiteLogistics/ /home/tools01/OnSiteLogistics/
+   sudo chown -R tools01:tools01 /home/tools01
+   ```
+3. venv 準備  
+   ```bash
+   sudo -u tools01 -H python3 -m venv /home/tools01/.venv-handheld
+   sudo -u tools01 -H /home/tools01/.venv-handheld/bin/pip install --upgrade pip
+   sudo -u tools01 -H /home/tools01/.venv-handheld/bin/pip install evdev pillow requests pyserial gpiozero lgpio
+   ```
+4. Waveshare ドライバ  
+   ```bash
+   sudo rsync -a /home/denkonzero/e-Paper/ /home/tools01/OnSiteLogistics/e-Paper/
+   sudo chown -R tools01:tools01 /home/tools01/OnSiteLogistics/e-Paper
+   ```
+
+### 0.2 systemd テンプレート
+`/etc/systemd/system/handheld@.service.d/override.conf`
+```ini
+[Unit]
+After=dev-ttyACM0.device
+Wants=dev-ttyACM0.device
+
+[Service]
+SupplementaryGroups=input dialout gpio spi i2c
+WorkingDirectory=/home/%i/OnSiteLogistics
+Environment=PYTHONUNBUFFERED=1
+Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
+Environment=PYTHONPATH=/home/%i/OnSiteLogistics/e-Paper/RaspberryPi_JetsonNano/python/lib
+Environment=GPIOZERO_PIN_FACTORY=lgpio
+ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/ttyACM0 ] && exit 0; sleep 2; done; echo 'no serial device'; exit 1"
+ExecStart=
+ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/OnSiteLogistics/scripts/handheld_scan_display.py
+Restart=on-failure
+RestartSec=2
+```
+`sudo systemctl daemon-reload && sudo systemctl enable --now handheld@tools01.service`
+
+### 0.3 ペイロード仕様と Pi5 側との整合
+- Pi5 `/api/v1/scans` は `order_code` / `location_code` を必須にしているため、A/B を送るハンディスクリプトは以下の JSON を POST する。  
+  ```json
+  {
+    "order_code": "<A code>",
+    "location_code": "<B code>",
+    "device_id": "pi-zero2w-01",
+    "metadata": {
+      "scan_id": "<uuid4>",
+      "scanned_at": "2025-11-07T05:36:28Z",
+      "retries": 0
+    }
+  }
+  ```
+- 再送キュー (`~/.onsitelogistics/scan_queue.db`) には上記 JSON がそのまま入る。Pi5 の API を変更した場合は `_normalize_payload` の条件に合わせてクライアント側も必ず更新する。
+- 既存 `OnSiteLogistics/scripts/handheld_scan_display.py` を更新する際は、このリポジトリ内のパッチ `handheld/docs/patches/2025-11-07-handheld-payload.patch` を適用する。  
+  ```bash
+  cd /home/tools01/OnSiteLogistics
+  git apply ~/RaspberryPiSystem_001/handheld/docs/patches/2025-11-07-handheld-payload.patch
+  sudo systemctl restart handheld@tools01.service
+  ```
+
+以上を満たした状態で Git にコミットしておくと、VS Code 側で `git pull`→`systemctl restart handheld@tools01.service` を実行するだけで Pi Zero 側の更新が反映される。
+
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
   `server/scripts/manage_api_token.py --rotate` 等で再発行した場合は Pi Zero (`/etc/onsitelogistics/config.json`)、Pi5 (`/srv/rpi-server/config/local.toml`)、Window A、DocumentViewer へ同じ Bearer トークンを配布する。

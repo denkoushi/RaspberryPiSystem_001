@@ -1,0 +1,30 @@
+diff --git a/scripts/handheld_scan_display.py b/scripts/handheld_scan_display.py
+index 1234567..89abcde 100755
+--- a/scripts/handheld_scan_display.py
++++ b/scripts/handheld_scan_display.py
+@@ -556,13 +556,17 @@ def main():
+             else:
+                 ui.update(a=format_line("A", code_a, True),
+                           b=format_line("B", code_b, True),
+                           status="Status: DONE", force_full=True)
+-                payload = {
+-                    "scan_id": str(uuid.uuid4()),
+-                    "device_id": transmitter.device_id,
+-                    "part_code": code_a,
+-                    "location_code": code_b,
+-                    "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+-                    "retries": 0,
+-                }
++                payload = {
++                    "order_code": code_a,
++                    "location_code": code_b,
++                    "device_id": transmitter.device_id,
++                    "metadata": {
++                        "scan_id": str(uuid.uuid4()),
++                        "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
++                        "retries": 0,
++                    },
++                }
+                 transmitter.send_or_queue(transmitter.scan_api_url, payload)
+                 transmitter.send_logistics_job(code_a, code_b)
+         transmitter.drain()

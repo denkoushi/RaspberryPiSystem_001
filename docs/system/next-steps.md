@@ -11,8 +11,8 @@
 | コード実装 | 進行中 | Socket.IO 運用仕様（設定・ログ・再接続テスト）の確定 | server/src/raspberrypiserver/app.py, server/tests/test_api_scans.py, server/config/default.toml, docs/system/documentviewer-integration.md |
 | コード実装 | 未着手 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld リポジトリ参照 |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
-| 実機検証 | 未着手 | Pi Zero → Pi5 → Window A 統合テスト（非ローカル環境） | docs/system/pi-zero-integration.md のチェックリストを使用 |
-| 実機検証 | 未着手 | DocumentViewer 実機での Socket.IO 受信確認 | docs/system/documentviewer-integration.md |
+| 実機検証 | 準備中 | Pi Zero → Pi5 → Window A 統合テスト（非ローカル環境） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
+| 実機検証 | 準備中 | DocumentViewer / Window A Socket.IO 実機テスト | docs/test-notes/2025-11/window-a-socket-plan.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル） | 本ファイル |
 | ドキュメント更新 | 完了 | スモーク手順・イベントペイロードの整備 | server/README.md, docs/system/documentviewer-integration.md |
