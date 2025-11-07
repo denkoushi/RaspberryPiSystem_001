@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cat <<'UNIT' | sudo tee /etc/systemd/system/handheld@.service.d/override.conf >/dev/null
+[Unit]
+After=dev-ttyACM0.device
+Wants=dev-ttyACM0.device
+
+[Service]
+SupplementaryGroups=input dialout gpio spi i2c
+WorkingDirectory=/home/%i/RaspberryPiSystem_001/handheld
+Environment=PYTHONUNBUFFERED=1
+Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
+Environment=PYTHONPATH=/home/%i/RaspberryPiSystem_001/handheld/e-Paper/RaspberryPi_JetsonNano/python/lib
+Environment=GPIOZERO_PIN_FACTORY=lgpio
+ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/ttyACM0 ] && exit 0; sleep 2; done; echo 'no serial device'; exit 1"
+ExecStart=
+ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py
+Restart=on-failure
+RestartSec=2
+UNIT
+
+echo "[INFO] override.conf updated"
+sudo systemctl daemon-reload
+sudo systemctl restart handheld@tools01.service
+sudo systemctl status handheld@tools01.service --no-pager
