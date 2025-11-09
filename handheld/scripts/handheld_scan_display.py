@@ -54,8 +54,20 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID event node (adjust if your scanner is mapped elsewhere)
-DEVICE_PATH = Path("/dev/input/event0")
+# Default HID/serial candidates (override via env vars when必要)
+DEFAULT_HID_PATHS_RAW = [
+    os.environ.get("HANDHELD_INPUT_DEVICE"),
+    "/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd",
+    "/dev/input/by-path/platform-3f980000.usb-usb-0:1:1.0-event-kbd",
+    "/dev/input/event0",
+]
+DEFAULT_HID_PATHS = [h for h in DEFAULT_HID_PATHS_RAW if h]
+DEVICE_PATH = Path(next(iter(DEFAULT_HID_PATHS), "/dev/input/event0"))
+SERIAL_FORCE_PATHS = [
+    Path(p.strip())
+    for p in os.environ.get("HANDHELD_SERIAL_PATHS", "/dev/minjcode0,/dev/ttyACM0").split(",")
+    if p.strip()
+]
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
@@ -407,31 +419,59 @@ def iter_serial_candidates():
 
 
 def create_scanner():
+    def _info(message: str) -> None:
+        logging.info(message)
+        print(message)
+
+    def _warn(message: str) -> None:
+        logging.warning(message)
+        print(message)
+
+    forced = SERIAL_FORCE_PATHS or []
+    for dev in forced:
+        if not dev.exists():
+            _warn(f"[SERIAL] forced path missing: {dev}")
+            continue
+        for baud in SERIAL_BAUDS:
+            try:
+                _info(f"[SERIAL] forcing {dev} @ {baud}bps")
+                scanner = SerialScanner(dev, baud)
+                _info(f"[SERIAL] scanner ready: {dev} (serial {baud}bps)")
+                return scanner
+            except Exception as exc:
+                _warn(f"[SERIAL] force failed ({dev} @ {baud}): {exc}")
+
     for attempt in range(SERIAL_PROBE_RETRIES):
-        logging.info(
-            "Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES
-        )
+        _info(f"[SERIAL] probe attempt {attempt + 1}/{SERIAL_PROBE_RETRIES}")
         for candidate in iter_serial_candidates():
             for baud in SERIAL_BAUDS:
                 try:
-                    logging.info("Probing serial scanner candidate %s @ %sbps", candidate, baud)
+                    _info(f"[SERIAL] probing {candidate} @ {baud}bps")
                     scanner = SerialScanner(candidate, baud)
-                    logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
+                    _info(f"[SERIAL] scanner ready: {candidate} (serial {baud}bps)")
                     return scanner
                 except Exception as exc:
-                    logging.warning("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
+                    _warn(f"[SERIAL] probe failed ({candidate} @ {baud}): {exc}")
                     continue
         if attempt < SERIAL_PROBE_RETRIES - 1:
-            logging.info(
-                "Serial scanner not detected on attempt %d. Retrying after %.1fs.",
-                attempt + 1,
-                SERIAL_PROBE_DELAY_S,
+            _warn(
+                f"[SERIAL] not detected on attempt {attempt + 1}. retrying in {SERIAL_PROBE_DELAY_S:.1f}s"
             )
             time.sleep(SERIAL_PROBE_DELAY_S)
 
-    logging.info("Serial scanner not detected after retries. Falling back to HID (%s)", DEVICE_PATH)
+    _warn(f"[SERIAL] not detected after retries. falling back to HID {DEVICE_PATH}")
+    for hid in DEFAULT_HID_PATHS:
+        if not hid:
+            continue
+        hid_path = Path(hid)
+        if not hid_path.exists():
+            continue
+        scanner = KeyboardScanner(hid_path)
+        _info(f"[SERIAL] HID fallback: {scanner.description()}")
+        return scanner
+
     scanner = KeyboardScanner(DEVICE_PATH)
-    logging.info("Scanner device: %s (%s)", scanner.device.path, scanner.device.name)
+    _info(f"[SERIAL] HID fallback: {scanner.description()}")
     return scanner
 
 
