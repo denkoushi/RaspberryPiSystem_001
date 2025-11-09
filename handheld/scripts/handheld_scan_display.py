@@ -52,8 +52,8 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID event node (adjust if your scanner is mapped elsewhere)
-DEVICE_PATH = Path("/dev/input/event0")
+# Default HID event node (set to the stable MINJCODE by-id path by default)
+DEVICE_PATH = Path("/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd")
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
