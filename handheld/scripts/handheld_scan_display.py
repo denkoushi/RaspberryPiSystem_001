@@ -368,6 +368,7 @@ def resolve_hid_device() -> Path:
             for path in sorted(by_id_dir.glob(pattern)):
                 resolved = path.resolve()
                 if resolved.exists():
+                    logging.info("HID candidate matched (by-id): %s -> %s", path, resolved)
                     return resolved
 
     by_path_dir = Path("/dev/input/by-path")
@@ -375,6 +376,7 @@ def resolve_hid_device() -> Path:
         for path in sorted(by_path_dir.glob("*MINJCODE*event-kbd")):
             resolved = path.resolve()
             if resolved.exists():
+                logging.info("HID candidate matched (by-path): %s -> %s", path, resolved)
                 return resolved
 
     event_nodes = sorted(Path("/dev/input").glob("event*"))
@@ -386,6 +388,7 @@ def resolve_hid_device() -> Path:
             continue
         if any(token in name for token in HID_DEVICE_HINTS):
             device.close()
+            logging.info("HID fallback matched by name: %s (%s)", event_node, name)
             return event_node
         device.close()
 
