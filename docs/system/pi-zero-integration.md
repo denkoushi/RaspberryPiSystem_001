@@ -63,6 +63,7 @@ PY"
    - ルール適用後にスキャナを再接続し、`dmesg | grep -i ttyACM` で `/dev/ttyACM0` の生成を確認する。`sudo evtest` には出ないので、`handheld_scan_display.py` が自動的に `/dev/minjcode*` → `/dev/ttyACM*` → `/dev/ttyUSB*` の順で探す。
    - 詳細背景は旧リポジトリ `docs/handheld-reader.md`（セクション 4.x）を参照。
    - **HID モードのフォールバック**: どうしてもシリアルへ切り替えられない場合でも、`handheld_scan_display.py` が `/dev/input/by-id/*MINJCODE*event-kbd` や `evtest` で検出した MINJCODE の event デバイスを自動選択して動作する。`sudo evtest` で MINJCODE の番号（例: `/dev/input/event2`）を確認し、`journalctl -fu handheld@tools01.service` に `[INFO] Scanner device: /dev/input/event2 (MINJCODE...)` が出れば HID モードでも運用可能。Pi のコンソールにキー入力が流れないよう、サービスを停止した状態でスキャンしない。
+   - `HANDHELD_INPUT_DEVICE` という環境変数を systemd 環境に追加すると、HID デバイスを強制的に指定できる。例: `Environment=HANDHELD_INPUT_DEVICE=/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd`。
 
 ### 0.2 systemd テンプレート
 `/etc/systemd/system/handheld@.service.d/override.conf`

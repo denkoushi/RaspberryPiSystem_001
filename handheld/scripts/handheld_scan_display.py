@@ -52,14 +52,31 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID event node (set to the stable MINJCODE by-id path by default)
-DEVICE_PATH = Path("/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd")
+# Default HID event node detection
+def detect_hid_default_path() -> Path:
+    env_override = os.environ.get("HANDHELD_INPUT_DEVICE")
+    if env_override:
+        candidate = Path(env_override)
+        if candidate.exists():
+            return candidate
+    by_id_dir = Path("/dev/input/by-id")
+    if by_id_dir.exists():
+        for pattern in ("*MINJCODE*event-kbd", "*Scanner*event-kbd"):
+            matches = sorted(by_id_dir.glob(pattern))
+            if matches:
+                return matches[0]
+    by_path_dir = Path("/dev/input/by-path")
+    if by_path_dir.exists():
+        matches = sorted(by_path_dir.glob("*MINJCODE*event-kbd"))
+        if matches:
+            return matches[0]
+    return Path("/dev/input/event0")
+
+DEVICE_PATH = detect_hid_default_path()
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
 SERIAL_PROBE_DELAY_S = 1.0
-HID_ID_PATTERNS = ("*MINJCODE*event-kbd", "*Scanner*event-kbd")
-HID_DEVICE_HINTS = ("minjcode", "scanner", "barcode")
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
@@ -360,45 +377,6 @@ def iter_serial_candidates():
             yield path
 
 
-def resolve_hid_device() -> Path:
-    """Try to locate the actual HID event node for the barcode scanner."""
-    by_id_dir = Path("/dev/input/by-id")
-    if by_id_dir.exists():
-        for pattern in HID_ID_PATTERNS:
-            matches = sorted(by_id_dir.glob(pattern))
-            logging.info("HID search (by-id, pattern=%s): %s", pattern, [str(p) for p in matches])
-            for path in matches:
-                resolved = path.resolve()
-                if resolved.exists():
-                    logging.info("HID candidate matched (by-id): %s -> %s", path, resolved)
-                    return resolved
-
-    by_path_dir = Path("/dev/input/by-path")
-    if by_path_dir.exists():
-        matches = sorted(by_path_dir.glob("*MINJCODE*event-kbd"))
-        logging.info("HID search (by-path): %s", [str(p) for p in matches])
-        for path in matches:
-            resolved = path.resolve()
-            if resolved.exists():
-                logging.info("HID candidate matched (by-path): %s -> %s", path, resolved)
-                return resolved
-
-    event_nodes = sorted(Path("/dev/input").glob("event*"))
-    for event_node in event_nodes:
-        try:
-            device = InputDevice(str(event_node))
-            name = (device.name or "").lower()
-        except OSError:
-            continue
-        if any(token in name for token in HID_DEVICE_HINTS):
-            device.close()
-            logging.info("HID fallback matched by name: %s (%s)", event_node, name)
-            return event_node
-        device.close()
-
-    return DEVICE_PATH
-
-
 def create_scanner():
     for attempt in range(SERIAL_PROBE_RETRIES):
         logging.info("Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES)
@@ -422,9 +400,8 @@ def create_scanner():
             )
             time.sleep(SERIAL_PROBE_DELAY_S)
 
-    hid_path = resolve_hid_device()
-    logging.info("Serial scanner not detected. Falling back to HID %s", hid_path)
-    scanner = KeyboardScanner(hid_path)
+    logging.info("Serial scanner not detected. Falling back to HID %s", DEVICE_PATH)
+    scanner = KeyboardScanner(DEVICE_PATH)
     logging.info("Scanner device: %s", scanner.description())
     return scanner
 
