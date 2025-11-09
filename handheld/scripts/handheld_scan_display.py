@@ -407,31 +407,35 @@ def iter_serial_candidates():
 
 
 def create_scanner():
+    def _info(message: str) -> None:
+        logging.info(message)
+        print(message)
+
+    def _warn(message: str) -> None:
+        logging.warning(message)
+        print(message)
+
     for attempt in range(SERIAL_PROBE_RETRIES):
-        logging.info(
-            "Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES
-        )
+        _info(f"[SERIAL] probe attempt {attempt + 1}/{SERIAL_PROBE_RETRIES}")
         for candidate in iter_serial_candidates():
             for baud in SERIAL_BAUDS:
                 try:
-                    logging.info("Probing serial scanner candidate %s @ %sbps", candidate, baud)
+                    _info(f"[SERIAL] probing {candidate} @ {baud}bps")
                     scanner = SerialScanner(candidate, baud)
-                    logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
+                    _info(f"[SERIAL] scanner ready: {candidate} (serial {baud}bps)")
                     return scanner
                 except Exception as exc:
-                    logging.warning("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
+                    _warn(f"[SERIAL] probe failed ({candidate} @ {baud}): {exc}")
                     continue
         if attempt < SERIAL_PROBE_RETRIES - 1:
-            logging.info(
-                "Serial scanner not detected on attempt %d. Retrying after %.1fs.",
-                attempt + 1,
-                SERIAL_PROBE_DELAY_S,
+            _info(
+                f"[SERIAL] not detected on attempt {attempt + 1}. retrying in {SERIAL_PROBE_DELAY_S:.1f}s"
             )
             time.sleep(SERIAL_PROBE_DELAY_S)
 
-    logging.info("Serial scanner not detected after retries. Falling back to HID (%s)", DEVICE_PATH)
+    _warn(f"[SERIAL] not detected after retries. falling back to HID {DEVICE_PATH}")
     scanner = KeyboardScanner(DEVICE_PATH)
-    logging.info("Scanner device: %s (%s)", scanner.device.path, scanner.device.name)
+    _info(f"[SERIAL] HID fallback: {scanner.device.path} ({scanner.device.name})")
     return scanner
 
 
