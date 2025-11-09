@@ -149,6 +149,30 @@ sudo journalctl -fu handheld@tools01.service
 
 以上を満たした状態で Git にコミットしておくと、VS Code 側で `git pull`→`systemctl restart handheld@tools01.service` を実行するだけで Pi Zero 側の更新が反映される。
 
+### 0.5 直近の検証結果ログ（2025-11-09 21:08 JST）
+- 21:08:07 `journalctl -fu handheld@tools01.service`  
+  ```
+  [SERIAL] forcing /dev/minjcode0 @ 115200bps
+  [SERIAL] scanner ready: /dev/minjcode0 (serial 115200bps)
+  ```
+  → シリアル優先ロジックが新リポジトリのコードで動作していることを確認。  
+- 21:08:17〜21:08:18  
+  ```
+  [DEBUG] Read code: 1920095030005
+  [STATE] transition -> WAIT_B ...
+  [DEBUG] Read code: 9784305710628
+  [UI] update -> ... Status: DONE
+  ```
+  → 電子ペーパーが A/B 完了表示まで更新される状態に復旧。  
+- 21:08:23 以降  
+  ```
+  Posting to http://192.168.10.230:8501/api/v1/scans ...
+  WARNING ... Max retries exceeded ...
+  Queueing payload for retry ...
+  ```
+  → Pi Zero から Pi5 への HTTP POST がタイムアウト。Pi5 側サービス復旧とネットワーク疎通確認後、`handheld_scan_display.py --drain-only` でキューを空にすること。  
+- 上記ログは `docs/test-notes/2025-11/pi-zero-test-plan.md` に貼り付け、再テスト時の比較基準とする。
+
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
   `server/scripts/manage_api_token.py --rotate` 等で再発行した場合は Pi Zero (`/etc/onsitelogistics/config.json`)、Pi5 (`/srv/rpi-server/config/local.toml`)、Window A、DocumentViewer へ同じ Bearer トークンを配布する。
