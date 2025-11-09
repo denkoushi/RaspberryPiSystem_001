@@ -26,3 +26,27 @@
 - Socket.IO 受信イベントが到達し、UI が遅延なく更新されること。
 - 切断時には再接続が自動で試行され、復旧後に backlog との差が解消されること。
 - エラー時のログが運用ドキュメントに記載した内容と一致すること。
+
+## 5. 次アクション（2025-11-10）
+1. Pi5 再起動後に `sudo journalctl -u raspberrypiserver.service -n 80` と `/srv/rpi-server/logs/socket.log` を確認し、Socket.IO 名前空間が `/socket.io` で待機していることを確認する。  
+2. Window A で `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` を常駐させ、DocumentViewer の `client.log` を `tail -f` で監視する。  
+3. Pi Zero から 2 連続スキャンを実施（A=4989999058963, B=https://e.bambulab... など）し、Window A / DocumentViewer が受信ログを出すかを記録。  
+4. 受信ログとスクリーンショットを `docs/test-notes/2025-11/window-a-demo.md` に追記し、`docs/system/next-steps.md` のダッシュボードを更新する。  
+5. 切断テストは Phase-1 PR 作成後に実施し、結果によって Phase-2（mirrorctl・監視移植）のスケジュールを調整する。
+
+### 推奨コマンド
+```bash
+# Pi5 側で Socket.IO の状態を確認
+sudo journalctl -u raspberrypiserver.service -n 120 | grep -i socket
+sudo tail -n 120 /srv/rpi-server/logs/socket.log
+
+# Window A でリスナーを常駐
+cd ~/tool-management-system02
+npx ts-node scripts/listen_for_scans.ts \
+  --api http://192.168.10.230:8501 \
+  --socket-path /socket.io \
+  --token "$SOCKET_API_TOKEN"
+
+# DocumentViewer のログ監視
+sudo tail -f /var/log/document-viewer/client.log
+```
