@@ -21,11 +21,47 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
    sudo -u tools01 -H /home/tools01/.venv-handheld/bin/pip install --upgrade pip
    sudo -u tools01 -H /home/tools01/.venv-handheld/bin/pip install evdev pillow requests pyserial gpiozero lgpio
    ```
-4. Waveshare ドライバ  
+4. Waveshare ドライバ（2.13" e-Paper HAT V4）  
+   - GitHub からの `git clone` は途中で `invalid index-pack output` になることがあるため、公式 Wiki が案内している ZIP を常用する。  
    ```bash
-   sudo rsync -a /home/denkonzero/e-Paper/ /home/tools01/RaspberryPiSystem_001/handheld/e-Paper/
-   sudo chown -R tools01:tools01 /home/tools01/RaspberryPiSystem_001/handheld/e-Paper
+   sudo -u tools01 -H bash -lc '
+     set -euo pipefail
+     cd /home/tools01
+     rm -rf e-Paper E-Paper_code.zip
+     wget -O E-Paper_code.zip https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+     unzip -q E-Paper_code.zip -d e-Paper
+     source /home/tools01/.venv-handheld/bin/activate
+     cd /home/tools01/e-Paper/RaspberryPi_JetsonNano/python
+     python setup.py install
+   '
    ```
+   - インストール直後に venv で import を確認する。  
+     ```bash
+     sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python - <<'PY'
+import importlib
+import sys
+missing = []
+for name in ('waveshare_epd', 'waveshare_epaper'):
+    try:
+        importlib.import_module(name)
+    except ModuleNotFoundError:
+        missing.append(name)
+if missing:
+    sys.exit(f'Missing modules: {missing}')
+print('waveshare driver OK')
+PY"
+   ```
+   - 参照元: [Waveshare 2.13inch e-Paper HAT Wiki](https://www.waveshare.com/wiki/2.13inch_e-Paper_HAT)
+   - `.env` や systemd override で `/home/tools01/e-Paper/RaspberryPi_JetsonNano/python/lib` を `PYTHONPATH` に足しておくと import が安定する。
+5. スキャナ（CDC-ACM）環境  
+   - 旧システムと同様に MINJCODE をシリアルモードで扱う。`scripts/setup_serial_env.sh` を root で実行すると udev ルール（`/dev/minjcode0`）と systemd の再起動まで自動化できる。  
+     ```bash
+     cd ~/RaspberryPiSystem_001
+     sudo ./scripts/setup_serial_env.sh tools01
+     ls -l /dev/minjcode* /dev/ttyACM*      # デバイス確認
+     ```
+   - ルール適用後にスキャナを再接続し、`dmesg | grep -i ttyACM` で `/dev/ttyACM0` の生成を確認する。`sudo evtest` には出ないので、`handheld_scan_display.py` が自動的に `/dev/minjcode*` → `/dev/ttyACM*` → `/dev/ttyUSB*` の順で探す。
+   - 詳細背景は旧リポジトリ `docs/handheld-reader.md`（セクション 4.x）を参照。
 
 ### 0.2 systemd テンプレート
 `/etc/systemd/system/handheld@.service.d/override.conf`
@@ -39,7 +75,7 @@ SupplementaryGroups=input dialout gpio spi i2c
 WorkingDirectory=/home/%i/RaspberryPiSystem_001/handheld
 Environment=PYTHONUNBUFFERED=1
 Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
-Environment=PYTHONPATH=/home/%i/RaspberryPiSystem_001/handheld/e-Paper/RaspberryPi_JetsonNano/python/lib
+Environment=PYTHONPATH=/home/%i/e-Paper/RaspberryPi_JetsonNano/python/lib
 Environment=GPIOZERO_PIN_FACTORY=lgpio
 ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/ttyACM0 ] && exit 0; sleep 2; done; echo 'no serial device'; exit 1"
 ExecStart=
