@@ -10,6 +10,7 @@ Run on Raspberry Pi Zero 2 W:
     sudo ./handheld_scan_display.py
 """
 
+import argparse
 import json
 import logging
 import os
@@ -22,6 +23,7 @@ from typing import Optional
 import requests
 from evdev import InputDevice, categorize, ecodes
 from PIL import Image, ImageDraw, ImageFont
+from logging.handlers import RotatingFileHandler
 
 try:
     from waveshare_epd import epd2in13_V4  # legacy module name
@@ -52,8 +54,8 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID fallback node（最終手段として event0 を参照）
-DEFAULT_HID_DEVICE = Path("/dev/input/event0")
+# Default HID event node (adjust if your scanner is mapped elsewhere)
+DEVICE_PATH = Path("/dev/input/event0")
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
@@ -70,36 +72,6 @@ CONFIG_SEARCH_PATHS = [
     str(Path(__file__).resolve().parent.parent / "config" / "config.json"),
 ]
 DEFAULT_TIMEOUT = 3
-
-
-def detect_hid_device() -> Path:
-    env_override = os.environ.get("HANDHELD_INPUT_DEVICE")
-    if env_override:
-        candidate = Path(env_override)
-        if candidate.exists() or candidate.resolve().exists():
-            return candidate
-
-    by_id = Path("/dev/input/by-id")
-    if by_id.exists():
-        for pattern in ("*MINJCODE*event-kbd", "*Scanner*event-kbd"):
-            matches = sorted(by_id.glob(pattern))
-            if matches:
-                target = matches[0].resolve()
-                if target.exists():
-                    logging.info("HID device (by-id): %s -> %s", matches[0], target)
-                    return target
-
-    by_path = Path("/dev/input/by-path")
-    if by_path.exists():
-        matches = sorted(by_path.glob("*MINJCODE*event-kbd"))
-        if matches:
-            target = matches[0].resolve()
-            if target.exists():
-                logging.info("HID device (by-path): %s -> %s", matches[0], target)
-                return target
-
-    logging.info("HID fallback default: %s", DEFAULT_HID_DEVICE)
-    return DEFAULT_HID_DEVICE
 
 
 class KeyboardScanner:
@@ -207,9 +179,6 @@ class KeyboardScanner:
             return code[-1].lower()
         return None
 
-    def description(self) -> str:
-        return f"{self.device.path} ({self.device.name})"
-
 
 class SerialScanner:
     """Read barcode strings via USB CDC (virtual serial) devices."""
@@ -217,11 +186,10 @@ class SerialScanner:
     def __init__(self, device_path: Path, baudrate: int):
         try:
             import serial
-        except ImportError as exc:  # pragma: no cover - env specific
+        except ImportError as exc:
             raise RuntimeError(
-                "pyserial is required for serial-mode scanners. "
-                "Install it via 'sudo apt install python3-serial' or "
-                "'pip install pyserial'."
+                "pyserial is required to use USB-Serial scanners. "
+                "Install it with 'sudo apt install python3-serial' or 'pip install pyserial'."
             ) from exc
 
         import serial  # type: ignore
@@ -244,9 +212,6 @@ class SerialScanner:
             self._serial.close()
         except Exception:  # pragma: no cover - best effort cleanup
             pass
-
-    def description(self) -> str:
-        return f"{self._device_path} (serial {self._baudrate}bps)"
 
 
 class EPaperUI:
@@ -308,10 +273,14 @@ def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
 
 class ScanTransmitter:
     def __init__(self, config: dict):
-        self.api_url = config["api_url"]
+        self.scan_api_url = config["api_url"]
         self.api_token = config["api_token"]
         self.device_id = config["device_id"]
         self.timeout = config.get("timeout_seconds", DEFAULT_TIMEOUT)
+        self.logistics_api_url = config.get("logistics_api_url")
+        self.logistics_default_from = config.get("logistics_default_from", "UNKNOWN")
+        self.logistics_status = config.get("logistics_status", "completed")
+        self.logistics_enabled = bool(self.logistics_api_url)
         queue_path = Path(config.get("queue_db_path", "~/.onsitelogistics/scan_queue.db")).expanduser()
         queue_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(queue_path)
@@ -319,6 +288,7 @@ class ScanTransmitter:
             """
             CREATE TABLE IF NOT EXISTS scan_queue (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target TEXT NOT NULL,
                 payload TEXT NOT NULL,
                 retries INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
@@ -326,6 +296,15 @@ class ScanTransmitter:
             """
         )
         self.conn.commit()
+        self._migrate_queue_schema()
+
+    def _migrate_queue_schema(self) -> None:
+        cursor = self.conn.execute("PRAGMA table_info(scan_queue)")
+        columns = {row[1] for row in cursor.fetchall()}
+        if "target" not in columns:
+            self.conn.execute("ALTER TABLE scan_queue ADD COLUMN target TEXT")
+            self.conn.execute("UPDATE scan_queue SET target=?", (self.scan_api_url,))
+            self.conn.commit()
 
     def _request_headers(self) -> dict:
         return {
@@ -333,45 +312,62 @@ class ScanTransmitter:
             "Content-Type": "application/json",
         }
 
-    def _post(self, payload: dict) -> bool:
+    def _post(self, target_url: str, payload: dict) -> bool:
         try:
-            logging.info("Posting scan: %s", payload.get("scan_id"))
+            logging.info("Posting to %s: %s", target_url, payload.get("scan_id") or payload.get("job_id"))
             response = requests.post(
-                self.api_url,
+                target_url,
                 json=payload,
                 headers=self._request_headers(),
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            logging.info("Server accepted scan %s", payload.get("scan_id"))
+            logging.info("Server accepted payload (target=%s)", target_url)
             return True
         except requests.RequestException as exc:
-            logging.warning("Failed to post scan %s: %s", payload.get("scan_id"), exc)
+            logging.warning(
+                "Failed to post payload to %s (%s): %s",
+                target_url,
+                payload.get("scan_id") or payload.get("job_id"),
+                exc,
+            )
             return False
 
-    def enqueue(self, payload: dict, retries: int = 0) -> None:
-        logging.info("Queueing scan %s for retry", payload.get("scan_id"))
+    def enqueue(self, target_url: str, payload: dict, retries: int = 0) -> None:
+        logging.info(
+            "Queueing payload for retry (target=%s, id=%s)",
+            target_url,
+            payload.get("scan_id") or payload.get("job_id"),
+        )
         self.conn.execute(
-            "INSERT INTO scan_queue (payload, retries, created_at) VALUES (?, ?, ?)",
-            (json.dumps(payload), retries, time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+            "INSERT INTO scan_queue (target, payload, retries, created_at) VALUES (?, ?, ?, ?)",
+            (
+                target_url,
+                json.dumps(payload),
+                retries,
+                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            ),
         )
         self.conn.commit()
 
-    def send_or_queue(self, payload: dict) -> None:
-        if not self._post(payload):
-            self.enqueue(payload, payload.get("retries", 0))
+    def send_or_queue(self, target_url: str, payload: dict) -> None:
+        if not self._post(target_url, payload):
+            self.enqueue(target_url, payload, payload.get("retries", 0))
 
-    def drain(self) -> None:
+    def drain(self, limit: int = 20) -> bool:
         cursor = self.conn.execute(
-            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT 20"
+            "SELECT id, target, payload, retries FROM scan_queue ORDER BY id ASC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
-        for row_id, payload_json, retries in rows:
+        processed = False
+        for row_id, target_url, payload_json, retries in rows:
             payload = json.loads(payload_json)
             payload["retries"] = retries + 1
-            if self._post(payload):
+            if self._post(target_url, payload):
                 self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
                 self.conn.commit()
+                processed = True
             else:
                 self.conn.execute(
                     "UPDATE scan_queue SET retries=? WHERE id=?",
@@ -379,6 +375,28 @@ class ScanTransmitter:
                 )
                 self.conn.commit()
                 break
+        return processed
+
+    def queue_size(self) -> int:
+        cursor = self.conn.execute("SELECT COUNT(*) FROM scan_queue")
+        (count,) = cursor.fetchone()
+        return int(count or 0)
+
+    def send_logistics_job(self, part_code: str, to_location: str) -> None:
+        if not self.logistics_enabled:
+            return
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        payload = {
+            "job_id": f"job-{uuid.uuid4().hex}",
+            "part_code": part_code,
+            "from_location": self.logistics_default_from or "UNKNOWN",
+            "to_location": to_location,
+            "status": self.logistics_status or "completed",
+            "requested_at": timestamp,
+            "updated_at": timestamp,
+            "retries": 0,
+        }
+        self.send_or_queue(self.logistics_api_url, payload)
 
 
 def iter_serial_candidates():
@@ -390,35 +408,62 @@ def iter_serial_candidates():
 
 def create_scanner():
     for attempt in range(SERIAL_PROBE_RETRIES):
-        logging.info("Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES)
+        logging.info(
+            "Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES
+        )
         for candidate in iter_serial_candidates():
             for baud in SERIAL_BAUDS:
                 try:
-                    logging.info("Probing serial candidate %s @ %sbps", candidate, baud)
+                    logging.info("Probing serial scanner candidate %s @ %sbps", candidate, baud)
                     scanner = SerialScanner(candidate, baud)
-                    logging.info("Scanner device: %s", scanner.description())
+                    logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
                     return scanner
                 except Exception as exc:
-                    logging.warning(
-                        "Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc
-                    )
+                    logging.warning("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
                     continue
         if attempt < SERIAL_PROBE_RETRIES - 1:
             logging.info(
-                "Serial scanner not detected (attempt %d). Retrying in %.1fs.",
+                "Serial scanner not detected on attempt %d. Retrying after %.1fs.",
                 attempt + 1,
                 SERIAL_PROBE_DELAY_S,
             )
             time.sleep(SERIAL_PROBE_DELAY_S)
 
-    hid_path = detect_hid_device()
-    logging.info("Serial scanner not detected. Falling back to HID %s", hid_path)
-    scanner = KeyboardScanner(hid_path)
-    logging.info("Scanner device: %s", scanner.description())
+    logging.info("Serial scanner not detected after retries. Falling back to HID (%s)", DEVICE_PATH)
+    scanner = KeyboardScanner(DEVICE_PATH)
+    logging.info("Scanner device: %s (%s)", scanner.device.path, scanner.device.name)
     return scanner
 
 
-def load_config() -> dict:
+def configure_logging(config: dict) -> None:
+    log_dir = Path(config.get("log_dir", "~/.onsitelogistics/logs")).expanduser()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "handheld.log"
+
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=3)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+
+def load_config(config_path: Optional[str] = None) -> dict:
+    if config_path:
+        path = Path(config_path).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+
     for candidate in CONFIG_SEARCH_PATHS:
         if candidate and Path(candidate).expanduser().is_file():
             with open(Path(candidate).expanduser(), "r", encoding="utf-8") as fh:
@@ -428,16 +473,38 @@ def load_config() -> dict:
     )
 
 
-def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="OnSiteLogistics handheld controller")
+    parser.add_argument(
+        "--config",
+        help="Path to config.json (overrides ONSITE_CONFIG/search order)",
     )
-    config = load_config()
+    parser.add_argument(
+        "--drain-only",
+        action="store_true",
+        help="Process queued scans then exit",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    config = load_config(args.config)
+    configure_logging(config)
     transmitter = ScanTransmitter(config)
+
+    if args.drain_only:
+        logging.info("Drain-only mode: processing queued scans")
+        processed = True
+        while processed:
+            processed = transmitter.drain()
+            if processed and transmitter.queue_size() > 0:
+                time.sleep(0.5)
+        logging.info("Drain-only mode completed. Pending queue size: %s", transmitter.queue_size())
+        return
+
     scanner = create_scanner()
     ui = EPaperUI()
-    print(f"[INFO] Scanner device: {scanner.description()}")
 
     state = "WAIT_A"
     code_a: Optional[str] = None
@@ -491,14 +558,17 @@ def main() -> None:
                           b=format_line("B", code_b, True),
                           status="Status: DONE", force_full=True)
                 payload = {
-                    "scan_id": str(uuid.uuid4()),
-                    "device_id": transmitter.device_id,
-                    "part_code": code_a,
+                    "order_code": code_a,
                     "location_code": code_b,
-                    "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "retries": 0,
+                    "device_id": transmitter.device_id,
+                    "metadata": {
+                        "scan_id": str(uuid.uuid4()),
+                        "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "retries": 0,
+                    },
                 }
-                transmitter.send_or_queue(payload)
+                transmitter.send_or_queue(transmitter.scan_api_url, payload)
+                transmitter.send_logistics_job(code_a, code_b)
             transmitter.drain()
             print(f"[STATE] transition -> WAIT_A (completed) with B={code_b}")
             state = "WAIT_A"
@@ -507,7 +577,11 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\n[INFO] Stopped by user.")
     finally:
-        scanner.close()
+        if scanner:
+            try:
+                scanner.close()
+            except AttributeError:
+                pass
         ui.sleep()
         transmitter.conn.close()
 

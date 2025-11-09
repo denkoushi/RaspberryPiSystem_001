@@ -8,12 +8,12 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
 ### 0.1 ベース環境
 1. `tools01` ユーザーを作成（`sudo adduser --disabled-password --gecos "" tools01`）し、`input gpio spi i2c dialout` グループに追加。
 2. **RaspberryPiSystem_001 の clone**  
-   - `scripts/pi_zero_migrate_repo.sh` を実行すると、旧 `~/OnSiteLogistics` を `~/OnSiteLogistics_legacy_<timestamp>` に退避し、新しい `~/RaspberryPiSystem_001` を clone する（git がインストールされている前提）。  
-     ```bash
-     cd ~/RaspberryPiSystem_001/scripts   # Mac 側で差分を pull した後を想定
-     scp pi-zero-mac:~/RaspberryPiSystem_001/scripts/pi_zero_migrate_repo.sh tools01@pi-zero:/home/tools01/
-     ssh tools01@pi-zero 'bash ~/pi_zero_migrate_repo.sh'
-     ```
+- `scripts/pi_zero_migrate_repo.sh` を実行すると、旧 `~/OnSiteLogistics` を `~/OnSiteLogistics_legacy_<timestamp>` に退避し、新しい `~/RaspberryPiSystem_001` を clone する（git がインストールされている前提）。  
+    ```bash
+    cd ~/RaspberryPiSystem_001/scripts   # Mac 側で差分を pull した後を想定
+    scp pi-zero-mac:~/RaspberryPiSystem_001/scripts/pi_zero_migrate_repo.sh tools01@pi-zero:/home/tools01/
+    ssh tools01@pi-zero 'bash ~/pi_zero_migrate_repo.sh'
+    ```
    - スクリプト実行後、旧ディレクトリにしかない `.env` や `config.json` などはバックアップから手動でマージする。
 3. venv 準備  
    ```bash
@@ -84,6 +84,14 @@ ExecStart=
 ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py
 Restart=on-failure
 RestartSec=2
+```
+Pi Zero 側でコードを反映する際は、必ず次のコードブロックを一括で実行する。個別の貼り付けは行わない。  
+```bash
+cd ~/RaspberryPiSystem_001
+git pull
+./scripts/update_handheld_override.sh
+sudo systemctl restart handheld@tools01.service
+sudo journalctl -fu handheld@tools01.service
 ```
 `sudo systemctl daemon-reload && sudo systemctl enable --now handheld@tools01.service`
 
