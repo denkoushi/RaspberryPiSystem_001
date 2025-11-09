@@ -49,3 +49,17 @@
   pi-zero-logs/pi-zero.local-20251105-104200/system-info.txt
   ```
 - 2025-11-05 10:45 (JST): 事前チェックログを `docs/test-notes/2025-11/pi-zero-precheck.md` にまとめ、実機検証開始前の状態を記録。
+# Window A / DocumentViewer Socket.IO デモ記録（2025-11）
+
+| 日時 | シナリオ | Pi5 ログ確認 | Window A ログ | DocumentViewer ログ | 結果 | 備考 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2025-11-10 (予定) | 通常スキャン (A/B) | `journalctl -u raspberrypiserver.service -n 80` / `tail -n 120 socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Phase-1 PR 後に実行予定 |
+|  |  |  |  |  |  |  |
+
+## 記録テンプレート（追記用）
+- **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
+- **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
+- **Window A ログ**: `scripts/listen_for_scans.ts` 出力  
+- **DocumentViewer ログ**: `/var/log/document-viewer/client.log` から抜粋  
+- **UI スクリーンショット**: Window A / DocumentViewer の更新結果  
+- **判定 / フォローアップ**: PASS/FAIL と追加アクション

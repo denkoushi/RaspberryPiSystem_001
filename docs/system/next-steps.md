@@ -34,6 +34,7 @@
    - `journalctl -u handheld@tools01.service -n 80 --since "2025-11-10 08:20"`（A/B スキャン完了と `[SERIAL] scanner ready` を含む）  
    - `/home/tools01/.onsitelogistics/logs/handheld.log` の 2025-11-10 08:26 JST 付近の抜粋（`Server accepted payload` 連続記録）  
 3. `sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT COUNT(*) FROM scan_queue;'` の結果が 0 であるスクリーンショット／ログを添付し、旧データが残っていないことを証明する。  
+   - 2025-11-10 08:30 JST の時点では 2 件残存している。`SELECT id, payload FROM scan_queue;` で内容を控え、`DELETE FROM scan_queue WHERE id IN (...);` または JSON 補正 + `--drain-only` で 0 件にするまで再送を試みる。  
 4. `docs/system/pi-zero-integration.md` と `docs/test-notes/2025-11/pi-zero-test-plan.md` に本日の結果を反映したうえで、`git switch -c feature/handheld-migration-p1` を実行し、Phase-1 ブランチで PR を作成する。  
 5. PR 説明欄には「Mac → GitHub → tools01 同期フロー」「Pi Zero 実機確認ログ」「scan_queue 空確認」の 3 点を添付し、レビュー時の確認工数を下げる。
 
