@@ -112,7 +112,20 @@ sudo journalctl -fu handheld@tools01.service
 ```
 `sudo systemctl daemon-reload && sudo systemctl enable --now handheld@tools01.service`
 
-### 0.3 ペイロード仕様と Pi5 側との整合
+### 0.3 ハンディ更新で陥りやすい不具合と対策
+- **tools01 ワーキングツリー未更新**  
+  - 症状: `journalctl -fu handheld@tools01.service` に `[INFO] Scanner device: /dev/input/event0 (vc4-hdmi)` しか出ず、電子ペーパー表示も `A/B: WAIT` のまま。CLI で `python handheld_scan_display.py` を実行しても HID モードで動作する。  
+  - 原因: systemd サービスが参照する `/home/tools01/RaspberryPiSystem_001` が古いまま放置され、シリアル対応版 `handheld_scan_display.py` が配置されていない。作業ユーザー（例: `denkonzero`）側の clone だけ更新しても、サービス側は古いコミットを実行し続ける。  
+  - 対策:  
+    1. VS Code で差分をステージ → ユーザーが commit/push。  
+    2. Pi Zero で以下のコマンドブロックを実行し、`update_handheld_override.sh` が `git fetch && checkout && reset --hard` を自動実行するようにする。  
+    3. `journalctl` に `[SERIAL] forcing /dev/minjcode0 @ 115200bps` が出るまで確認し、出ない場合はブランチ・コミット ID を再確認してやり直す。  
+- **API (Pi5) への接続失敗**  
+  - 症状: `[SERIAL] scanner ready` の後に `Posting to http://192.168.10.230:8501/api/v1/scans` → `Max retries exceeded` → `Queueing payload` が繰り返される。電子ペーパーは完了表示になるが、サーバー側には反映されない。  
+  - 原因: Pi Zero から Pi5 (`http://192.168.10.230:8501`) へのネットワーク疎通ができていない、または Pi5 の `raspberrypiserver.service` が停止している。  
+  - 対策: `curl -I http://192.168.10.230:8501` や `ping` で疎通を確認し、必要に応じて Pi5 側サービスを再起動する。タイムアウト中に受け付けたスキャンは SQLite キューに残っているため、復旧後に `sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python handheld/scripts/handheld_scan_display.py --drain-only"` を実行して一気に再送する。
+
+### 0.4 ペイロード仕様と Pi5 側との整合
 - Pi5 `/api/v1/scans` は `order_code` / `location_code` を必須にしているため、A/B を送るハンディスクリプトは以下の JSON を POST する。  
   ```json
   {
