@@ -2,7 +2,7 @@
 
 モジュールごとの今後の作業を整理する。進捗に応じて更新すること。
 
-## 状況ダッシュボード（2025-11-09 時点）
+## 状況ダッシュボード（2025-11-10 午前時点）
 
 | 区分 | ステータス | タスク概要 | 対応ファイル/備考 |
 | --- | --- | --- | --- |
@@ -11,8 +11,8 @@
 | コード実装 | 進行中 | Socket.IO 運用仕様（設定・ログ・再接続テスト）の確定 | server/src/raspberrypiserver/app.py, server/tests/test_api_scans.py, server/config/default.toml, docs/system/documentviewer-integration.md |
 | コード実装 | 停滞 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld/scripts/** |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
-| 実機検証 | 復旧中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero 側はシリアル復旧済み、Pi5 API がタイムアウト中） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
-| 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期を実装済み） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
+| 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero シリアル復旧済み、Pi5 API 応答あり。旧キューに `scan_id=None` が残存） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
+| 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期済み。Pi5 側は未統合） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
 | 実機検証 | 準備中 | DocumentViewer / Window A Socket.IO 実機テスト | docs/test-notes/2025-11/window-a-socket-plan.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
@@ -37,15 +37,15 @@
 | Pi5 サーバー | コードは新リポジトリ由来で進行中 | インフラ（systemd, ディレクトリ構成）が旧名称のまま。deploy 時に手順が枝分かれしている。 | 1 日（切替手順 + ダウンタイム調整） | `docs/system/repo-structure-plan.md` の Milestone3 未完 |
 | DocumentViewer / Window A | 旧リポジトリを参照のみで維持 | 新リポジトリへ統合するか、境界をどこに置くか未決。 | 要検討 | AGENTS.md で「参照のみ可」を明確化する |
 
-## ここまでの状況サマリ（2025-11-09 夜）
-- Pi Zero: `journalctl` で `[SERIAL] forcing /dev/minjcode0 @ 115200bps` → `[SERIAL] scanner ready` が出力され、電子ペーパー UI も A/B → DONE 表示まで復旧。  
-- Pi5: `http://192.168.10.230:8501/api/v1/scans` がタイムアウトし、スキャンは SQLite キューに積まれている。Pi5 でサービス復旧後、`handheld_scan_display.py --drain-only` 実行が必要。  
-- 体制: tools01 リポジトリを強制同期する仕組みを導入済み。今後は Pi5 側の再構築と mirrorctl 移植が優先。
+## ここまでの状況サマリ（2025-11-10 午前）
+- Pi Zero: 08:25 JST の再起動後も `[SERIAL] forcing /dev/minjcode0 @ 115200bps` → `[SERIAL] scanner ready` が安定。A/B スキャン（4989999058963, https://e.bambulab...）で電子ペーパー更新を確認。  
+- Pi5: 08:26 JST に `Server accepted payload` が連続で出力され、API が復旧。旧バージョンで生成した `scan_id=None` のキューのみ 400 で残っている。  
+- 体制: tools01 リポジトリ強制同期は動作中。残課題は (1) キュー残骸の処理、(2) Handheld Migration Phase-1 ブランチの確立、(3) mirrorctl / Pi5 再統一の段取り決め。
 
 ## 今後 1 週間の優先タスク（提案）
-1. **Pi5 API 復旧**  
-   - `raspberrypiserver.service` を再起動し、`curl -I http://192.168.10.230:8501` で疎通確認。  
-   - 復旧後すぐに Pi Zero で `sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python handheld/scripts/handheld_scan_display.py --drain-only"` を実行してキューを空にする。
+1. **scan_queue 残骸の整理**  
+   - Pi Zero で `sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id,payload FROM scan_queue;'` を実行し、`scan_id` が `None` の行を確認。  
+   - 対象行を削除もしくは JSON を補正したうえで `sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python handheld/scripts/handheld_scan_display.py --drain-only"` を実行し、キューを空にする。
 2. **Handheld Migration Phase-1 ブランチの確立**  
    - 現在の `feature/repo-structure-plan` の差分を棚卸しし、マイルストーン専用ブランチへ整理。PR にはシリアル検出ログと API 送信ログを添付。  
 3. **mirrorctl / 14 日監視の仕様洗い出し**  

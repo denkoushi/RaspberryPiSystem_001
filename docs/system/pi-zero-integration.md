@@ -173,6 +173,17 @@ sudo journalctl -fu handheld@tools01.service
   → Pi Zero から Pi5 への HTTP POST がタイムアウト。Pi5 側サービス復旧とネットワーク疎通確認後、`handheld_scan_display.py --drain-only` でキューを空にすること。  
 - 上記ログは `docs/test-notes/2025-11/pi-zero-test-plan.md` に貼り付け、再テスト時の比較基準とする。
 
+### 0.6 scan_queue の点検と残骸掃除
+- Pi Zero で旧バージョンが生成したキューが残っていると、`scan_id` が `None` のまま送信され 400 エラーになる。以下のコマンドで中身を確認する。  
+  ```bash
+  sudo -u tools01 -H sqlite3 /home/tools01/.onsitelogistics/scan_queue.db \
+    "SELECT id, target, payload FROM scan_queue ORDER BY id;"
+  ```
+- `scan_id` や `order_code` が欠けているレコードは、以下のいずれかで処理する。  
+  1. **削除**: `DELETE FROM scan_queue WHERE id=<ID>;` を実行して破棄。  
+  2. **補正**: `UPDATE scan_queue SET payload='<修正後JSON>' WHERE id=<ID>;` で整合を取った後、`--drain-only` で再送。  
+- キューが空になったかは `SELECT COUNT(*) FROM scan_queue;` で確認する。ゼロであれば `handheld_scan_display.py --drain-only` の実行結果も「Pending queue size: 0」となる。
+
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
   `server/scripts/manage_api_token.py --rotate` 等で再発行した場合は Pi Zero (`/etc/onsitelogistics/config.json`)、Pi5 (`/srv/rpi-server/config/local.toml`)、Window A、DocumentViewer へ同じ Bearer トークンを配布する。
