@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+sudo mkdir -p /etc/systemd/system/handheld@.service.d
 cat <<'UNIT' | sudo tee /etc/systemd/system/handheld@.service.d/override.conf >/dev/null
 [Unit]
 After=dev-ttyACM0.device
