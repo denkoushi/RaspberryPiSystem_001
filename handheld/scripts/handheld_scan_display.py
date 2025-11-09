@@ -52,13 +52,8 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID event node（旧システムと同じく MINJCODE の by-id を優先）
-DEVICE_PATH = Path(
-    os.environ.get(
-        "HANDHELD_INPUT_DEVICE",
-        "/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd",
-    )
-)
+# Default HID fallback node（最終手段として event0 を参照）
+DEFAULT_HID_DEVICE = Path("/dev/input/event0")
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
@@ -75,6 +70,36 @@ CONFIG_SEARCH_PATHS = [
     str(Path(__file__).resolve().parent.parent / "config" / "config.json"),
 ]
 DEFAULT_TIMEOUT = 3
+
+
+def detect_hid_device() -> Path:
+    env_override = os.environ.get("HANDHELD_INPUT_DEVICE")
+    if env_override:
+        candidate = Path(env_override)
+        if candidate.exists() or candidate.resolve().exists():
+            return candidate
+
+    by_id = Path("/dev/input/by-id")
+    if by_id.exists():
+        for pattern in ("*MINJCODE*event-kbd", "*Scanner*event-kbd"):
+            matches = sorted(by_id.glob(pattern))
+            if matches:
+                target = matches[0].resolve()
+                if target.exists():
+                    logging.info("HID device (by-id): %s -> %s", matches[0], target)
+                    return target
+
+    by_path = Path("/dev/input/by-path")
+    if by_path.exists():
+        matches = sorted(by_path.glob("*MINJCODE*event-kbd"))
+        if matches:
+            target = matches[0].resolve()
+            if target.exists():
+                logging.info("HID device (by-path): %s -> %s", matches[0], target)
+                return target
+
+    logging.info("HID fallback default: %s", DEFAULT_HID_DEVICE)
+    return DEFAULT_HID_DEVICE
 
 
 class KeyboardScanner:
@@ -386,8 +411,9 @@ def create_scanner():
             )
             time.sleep(SERIAL_PROBE_DELAY_S)
 
-    logging.info("Serial scanner not detected. Falling back to HID %s", DEVICE_PATH)
-    scanner = KeyboardScanner(DEVICE_PATH)
+    hid_path = detect_hid_device()
+    logging.info("Serial scanner not detected. Falling back to HID %s", hid_path)
+    scanner = KeyboardScanner(hid_path)
     logging.info("Scanner device: %s", scanner.description())
     return scanner
 
