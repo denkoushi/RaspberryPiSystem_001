@@ -65,6 +65,15 @@ PY"
    - **HID モードのフォールバック**: どうしてもシリアルへ切り替えられない場合でも、`handheld_scan_display.py` が `/dev/input/by-id/*MINJCODE*event-kbd` や `evtest` で検出した MINJCODE の event デバイスを自動選択して動作する。`sudo evtest` で MINJCODE の番号（例: `/dev/input/event2`）を確認し、`journalctl -fu handheld@tools01.service` に `[INFO] Scanner device: /dev/input/event2 (MINJCODE...)` が出れば HID モードでも運用可能。Pi のコンソールにキー入力が流れないよう、サービスを停止した状態でスキャンしない。
    - `HANDHELD_INPUT_DEVICE` という環境変数を systemd 環境に追加すると、HID デバイスを強制的に指定できる。例: `Environment=HANDHELD_INPUT_DEVICE=/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd`。
 
+Pi Zero でコードを反映→動作確認する定型コマンドは下記。毎回これを実行し、ログでシリアル検出を確認する。  
+```bash
+cd ~/RaspberryPiSystem_001
+git pull
+./scripts/update_handheld_override.sh
+sudo systemctl restart handheld@tools01.service
+sudo journalctl -fu handheld@tools01.service
+```
+
 ### 0.2 systemd テンプレート
 `/etc/systemd/system/handheld@.service.d/override.conf`
 ```ini
