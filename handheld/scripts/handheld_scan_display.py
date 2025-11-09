@@ -58,11 +58,7 @@ SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
 SERIAL_PROBE_DELAY_S = 1.0
-HID_PATHS = [
-    Path("/dev/input/by-id") / "*MINJCODE*event-kbd",
-    Path("/dev/input/by-id") / "*Scanner*event-kbd",
-    Path("/dev/input/by-path") / "*MINJCODE*event-kbd",
-]
+HID_ID_PATTERNS = ("*MINJCODE*event-kbd", "*Scanner*event-kbd")
 HID_DEVICE_HINTS = ("minjcode", "scanner", "barcode")
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
@@ -366,9 +362,17 @@ def iter_serial_candidates():
 
 def resolve_hid_device() -> Path:
     """Try to locate the actual HID event node for the barcode scanner."""
-    # Prefer stable by-id / by-path entries
-    for pattern in HID_PATHS:
-        for path in sorted(pattern.parent.glob(pattern.name)):
+    by_id_dir = Path("/dev/input/by-id")
+    if by_id_dir.exists():
+        for pattern in HID_ID_PATTERNS:
+            for path in sorted(by_id_dir.glob(pattern)):
+                resolved = path.resolve()
+                if resolved.exists():
+                    return resolved
+
+    by_path_dir = Path("/dev/input/by-path")
+    if by_path_dir.exists():
+        for path in sorted(by_path_dir.glob("*MINJCODE*event-kbd")):
             resolved = path.resolve()
             if resolved.exists():
                 return resolved
