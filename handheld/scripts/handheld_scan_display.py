@@ -52,27 +52,13 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-# Default HID event node detection
-def detect_hid_default_path() -> Path:
-    env_override = os.environ.get("HANDHELD_INPUT_DEVICE")
-    if env_override:
-        candidate = Path(env_override)
-        if candidate.exists():
-            return candidate
-    by_id_dir = Path("/dev/input/by-id")
-    if by_id_dir.exists():
-        for pattern in ("*MINJCODE*event-kbd", "*Scanner*event-kbd"):
-            matches = sorted(by_id_dir.glob(pattern))
-            if matches:
-                return matches[0]
-    by_path_dir = Path("/dev/input/by-path")
-    if by_path_dir.exists():
-        matches = sorted(by_path_dir.glob("*MINJCODE*event-kbd"))
-        if matches:
-            return matches[0]
-    return Path("/dev/input/event0")
-
-DEVICE_PATH = detect_hid_default_path()
+# Default HID event node（旧システムと同じく MINJCODE の by-id を優先）
+DEVICE_PATH = Path(
+    os.environ.get(
+        "HANDHELD_INPUT_DEVICE",
+        "/dev/input/by-id/usb-MINJCODE_MINJCODE_MJ2818A_00000000011C-event-kbd",
+    )
+)
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
