@@ -12,7 +12,7 @@ Environment=PYTHONUNBUFFERED=1
 Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
 Environment=PYTHONPATH=/home/%i/e-Paper/RaspberryPi_JetsonNano/python/lib
 Environment=GPIOZERO_PIN_FACTORY=lgpio
-ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/ttyACM0 ] && exit 0; sleep 2; done; echo 'no serial device'; exit 1"
+ExecStartPre=/bin/sh -c "for i in $(seq 1 15); do [ -e /dev/minjcode0 ] || [ -e /dev/ttyACM0 ] || ls /dev/input/by-id/*MINJCODE*event-kbd >/dev/null 2>&1 && exit 0; sleep 2; done; echo 'no scanner device'; exit 1"
 ExecStart=
 ExecStart=/home/%i/.venv-handheld/bin/python /home/%i/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py
 Restart=on-failure
