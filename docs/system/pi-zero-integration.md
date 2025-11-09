@@ -15,6 +15,13 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
     ssh tools01@pi-zero 'bash ~/pi_zero_migrate_repo.sh'
     ```
    - スクリプト実行後、旧ディレクトリにしかない `.env` や `config.json` などはバックアップから手動でマージする。
+3. **tools01 ワーキングツリーの同期**  
+   - Pi Zero には「作業用ユーザー（例: `denkonzero`）の clone」と「systemd サービスが参照する `/home/tools01/RaspberryPiSystem_001`」の2系統が存在する。  
+   - `scripts/update_handheld_override.sh` は実行時に以下を自動実施する:  
+     1. Mac 側 VS Code で checkout しているブランチ名とコミット ID を取得  
+     2. `sudo -u tools01 -H bash -lc 'cd ~/RaspberryPiSystem_001 && git fetch --all --tags --prune && git checkout <branch> && git reset --hard <commit>'` を実行  
+   - これにより、サービスが必ず最新コミットを参照する。`git pull` を忘れて `tools01` 側だけ古くなる事故を防げる。  
+   - **注意**: `tools01` リポジトリに手作業の差分を残さないこと（上記 `reset --hard` で破棄される）。Pi 固有の設定ファイルは `/etc/onsitelogistics` や `/home/tools01/.onsitelogistics` 側で管理する。
 3. venv 準備  
    ```bash
    sudo -u tools01 -H python3 -m venv /home/tools01/.venv-handheld

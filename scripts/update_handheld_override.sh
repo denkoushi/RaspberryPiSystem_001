@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
+CURRENT_REV="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+TOOLS01_HOME="/home/tools01"
+TOOLS01_REPO="$TOOLS01_HOME/RaspberryPiSystem_001"
+
+echo "[INFO] syncing tools01 git working tree"
+if sudo test -d "$TOOLS01_REPO/.git"; then
+  sudo -u tools01 -H bash -lc "
+    set -euo pipefail
+    cd '$TOOLS01_REPO'
+    git fetch --all --tags --prune
+    git checkout '${CURRENT_BRANCH}'
+    git reset --hard '${CURRENT_REV}'
+  "
+  echo "[INFO] tools01 repo now at $CURRENT_REV ($CURRENT_BRANCH)"
+else
+  echo "[WARN] $TOOLS01_REPO missing (.git not found). Skipping sync."
+fi
+
 sudo mkdir -p /etc/systemd/system/handheld@.service.d
 cat <<'UNIT' | sudo tee /etc/systemd/system/handheld@.service.d/override.conf >/dev/null
 [Unit]
