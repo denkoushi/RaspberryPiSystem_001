@@ -365,7 +365,9 @@ def resolve_hid_device() -> Path:
     by_id_dir = Path("/dev/input/by-id")
     if by_id_dir.exists():
         for pattern in HID_ID_PATTERNS:
-            for path in sorted(by_id_dir.glob(pattern)):
+            matches = sorted(by_id_dir.glob(pattern))
+            logging.info("HID search (by-id, pattern=%s): %s", pattern, [str(p) for p in matches])
+            for path in matches:
                 resolved = path.resolve()
                 if resolved.exists():
                     logging.info("HID candidate matched (by-id): %s -> %s", path, resolved)
@@ -373,7 +375,9 @@ def resolve_hid_device() -> Path:
 
     by_path_dir = Path("/dev/input/by-path")
     if by_path_dir.exists():
-        for path in sorted(by_path_dir.glob("*MINJCODE*event-kbd")):
+        matches = sorted(by_path_dir.glob("*MINJCODE*event-kbd"))
+        logging.info("HID search (by-path): %s", [str(p) for p in matches])
+        for path in matches:
             resolved = path.resolve()
             if resolved.exists():
                 logging.info("HID candidate matched (by-path): %s -> %s", path, resolved)
