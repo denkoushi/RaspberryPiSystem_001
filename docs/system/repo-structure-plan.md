@@ -39,6 +39,11 @@
      ```
    - Window A アプリは `client_window_a/`＋`window_a/` の構成で動作するため、systemd サービスや `setup_auto_start.sh` で参照しているパスを `/home/tools02/RaspberryPiSystem_001/window_a` / `/home/tools02/RaspberryPiSystem_001/client_window_a` に更新する。  
    - 依存インストールも `cd ~/RaspberryPiSystem_001/window_a && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` のように統一。旧 `~/tool-management-system02` は参照専用の `*_legacy_` ディレクトリとして保持する。
+6. **ホスト名・systemd・ログパスの名寄せ**  
+   - Pi5: `/etc/hostname` と `raspi-server.service` を新名称に合わせ、`logging.path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` へ更新。  
+   - Pi4 (Window A/B): `toolmgmt.service` の `WorkingDirectory`/`ExecStart`/`Environment` を `~/RaspberryPiSystem_001/window_a` に統一し、`window_a/config/*.env` を参照する。  
+   - Pi Zero: `handheld@tools01.service` を `~/RaspberryPiSystem_001/handheld` に統一し、`/home/tools01/.venv-handheld` を参照。  
+   - すべてのデバイスでログディレクトリを `~/RaspberryPiSystem_001/<module>/logs` もしくは `/srv/RaspberryPiSystem_001/server/logs` に集約する。
 
 ## ToDo
 - [x] Pi Zero 移行スクリプトと手順書の作成 (`scripts/pi_zero_migrate_repo.sh`, `docs/system/pi-zero-integration.md`)
@@ -46,3 +51,4 @@
 - [x] AGENTS.md へ「各デバイスのディレクトリ名統一」ポリシーを明記
 - [ ] Pi4（Window A）再構築手順を `docs/test-notes/2025-11/window-a-demo.md` / `docs/system/next-steps.md` に反映し、`tool-management-system02` 廃止タイムラインを決定
 - [ ] 旧ディレクトリ削除の前にバックアップ保管先を決定
+- [ ] Pi5/Pi4/Pi Zero のホスト名・systemd ユニット名・ログパス名寄せを実施し、本ドキュメントに進捗を記録

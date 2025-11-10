@@ -15,6 +15,7 @@
 | 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期済み。Pi5 側は未統合） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
 | 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (Window A psycopg3 反映と Pi4 venv 再構築を完了してから実施) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md, window_a/** |
 | 体制整備 | 新規 | Pi4 (Window A) のワークツリーを `~/RaspberryPiSystem_001` に統一し、`~/tool-management-system02` を `*_legacy_` へ退避 | docs/system/repo-structure-plan.md, docs/test-notes/2025-11/window-a-demo.md |
+| 体制整備 | 新規 | Pi5/Pi4/Pi Zero のホスト名・systemd・ログパスを `RaspberryPiSystem_001` へ名寄せ | docs/system/repo-structure-plan.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
 | ドキュメント更新 | 新規 | Window A psycopg3 移行手順と既知課題の記録 | docs/test-notes/2025-11/window-a-demo.md |

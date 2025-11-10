@@ -9,13 +9,30 @@
 - Window D: `/Users/tsudatakashi/OnSiteLogistics`
 - Window E: `/Users/tsudatakashi/RaspberryPiServer`
 
-各ウィンドウ（リポジトリ）のパスは **Mac 上で VS Code が参照しているローカル clone** を指す。実際のデプロイ先とは別である点に注意する。例:
-- Window A (`tool-management-system02`) … ラズパイ4 tools02（Window A サービス）で稼働
-- Window B (`DocumentViewer`) … DocumentViewer 用ラズパイ4
-- Window C (`RaspberryPizero2W_withDropbox`) … Pi Zero 2 W（tools01）
-- Window D/E … 旧リポジトリ参照用（Pi Zero / Pi5 の旧コード）
+各ウィンドウ（リポジトリ）のパスは **Mac 上で VS Code が参照しているローカル clone** を指す。実機で稼働しているホストとは次の対応になる。
+- Window A (`tool-management-system02`) … ラズパイ4（Window A アプリ）向け旧リポジトリ。Pi4 で実行されるが、コードは Mac→GitHub→Pi4 の順で同期する。
+- Window B (`DocumentViewer`) … DocumentViewer 用ラズパイ4 の旧リポジトリ。
+- Window C (`RaspberryPizero2W_withDropbox`) … Pi Zero 2 W のローカル clone（tools01）。Pi Zero の作業用。
+- Window D (`OnSiteLogistics`) … Pi Zero スキャナ旧システムの参照用リポジトリ（コード参照のみ）。
+- Window E (`RaspberryPiServer`) … Pi5 旧サーバーコードの参照用リポジトリ。Pi5 の本番サーバーは本リポジトリ（`~/RaspberryPiSystem_001/server`）を用いる。
 
 コマンド実行が必要な場合は、対象デバイス（Pi Zero/Pi4/Pi5 等）で行う。各ウィンドウの情報は独立して扱い、参照する際も原則ユーザー確認は不要。
+
+## ドキュメント参照フロー
+タスクを開始するときは必ず以下の順番で参照し、進捗の更新も指定されたファイルに限定する。
+
+1. **AGENTS.md（本ファイル）**  
+   - 開発ルールと参照先の入り口。ここを読み、次に参照するドキュメントを決める。
+2. **`docs/system/next-steps.md`**  
+   - 実装／実機検証タスクのダッシュボード。優先度・ステータス・TODO はすべてここに記録し、他では重複させない。
+3. **`docs/system/repo-structure-plan.md`**  
+   - 名寄せ、systemd/ログパス統一など構造系タスク専用。進捗はこのファイルで管理し、完了時に `next-steps.md` へ反映する。
+4. **`docs/test-notes/**`**  
+   - 実施ログと観察結果のみを記録。要件やタスクは書かず、`next-steps.md` にリンクする。
+5. **モジュール README / docs** (`server/README.md`, `handheld/README.md`, `window_a/README.md`, `client_window_a/docs/*`)  
+   - 具体的なコマンドやセットアップ手順が必要なときに参照する。
+
+> 上記以外にタスクリストを作らない。進捗の更新漏れ防止のため、タスクは `next-steps.md` と `repo-structure-plan.md` のみで管理する。
 
 ## 方針
 1. 一次情報（要件・決定事項）は本リポジトリ内で管理する。詳細手順や過去履歴は参照先ドキュメントにまとめる。
