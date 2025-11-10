@@ -40,7 +40,8 @@
    - Window A アプリは `client_window_a/`＋`window_a/` の構成で動作するため、systemd サービスや `setup_auto_start.sh` で参照しているパスを `/home/tools02/RaspberryPiSystem_001/window_a` / `/home/tools02/RaspberryPiSystem_001/client_window_a` に更新する。  
    - 依存インストールも `cd ~/RaspberryPiSystem_001/window_a && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` のように統一。旧 `~/tool-management-system02` は参照専用の `*_legacy_` ディレクトリとして保持する。
 6. **ホスト名・systemd・ログパスの名寄せ**  
-   - Pi5: `/etc/hostname` と `raspi-server.service` を新名称に合わせ、`logging.path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` へ更新。  
+- Pi5: `/etc/hostname` と `raspi-server.service` を新名称に合わせ、`logging.path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` へ更新。  
+  - `server/config/default.toml` の `[logging]` も同パスに更新済み。Pi5 実機では `/srv/RaspberryPiSystem_001/server/logs/` を作成し、systemd から参照する。  
    - Pi4 (Window A/B): `toolmgmt.service` の `WorkingDirectory`/`ExecStart`/`Environment` を `~/RaspberryPiSystem_001/window_a` に統一し、`window_a/config/*.env` を参照する。  
    - Pi Zero: `handheld@tools01.service` を `~/RaspberryPiSystem_001/handheld` に統一し、`/home/tools01/.venv-handheld` を参照。  
    - すべてのデバイスでログディレクトリを `~/RaspberryPiSystem_001/<module>/logs` もしくは `/srv/RaspberryPiSystem_001/server/logs` に集約する。

@@ -19,4 +19,4 @@ dsn = "postgresql://app:app@localhost:15432/sensordb"
 # Logging configuration placeholder
 [logging]
 level = "INFO"
-path = "/srv/rpi-server/logs/app.log"
+path = "/srv/RaspberryPiSystem_001/server/logs/app.log"
