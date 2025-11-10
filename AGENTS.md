@@ -9,7 +9,13 @@
 - Window D: `/Users/tsudatakashi/OnSiteLogistics`
 - Window E: `/Users/tsudatakashi/RaspberryPiServer`
 
-各ウィンドウ（リポジトリ）のコンテキストは独立して扱う。別ウィンドウの情報を参照する場合でも、都度ユーザー確認は不要。
+各ウィンドウ（リポジトリ）のパスは **Mac 上で VS Code が参照しているローカル clone** を指す。実際のデプロイ先とは別である点に注意する。例:
+- Window A (`tool-management-system02`) … ラズパイ4 tools02（Window A サービス）で稼働
+- Window B (`DocumentViewer`) … DocumentViewer 用ラズパイ4
+- Window C (`RaspberryPizero2W_withDropbox`) … Pi Zero 2 W（tools01）
+- Window D/E … 旧リポジトリ参照用（Pi Zero / Pi5 の旧コード）
+
+コマンド実行が必要な場合は、対象デバイス（Pi Zero/Pi4/Pi5 等）で行う。各ウィンドウの情報は独立して扱い、参照する際も原則ユーザー確認は不要。
 
 ## 方針
 1. 一次情報（要件・決定事項）は本リポジトリ内で管理する。詳細手順や過去履歴は参照先ドキュメントにまとめる。
