@@ -279,6 +279,11 @@ sudo journalctl -u toolmgmt.service -n 120 --no-pager
 - `tests/test_station_config.py` を追加して `load_station_config` / `save_station_config` の正常動作を保証 (`pytest` 6 件 PASS)。
 - 今後、旧リポジトリにあったステーション設定ロジックを段階的に移植するまではこの JSON ストレージを参照する。
 
+### api_token_store / raspi_client の暫定実装（2025-11-11 09:45 JST）
+- `window_a/api_token_store.py`: `window_a/config/api_tokens.json` を用いたトークン管理を実装。`list_tokens`, `issue_token`, `revoke_token`, `get_active_tokens`, `get_token_info` を提供。テスト (`tests/test_api_token_store.py`) で file I/O を検証。
+- `window_a/raspi_client.py`: `requests` ベースの最小 HTTP クライアントを実装し、`RaspiServerClient.from_env()` で `RASPI_SERVER_BASE` / `RASPI_SERVER_API_TOKEN` を読み込む。`tests/test_raspi_client.py` で例外分岐と JSON パースを確認。
+- Pi4 で `git pull` → `pytest`（12 件）→ `sudo systemctl restart toolmgmt.service` を実施済み。次回の `journalctl` では `api_token_store` の import エラーが解消され、残る依存関係を順次移設予定。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
