@@ -61,6 +61,7 @@
 - Debian trixie (Python 3.13) では `psycopg2-binary==2.9.9` がビルド不可のため、tool-management-system02 を `psycopg[binary]==3.2.3` へ移行。  
 - `app_flask.py` の接続コードを `psycopg.connect(**DB)` に変更し、`tests/test_load_plan.py` のスタブも `psycopg` に合わせた。  
 - 以後は `python3 -m venv venv` → `pip install -r requirements.txt` で trixie 環境でもセットアップが通る。Pi Zero / Pi5 も同依存に揃えることで将来の Python 3.13 対応が確実になる。
+- 本リポジトリの `window_a/` ディレクトリに、上記変更を反映した `requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` を配置した。VS Code から Window A リポジトリへコピーする際はここを最新版のソース・オブ・トゥルースとして利用する。
 
 ## 2025-11-11 Python 3.13 / psycopg2 ビルド失敗への対処
 
