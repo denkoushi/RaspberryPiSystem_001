@@ -12,10 +12,10 @@
 | コード実装 | 停滞 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld/scripts/** |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero シリアル復旧済み、Pi5 API 応答あり。旧キューに `scan_id=None` が残存） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
-| 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期済み。Pi5 側は未統合） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
+| 体制整備 | 進行中 | すべてのデバイスで `~/RaspberryPiSystem_001` のワークツリーを使用する（tools01 側は移行済み。Pi5 = `/srv/RaspberryPiSystem_001` へ統一済み。Pi4/Zero は legacy ディレクトリが残り、systemd 側が旧パスのまま） | docs/system/repo-structure-plan.md:1-41, AGENTS.md:21-35 |
 | 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (Window A psycopg3 反映と Pi4 venv 再構築を完了してから実施) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md, window_a/** |
-| 体制整備 | 新規 | Pi4 (Window A) のワークツリーを `~/RaspberryPiSystem_001` に統一し、`~/tool-management-system02` を `*_legacy_` へ退避 | docs/system/repo-structure-plan.md, docs/test-notes/2025-11/window-a-demo.md |
-| 体制整備 | 新規 | Pi5/Pi4/Pi Zero のホスト名・systemd・ログパスを `RaspberryPiSystem_001` へ名寄せ | docs/system/repo-structure-plan.md |
+| 体制整備 | 新規 | Pi4 (Window A) を `~/RaspberryPiSystem_001` ベースに刷新し、旧 `~/tool-management-system02` は `*_legacy_` へ退避する（systemd 停止→clone→venv 再構築→toolmgmt.service 差し替え） | docs/system/repo-structure-plan.md:30-41, docs/test-notes/2025-11/window-a-demo.md |
+| 体制整備 | 進行中 | Pi5/Pi4/Pi Zero のホスト名・systemd・ログ出力をすべて `RaspberryPiSystem_001` へ名寄せ（hostname + `/etc/hosts` + PS1、WorkingDirectory/ExecStart、`/srv|~/RaspberryPiSystem_001/**/logs`） | docs/system/repo-structure-plan.md:42-66, server/config/default.toml:1-22 |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
 | ドキュメント更新 | 新規 | Window A psycopg3 移行手順と既知課題の記録 | docs/test-notes/2025-11/window-a-demo.md |

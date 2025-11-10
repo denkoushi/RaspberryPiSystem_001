@@ -40,11 +40,26 @@
    - Window A アプリは `client_window_a/`＋`window_a/` の構成で動作するため、systemd サービスや `setup_auto_start.sh` で参照しているパスを `/home/tools02/RaspberryPiSystem_001/window_a` / `/home/tools02/RaspberryPiSystem_001/client_window_a` に更新する。  
    - 依存インストールも `cd ~/RaspberryPiSystem_001/window_a && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` のように統一。旧 `~/tool-management-system02` は参照専用の `*_legacy_` ディレクトリとして保持する。
 6. **ホスト名・systemd・ログパスの名寄せ**  
-- Pi5: `/etc/hostname` と `raspi-server.service` を新名称に合わせ、`logging.path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` へ更新。  
-  - `server/config/default.toml` の `[logging]` も同パスに更新済み。Pi5 実機では `/srv/RaspberryPiSystem_001/server/logs/` を作成し、systemd から参照する。  
-   - Pi4 (Window A/B): `toolmgmt.service` の `WorkingDirectory`/`ExecStart`/`Environment` を `~/RaspberryPiSystem_001/window_a` に統一し、`window_a/config/*.env` を参照する。  
-   - Pi Zero: `handheld@tools01.service` を `~/RaspberryPiSystem_001/handheld` に統一し、`/home/tools01/.venv-handheld` を参照。  
-   - すべてのデバイスでログディレクトリを `~/RaspberryPiSystem_001/<module>/logs` もしくは `/srv/RaspberryPiSystem_001/server/logs` に集約する。
+   - **共通ルール**: 3 台すべてのホスト名をリポジトリ名と同じ `RaspberryPiSystem_001` に揃える。`/etc/hostname` と `/etc/hosts` を同時に編集し、`sudo hostnamectl set-hostname RaspberryPiSystem_001` を実行後に SSH を再接続する。PS1／MOTD も同名を表示させ、利用者がどのマシンでも同じプロンプトを目視できる状態を維持する。  
+   - **Pi5（server）**  
+     1. `sudo mkdir -p /srv/RaspberryPiSystem_001/server/logs && sudo chown -R denkon5ssd:denkon5ssd /srv/RaspberryPiSystem_001/server/logs` でログディレクトリを用意する。  
+     2. `/etc/systemd/system/raspi-server.service` の `WorkingDirectory` と `ExecStart` が `/srv/RaspberryPiSystem_001/server` 配下を向いているか確認し、`.venv` は `.venv` というディレクトリ名で統一する。  
+     3. `server/config/default.toml:19-22` と `server/config/local.toml` の `[logging].path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` に揃える。  
+     4. 下記コマンドで反映し、`journalctl -u raspi-server.service -n 120` と `tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log` の結果をテストノートへ転記する。  
+        ```bash
+        sudo systemctl daemon-reload
+        sudo systemctl restart raspi-server.service
+        ```  
+   - **Pi4（Window A/B）**  
+     1. ホスト名変更後に `sudo systemctl stop toolmgmt.service` を実行し、停止した状態で設定を入れ替える。  
+     2. `/etc/systemd/system/toolmgmt.service` と `toolmgmt.service.d/window-a.conf` から旧 `~/tool-management-system02` パスを削除し、`WorkingDirectory=/home/tools02/RaspberryPiSystem_001/window_a`、`ExecStart=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin/python .../app_flask.py` に統一する。  
+     3. `Environment=PATH=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin:...` のように `.venv` への PATH を明示し、`.env` 類も `window_a/config` に集約する。  
+     4. `window_a/logs` を作成し、アプリ内の `LOG_DIR` なども新パスへ変更したうえで `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を実施。`journalctl -u toolmgmt.service -n 80` を記録して完了とする。  
+   - **Pi Zero（handheld）**  
+     1. ホスト名を統一後、`~/RaspberryPiSystem_001/handheld` と `~/.venv-handheld` を標準作業ディレクトリ／仮想環境とする。  
+     2. `handheld@tools01.service` の `WorkingDirectory` と `ExecStart=/home/tools01/.venv-handheld/bin/python /home/tools01/RaspberryPiSystem_001/handheld/src/main.py` を確認し、`Environment=PYTHONPATH=/home/tools01/RaspberryPiSystem_001` を追加してテスト時の `PYTHONPATH=..` を不要にする。  
+     3. `handheld/logs` を作り、`retry_queue.py` や再送キュー設定がそのディレクトリを参照するように更新する。`sudo systemctl daemon-reload && sudo systemctl restart handheld@tools01.service` の後に `journalctl -u handheld@tools01.service -n 80` を取得し、結果をテストノートへ貼る。  
+   - **検証ログの扱い**: すべての再起動結果と `tail` 出力は `docs/test-notes/2025-11/window-a-demo.md` など各デバイスのテストノートに貼り付け、本ファイルおよび `docs/system/next-steps.md` の該当行に完了日時を反映する。
 
 ## ToDo
 - [x] Pi Zero 移行スクリプトと手順書の作成 (`scripts/pi_zero_migrate_repo.sh`, `docs/system/pi-zero-integration.md`)
