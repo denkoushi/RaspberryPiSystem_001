@@ -206,6 +206,24 @@ tests/test_load_plan.py ....                                             [100%]
   # 5 passed, DeprecationWarning(datetime.utcnow)
   ```
 
+### Pi5 ログパス検証（2025-11-11 08:15 JST）
+`docs/system/repo-structure-plan.md:42-54` に従って Pi5 側のログディレクトリ作成と systemd 再起動を実施。`journalctl` では正常に停止→起動が確認できたものの、`app.log` が生成されていないため `tail` が失敗している。
+```
+denkon5ssd@raspi-server:~ $ sudo mkdir -p /srv/RaspberryPiSystem_001/server/logs
+denkon5ssd@raspi-server:~ $ sudo chown -R denkon5ssd:denkon5ssd /srv/RaspberryPiSystem_001/server/logs
+denkon5ssd@raspi-server:~ $ sudo systemctl daemon-reload
+denkon5ssd@raspi-server:~ $ sudo systemctl restart raspi-server.service
+denkon5ssd@raspi-server:~ $ sudo journalctl -u raspi-server.service -n 120 --no-pager
+Nov 10 17:22:57 raspi-server systemd[1]: Started raspi-server.service - RaspberryPiSystem_001 server.
+Nov 11 08:14:12 raspi-server systemd[1]: Stopping raspi-server.service - RaspberryPiSystem_001 server...
+Nov 11 08:14:12 raspi-server systemd[1]: raspi-server.service: Deactivated successfully.
+Nov 11 08:14:12 raspi-server systemd[1]: Stopped raspi-server.service - RaspberryPiSystem_001 server.
+Nov 11 08:14:12 raspi-server systemd[1]: Started raspi-server.service - RaspberryPiSystem_001 server.
+denkon5ssd@raspi-server:~ $ tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log
+tail: /srv/RaspberryPiSystem_001/server/logs/app.log: そのようなファイルやディレクトリはありません
+```
+→ server 側で `logging.path` を読んでファイルハンドラを初期化する処理が未実装。`server/src/raspberrypiserver/app.py` へ `logging.basicConfig` などを追加し、`app.logger` がファイルへ出力するよう修正する。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
