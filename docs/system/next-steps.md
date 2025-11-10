@@ -14,6 +14,7 @@
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero シリアル復旧済み、Pi5 API 応答あり。旧キューに `scan_id=None` が残存） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
 | 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期済み。Pi5 側は未統合） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
 | 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (Window A psycopg3 反映と Pi4 venv 再構築を完了してから実施) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md, window_a/** |
+| 体制整備 | 新規 | Pi4 (Window A) のワークツリーを `~/RaspberryPiSystem_001` に統一し、`~/tool-management-system02` を `*_legacy_` へ退避 | docs/system/repo-structure-plan.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
 | ドキュメント更新 | 新規 | Window A psycopg3 移行手順と既知課題の記録 | docs/test-notes/2025-11/window-a-demo.md |
@@ -83,8 +84,8 @@ sudo -u tools01 -H bash -lc '
 3. **Pi5 統合後の確認タスク**  
    - `/srv/RaspberryPiSystem_001` で `.venv/bin/python` の稼働を継続監視し、`curl http://localhost:8501/healthz` の結果と `raspi-server.service` ログをテストノートへ記録。  
 4. **Window A 依存更新 → Soket.IO 実機テスト**  
-   - 本リポジトリの `window_a/` に配置した `requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` を Window A リポジトリへ同期し、`psycopg[binary]==3.2.12` と psycopg3 API の差分をコミット → push。  
-   - Pi4 (tools02) で `git pull` → venv 再構築 (`python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && pytest`) を実施し、`pip show psycopg` の結果と pytest 成功ログを `docs/test-notes/2025-11/window-a-demo.md` へ追記。  
+   - Pi4 のワークツリーを `~/RaspberryPiSystem_001` へ移設し、`window_a/` サブディレクトリを本リポジトリの内容で構築する（旧 `~/tool-management-system02` は `*_legacy_` へ退避）。  
+   - `window_a/requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` をコミット→push したあと、Pi4 で `git pull` → venv 再構築 (`python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && pytest`) を実施し、`pip show psycopg` と pytest 成功ログを `docs/test-notes/2025-11/window-a-demo.md` へ追記。  
    - Pi5 / Pi Zero でも同様に `pip show psycopg` と `pytest`（handheld は `pytest handheld/tests`）を実行し、3 台とも 3.2.x 系で揃っているログを収集。  
    - 3 台の整合を確認したら `docs/test-notes/2025-11/window-a-socket-plan.md` の手順で Pi Zero → Pi5 → Window A → DocumentViewer の Socket.IO e2e を実施する。  
 5. **mirrorctl / 14 日監視の仕様洗い出し**  

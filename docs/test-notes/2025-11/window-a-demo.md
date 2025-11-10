@@ -138,6 +138,39 @@ pytest
 ```
 > Pi4 は PEP 668 によりシステム Python が「外部管理」扱いなので、`--break-system-packages` を避け、必ず venv 内で完結させる。pytest ログと `pip show psycopg` の出力を `docs/test-notes/2025-11/window-a-demo.md` に追記する。
 
+## Pi4 (Window A) ディレクトリ統一メモ
+
+現在 Pi4 は旧リポジトリ `~/tool-management-system02` をそのまま運用しているため、`git pull` しても `psycopg[binary]` の変更が届かない。`docs/system/repo-structure-plan.md` に従い、以下の段取りで `~/RaspberryPiSystem_001` へ統一する。
+
+1. **サービス停止 & 旧ディレクトリ退避**
+   ```bash
+   sudo systemctl stop toolmgmt.service
+   mv ~/tool-management-system02 ~/tool-management-system02_legacy_$(date +%Y%m%d)
+   ```
+2. **新リポジトリ clone**
+   ```bash
+   git clone https://github.com/denkoushi/RaspberryPiSystem_001.git ~/RaspberryPiSystem_001
+   cd ~/RaspberryPiSystem_001
+   git checkout feature/repo-structure-plan   # 進行中ブランチ
+   ```
+3. **Window A サブディレクトリのセットアップ**  
+   - `window_a/requirements.txt` を使って venv を作成。  
+   - `client_window_a/` も同じワークツリーで管理し、`npm install` などのセットアップをやり直す。  
+   ```bash
+   cd ~/RaspberryPiSystem_001/window_a
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   pip show psycopg
+   pytest
+   ```
+4. **systemd 更新**  
+   - `setup_auto_start.sh` や `/etc/systemd/system/toolmgmt.service` の `WorkingDirectory` と `ExecStart` を `/home/tools02/RaspberryPiSystem_001/window_a` に変更。  
+   - `sudo systemctl daemon-reload && sudo systemctl start toolmgmt.service` で再起動。
+5. **ログ記録**  
+   - 上記コマンドの出力を本ファイルに貼り付け、`docs/system/next-steps.md` のダッシュボードを更新する。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  

@@ -26,9 +26,23 @@
 4. **運用切り替え**
    - Mac からの変更は feature ブランチ→PR→main マージのみ
    - Pi 側で作業する場合も `~/RaspberryPiSystem_001` で `git checkout <branch>` を使用し、旧ディレクトリは参照専用にする。
+5. **Pi4 (Window A) 再構築**  
+   - 旧リポジトリ名 `tool-management-system02` を廃止し、`~/RaspberryPiSystem_001` へ統一する。  
+   - Mac 側で作成した `window_a/requirements.txt`、`window_a/app_flask.py`、`window_a/tests/test_load_plan.py` をリポジトリ直下（`window_a/` サブディレクトリ）で管理し、Pi4 も同じソースを pull できるようにする。  
+   - Pi4 側での作業手順:  
+     ```bash
+     sudo systemctl stop toolmgmt.service  # Window A サービス名に合わせる
+     mv ~/tool-management-system02 ~/tool-management-system02_legacy_$(date +%Y%m%d)
+     git clone https://github.com/denkoushi/RaspberryPiSystem_001.git ~/RaspberryPiSystem_001
+     cd ~/RaspberryPiSystem_001
+     git checkout feature/repo-structure-plan   # 進行中ブランチ
+     ```
+   - Window A アプリは `client_window_a/`＋`window_a/` の構成で動作するため、systemd サービスや `setup_auto_start.sh` で参照しているパスを `/home/tools02/RaspberryPiSystem_001/window_a` / `/home/tools02/RaspberryPiSystem_001/client_window_a` に更新する。  
+   - 依存インストールも `cd ~/RaspberryPiSystem_001/window_a && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` のように統一。旧 `~/tool-management-system02` は参照専用の `*_legacy_` ディレクトリとして保持する。
 
 ## ToDo
 - [x] Pi Zero 移行スクリプトと手順書の作成 (`scripts/pi_zero_migrate_repo.sh`, `docs/system/pi-zero-integration.md`)
 - [ ] Pi5 向けドキュメント追記 (`docs/system/postgresql-setup.md`, `docs/system/repo-structure-plan.md` に Pi5 移行手順を詳細化)
 - [x] AGENTS.md へ「各デバイスのディレクトリ名統一」ポリシーを明記
+- [ ] Pi4（Window A）再構築手順を `docs/test-notes/2025-11/window-a-demo.md` / `docs/system/next-steps.md` に反映し、`tool-management-system02` 廃止タイムラインを決定
 - [ ] 旧ディレクトリ削除の前にバックアップ保管先を決定
