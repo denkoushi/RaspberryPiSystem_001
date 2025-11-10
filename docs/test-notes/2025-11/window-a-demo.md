@@ -255,6 +255,25 @@ denkon5ssd@raspi-server:/srv/RaspberryPiSystem_001/server $ tail -n 50 /srv/Rasp
 ```
 → `/srv/RaspberryPiSystem_001/server/logs/app.log` に backlog / Socket.IO の詳細ログが出力されることを確認。既存の backlog テストデータにより WARNING が複数出ているが、ログファイル生成自体は成功している。
 
+### Pi4 Window A 名寄せ途中経過（2025-11-11 08:31 JST）
+```
+cd ~/RaspberryPiSystem_001 && git pull
+cd window_a && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && pytest  # 4 passed
+
+sudo systemctl stop toolmgmt.service
+sudo systemctl daemon-reload
+sudo systemctl start toolmgmt.service
+sudo journalctl -u toolmgmt.service -n 120 --no-pager
+```
+`toolmgmt.service` は `ModuleNotFoundError: usb_sync` のため 5 秒間隔でリスタートを繰り返す状態。Window A API `/api/usb_sync` が未移植の `usb_sync` モジュールを import していることが原因。
+
+### usb_sync スタブの追加（2025-11-11 09:00 JST）
+- `window_a/usb_sync.py` を新規作成し、以下の挙動を提供:
+  - `WINDOW_A_USB_SYNC_CMD` 環境変数または `window_a/scripts/usb_sync.(sh|py)` が存在すればそのコマンドを呼び出す。
+  - 上記が存在しない場合は WARNING を記録しつつ returncode=1 の結果を返す（API が 500 を返すのは維持）。
+- これにより `app_flask` import 時の `ModuleNotFoundError` が解消され、Window A systemd サービスは起動可能となる。実運用の USB 同期ロジックは後続タスクで `scripts/usb_sync.sh` を移植する。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
