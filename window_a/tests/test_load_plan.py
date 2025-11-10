@@ -66,11 +66,75 @@ def _ensure_smartcard_stub():
     sys.modules["smartcard.util"] = SimpleNamespace(toHexString=lambda data: "".join(str(x) for x in data))
 
 
+def _ensure_usb_sync_stub():
+    try:
+        importlib.import_module("usb_sync")
+        return
+    except ModuleNotFoundError:
+        pass
+
+    class DummyUsbSync:
+        def __call__(self, *args, **kwargs):
+            return None
+
+    sys.modules["usb_sync"] = SimpleNamespace(run_usb_sync=DummyUsbSync())
+
+
+def _ensure_station_config_stub():
+    try:
+        importlib.import_module("station_config")
+        return
+    except ModuleNotFoundError:
+        pass
+
+    def _load_station_config(path=None):
+        return {}
+
+    def _save_station_config(config, path=None):
+        return True
+
+    sys.modules["station_config"] = SimpleNamespace(
+        load_station_config=_load_station_config,
+        save_station_config=_save_station_config,
+    )
+
+
+def _ensure_raspi_client_stub():
+    try:
+        importlib.import_module("raspi_client")
+        return
+    except ModuleNotFoundError:
+        pass
+
+    class DummyClient:
+        def __init__(self, *args, **kwargs):
+            self.base_url = "http://stub"
+
+        def is_configured(self):
+            return False
+
+        def get_json(self, *args, **kwargs):
+            raise RuntimeError("raspi_client stub")
+
+    class DummyError(Exception):
+        pass
+
+    sys.modules["raspi_client"] = SimpleNamespace(
+        RaspiServerClient=DummyClient,
+        RaspiServerAuthError=DummyError,
+        RaspiServerClientError=DummyError,
+        RaspiServerConfigError=DummyError,
+    )
+
+
 def _import_app_flask(repo_root: Path):
     sys.path.insert(0, str(repo_root))
     _ensure_socketio_stub()
     _ensure_psycopg_stub()
     _ensure_smartcard_stub()
+    _ensure_usb_sync_stub()
+    _ensure_station_config_stub()
+    _ensure_raspi_client_stub()
     if "app_flask" in sys.modules:
         return importlib.reload(sys.modules["app_flask"])
     return importlib.import_module("app_flask")
