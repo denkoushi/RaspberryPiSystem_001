@@ -1,0 +1,7 @@
+evdev
+pillow
+requests
+pyserial
+gpiozero
+lgpio
+psycopg[binary]>=3.2.0

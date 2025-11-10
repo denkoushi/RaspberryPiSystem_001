@@ -189,6 +189,50 @@ tests/test_load_plan.py ....                                             [100%]
 ```
 ※ warnings は旧 smartcard SWIG 由来で既知。テスト本体は PASS。
 
+### Pi4 systemd 切り替えログ
+```
+# PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
+sudo sed -i 's#/window_a/venv/#/window_a/.venv/#g' /etc/systemd/system/toolmgmt.service
+sudo sed -i 's#^EnvironmentFile=/home/tools02/tool-management-system02/config/window-a-client.env#;EnvironmentFile removed#g' /etc/systemd/system/toolmgmt.service.d/window-a.conf
+
+sudo systemctl daemon-reload
+sudo systemctl start toolmgmt.service
+sudo systemctl status toolmgmt.service -n 20 --no-pager
+
+# 出力
+● toolmgmt.service - Tool Management System (Flask + SocketIO)
+     Loaded: loaded (/etc/systemd/system/toolmgmt.service; enabled)
+    Drop-In: /etc/systemd/system/toolmgmt.service.d
+             └─window-a.conf
+     Active: active (running) since 2025-11-10 15:21:29 JST
+   Main PID: 5417 (/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin/python)
+```
+旧 `EnvironmentFile` をコメントアウトしたため、必要な環境変数は `window_a/config/window-a-client.env` など新パスへ移す予定。現状は `.env` を読み込まずとも起動・Socket.IO 接続が完了している。
+
+### Pi5 / Pi Zero で取得する確認ログ
+1. **Pi5 (tools02)**  
+   ```bash
+   cd /srv/RaspberryPiSystem_001/server
+   source .venv/bin/activate
+   pip install pytest  # 初回のみ
+   pip show psycopg
+   pytest
+   ```
+   - 出力を本ファイルに貼り付け、Pi4 と同じく psycopg 3.2.x / pytest PASS を証跡として残す。
+2. **Pi Zero (tools01)**  
+   - まず `handheld/requirements.txt` を this repo から `scp` するか `git pull` で取得し、以下を実行。  
+     ```bash
+     cd ~/RaspberryPiSystem_001/handheld
+     python3 -m venv ~/.venv-handheld
+     source ~/.venv-handheld/bin/activate
+     pip install --upgrade pip
+     pip install -r requirements.txt
+     pip show psycopg
+     pytest handheld/tests
+     ```
+   - 必要に応じて `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` のログも取得し、再送キューが空であることを示す。  
+3. 3 台分のログが揃ったら `docs/test-notes/2025-11/window-a-socket-plan.md` のシナリオに従って Socket.IO 実機テストへ進む。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
