@@ -68,4 +68,4 @@
 - [ ] Pi4（Window A）再構築手順を `docs/test-notes/2025-11/window-a-demo.md` / `docs/system/next-steps.md` に反映し、`tool-management-system02` 廃止タイムラインを決定
 - [ ] 旧ディレクトリ削除の前にバックアップ保管先を決定
 - [ ] Pi5/Pi4/Pi Zero のホスト名・systemd ユニット名・ログパス名寄せを実施し、本ドキュメントに進捗を記録
-- [ ] RaspberryPiServer (Pi5) で `logging.path` を読むファイルハンドラを実装し、`/srv/RaspberryPiSystem_001/server/logs/app.log` に出力させる
+- [x] RaspberryPiServer (Pi5) で `logging.path` を読むファイルハンドラを実装し、`/srv/RaspberryPiSystem_001/server/logs/app.log` に出力させる（`server/tests/test_logging_config.py` で検証済み）

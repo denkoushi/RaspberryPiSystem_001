@@ -224,6 +224,19 @@ tail: /srv/RaspberryPiSystem_001/server/logs/app.log: そのようなファイ�
 ```
 → server 側で `logging.path` を読んでファイルハンドラを初期化する処理が未実装。`server/src/raspberrypiserver/app.py` へ `logging.basicConfig` などを追加し、`app.logger` がファイルへ出力するよう修正する。
 
+### Pi5 ログファイル出力実装（ローカル確認 2025-11-11 10:05 JST）
+Mac 上で `server/src/raspberrypiserver/app.py` にファイルロギング設定を追加し、`server/tests/test_logging_config.py` を新設して検証。`pytest` 全件 PASS。
+```
+% cd server && pytest
+============================= test session starts ==============================
+collected 32 items
+...
+tests/test_logging_config.py .                                           [ 90%]
+...
+============================== 32 passed in 6.51s ==============================
+```
+→ `APP_NAME` に応じたログ行が `tmp/logs/app.log` に書き込まれることを確認済み。Pi5 実機に反映すると `/srv/RaspberryPiSystem_001/server/logs/app.log` が自動生成される見込み。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去

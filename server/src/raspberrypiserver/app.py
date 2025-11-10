@@ -8,6 +8,7 @@ server code into a more modular structure.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -50,6 +51,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config['SECRET_KEY'] = app.config.get('SECRET_KEY', 'dev-secret')
     load_configuration(app)
+    configure_logging(app)
     socketio.init_app(
         app,
         cors_allowed_origins="*",
@@ -117,6 +119,43 @@ def load_configuration(app: Flask, config_path: Optional[str] = None) -> None:
             app.config.update(data)
         except Exception as exc:  # pylint: disable=broad-except
             app.logger.warning("Failed to load config %s: %s", config_file, exc)  # noqa: PLE1205
+
+
+def configure_logging(app: Flask) -> None:
+    """Configure Python logging based on app config."""
+    logging_cfg = app.config.get("logging") or {}
+    level_name = str(logging_cfg.get("level", "INFO")).upper()
+    level = getattr(logging, level_name, logging.INFO)
+
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+    handlers = []
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+    handlers.append(console_handler)
+
+    log_path = logging_cfg.get("path")
+    if log_path:
+        try:
+            log_file = Path(log_path).expanduser()
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            file_handler.setLevel(level)
+            file_handler.setFormatter(formatter)
+            handlers.append(file_handler)
+        except OSError as exc:
+            app.logger.warning("Failed to configure file logging %s: %s", log_path, exc)
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(level)
+    for handler in handlers:
+        root_logger.addHandler(handler)
+
+    app.logger.setLevel(level)
 
 
 def initialize_services(app: Flask) -> None:
