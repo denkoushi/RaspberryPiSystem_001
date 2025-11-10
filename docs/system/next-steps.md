@@ -65,7 +65,7 @@ sudo -u tools01 -H bash -lc '
 | --- | --- | --- | --- | --- |
 | ハンディ本体（handheld_scan_display.py） | シリアル検出・再送キューは移植済み。Pi Zero では 2025-11-09 21:08 JST に A/B 完走を確認。 | Pi5 API が落ちているため end-to-end 送信確認が未完。`mirrorctl` 連携や LED/ボタン GPIO は未移植。 | 0.5 日（Pi5 復旧＋drain-only＋ログ採取）、+1 日（mirrorctl/GPIO 移植） | `docs/test-notes/2025-11/pi-zero-test-plan.md` にログ追記予定 |
 | Pi Zero デプロイ経路 | `update_handheld_override.sh` に tools01 同期を実装し、VS Code → GitHub → tools01 で整合が取れる状態 | `tools01` ディレクトリに手入力した設定ファイルは `reset --hard` で消えるため、除外リスト/別管理場所を整理する必要あり。 | 0.5 日 | `docs/system/pi-zero-integration.md` へ保護すべきファイル一覧を追加する |
-| Pi5 サーバー | コードは新リポジトリ由来で進行中 | インフラ（systemd, ディレクトリ構成）が旧名称のまま。deploy 時に手順が枝分かれしている。 | 1 日（切替手順 + ダウンタイム調整） | `docs/system/repo-structure-plan.md` の Milestone3 未完 |
+| Pi5 サーバー | 統一済み | `/srv/RaspberryPiSystem_001` で venv ＋ systemd 運用に移行済み（/healthz 応答 OK）。旧 `/srv/rpi-server` は参照専用。 | - | `docs/system/repo-structure-plan.md` Milestone3 完了 |
 | DocumentViewer / Window A | 旧リポジトリを参照のみで維持 | 新リポジトリへ統合するか、境界をどこに置くか未決。 | 要検討 | AGENTS.md で「参照のみ可」を明確化する |
 
 ## ここまでの状況サマリ（2025-11-10 午前）
@@ -79,9 +79,8 @@ sudo -u tools01 -H bash -lc '
    - 対象行を削除もしくは JSON を補正したうえで `sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python handheld/scripts/handheld_scan_display.py --drain-only"` を実行し、キューを空にする。
 2. **Handheld Migration Phase-1 ブランチの確立**  
    - 現在の `feature/repo-structure-plan` の差分を棚卸しし、マイルストーン専用ブランチへ整理。PR にはシリアル検出ログと API 送信ログを添付。  
-3. **Pi5 再構築（RaspberryPiSystem_001 への統一）計画確定**  
-   - `/srv/rpi-server` の現状を棚卸しし、バックアップ/再配置手順を `docs/system/repo-structure-plan.md` に追記。  
-   - `/srv/RaspberryPiSystem_001` を clone→systemd 更新→旧ディレクトリ退避の段取りを確定し、作業ウィンドウと復旧手順をまとめる。  
+3. **Pi5 統合後の確認タスク**  
+   - `/srv/RaspberryPiSystem_001` で `.venv/bin/python` の稼働を継続監視し、`curl http://localhost:8501/healthz` の結果と `raspi-server.service` ログをテストノートへ記録。  
 4. **mirrorctl / 14 日監視の仕様洗い出し**  
    - 旧 OnSiteLogistics の `docs/handheld-reader.md` / `docs/mirrorctl.md` 等をレビューし、移植対象と工数を一覧化。  
    - 結果を本ファイルおよび `docs/system/pi-zero-integration.md` に反映し、Phase-2 の TODO を固める。

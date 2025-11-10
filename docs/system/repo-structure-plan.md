@@ -17,11 +17,12 @@
    - `cd ~/RaspberryPiSystem_001 && git checkout main && git pull`
    - 既存の `.env`, トークン, systemd など必要ファイルを `legacy` からマージ
    - `sudo systemctl edit handheld@tools01.service` の WorkingDirectory を `/home/tools01/RaspberryPiSystem_001/handheld` 等へ更新
-3. **Pi5 再構築（着手予定）**
-   - 現在 `/srv/rpi-server` に残っている旧 `RaspberryPiServer` 配置を棚卸しし、必要な設定ファイル（`config/`, `.env`, systemd drop-in）をバックアップ。
-   - `/srv/RaspberryPiSystem_001` を新規作成し、GitHub の `RaspberryPiSystem_001` を clone（`git clone https://github.com/denkoushi/RaspberryPiSystem_001.git /srv/RaspberryPiSystem_001`）。
-   - `sudo systemctl edit raspberrypiserver.service` で `WorkingDirectory=/srv/RaspberryPiSystem_001/server`、`ExecStart=/usr/bin/python3 /srv/RaspberryPiSystem_001/server/src/raspberrypiserver/app.py` へ書き換え、`sudo systemctl daemon-reload && sudo systemctl restart raspberrypiserver.service`。
-   - 切り替え後は旧 `/srv/rpi-server` を `rpi-server_legacy_<date>` にリネームし、参照専用にする。
+3. **Pi5 再構築（完了: 2025-11-10）**
+   - Docker Compose で稼働していた `/srv/rpi-server` を停止（`sudo docker compose down`）し、`/srv/rpi-server_legacy_20251110` として退避。
+   - GitHub の `RaspberryPiSystem_001` を `/srv/RaspberryPiSystem_001` に clone し、`server/.venv` を作成 → `pip install -e .` で依存をインストール。
+   - 新しい `raspi-server.service` を `/etc/systemd/system/raspi-server.service` に配置（`ExecStart=/srv/RaspberryPiSystem_001/server/.venv/bin/python ...`、`Environment=PATH=...`、`RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml`）。
+   - `/srv/RaspberryPiSystem_001/server/config/local.toml` に旧 `/etc/default/raspi-server` の値（API_TOKEN, DocumentViewer 設定等）を反映。
+   - `sudo systemctl daemon-reload && sudo systemctl enable --now raspi-server.service` の後、`curl -I http://localhost:8501/healthz` で 200 OK を確認。旧 `/srv/rpi-server` は参照専用に維持。
 4. **運用切り替え**
    - Mac からの変更は feature ブランチ→PR→main マージのみ
    - Pi 側で作業する場合も `~/RaspberryPiSystem_001` で `git checkout <branch>` を使用し、旧ディレクトリは参照専用にする。
