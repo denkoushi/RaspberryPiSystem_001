@@ -18,7 +18,7 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import requests
 from evdev import InputDevice, categorize, ecodes
@@ -72,6 +72,7 @@ SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 SERIAL_PROBE_RETRIES = 10
 SERIAL_PROBE_DELAY_S = 1.0
+HEADLESS_MODE = os.environ.get("HANDHELD_HEADLESS", "").lower() in {"1", "true", "yes", "on"}
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
@@ -272,6 +273,16 @@ class EPaperUI:
 
     def sleep(self) -> None:
         self.epd.sleep()
+
+
+class NullUI:
+    """No-op UI used when HEADLESS_MODE is enabled."""
+
+    def update(self, *_, **__):
+        pass
+
+    def sleep(self):
+        pass
 
 
 def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
@@ -544,7 +555,11 @@ def main() -> None:
         return
 
     scanner = create_scanner()
-    ui = EPaperUI()
+    if HEADLESS_MODE:
+        logging.info("HEADLESS mode enabled (HANDHELD_HEADLESS). Skipping EPaperUI init.")
+        ui: Union[EPaperUI, NullUI] = NullUI()
+    else:
+        ui = EPaperUI()
 
     state = "WAIT_A"
     code_a: Optional[str] = None
