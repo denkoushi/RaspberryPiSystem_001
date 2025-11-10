@@ -56,6 +56,11 @@
 | 2025-11-10 11:30 (予定) | Pi Zero から通常スキャン (A/B) | `journalctl -u raspi-server.service -n 80` / `tail -n 120 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Pi5 統合後初の Socket.IO 実機テスト |
 | 2025-11-10 11:13 | Pi5 新 systemd 反映 / healthz 確認 | `sudo journalctl -u raspi-server.service --since "2025-11-10 11:13"` | - | - | PASS | `/srv/RaspberryPiSystem_001/server/.venv/bin/python ...` で稼働、`curl -I http://localhost:8501/healthz` が 200 OK。旧 `/srv/rpi-server` は `*_legacy_20251110` に退避済み。 |
 
+## 2025-11-10 Window A 依存更新メモ
+- Debian trixie (Python 3.13) では `psycopg2-binary==2.9.9` がビルド不可のため、tool-management-system02 を `psycopg[binary]==3.2.3` へ移行。  
+- `app_flask.py` の接続コードを `psycopg.connect(**DB)` に変更し、`tests/test_load_plan.py` のスタブも `psycopg` に合わせた。  
+- 以後は `python3 -m venv venv` → `pip install -r requirements.txt` で trixie 環境でもセットアップが通る。Pi Zero / Pi5 も同依存に揃えることで将来の Python 3.13 対応が確実になる。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
