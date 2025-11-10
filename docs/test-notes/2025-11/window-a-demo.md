@@ -53,6 +53,7 @@
 
 | 日時 | シナリオ | Pi5 ログ確認 | Window A ログ | DocumentViewer ログ | 結果 | 備考 |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2025-11-11 13:00 (準備中) | Pi Zero → Pi5 → Window A Socket.IO e2e | `journalctl -u raspi-server.service -n 120` / `tail -n 200 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io --token $SOCKET_API_TOKEN` | `sudo tail -f /var/log/document-viewer/client.log` | 未実施 | Window A 依存更新を反映後に実施。Pi Zero 側は `handheld_scan_display.py --drain-only` でトリガー予定。 |
 | 2025-11-10 11:30 (予定) | Pi Zero から通常スキャン (A/B) | `journalctl -u raspi-server.service -n 80` / `tail -n 120 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Pi5 統合後初の Socket.IO 実機テスト |
 | 2025-11-10 11:13 | Pi5 新 systemd 反映 / healthz 確認 | `sudo journalctl -u raspi-server.service --since "2025-11-10 11:13"` | - | - | PASS | `/srv/RaspberryPiSystem_001/server/.venv/bin/python ...` で稼働、`curl -I http://localhost:8501/healthz` が 200 OK。旧 `/srv/rpi-server` は `*_legacy_20251110` に退避済み。 |
 
@@ -60,6 +61,60 @@
 - Debian trixie (Python 3.13) では `psycopg2-binary==2.9.9` がビルド不可のため、tool-management-system02 を `psycopg[binary]==3.2.3` へ移行。  
 - `app_flask.py` の接続コードを `psycopg.connect(**DB)` に変更し、`tests/test_load_plan.py` のスタブも `psycopg` に合わせた。  
 - 以後は `python3 -m venv venv` → `pip install -r requirements.txt` で trixie 環境でもセットアップが通る。Pi Zero / Pi5 も同依存に揃えることで将来の Python 3.13 対応が確実になる。
+
+## 2025-11-11 Python 3.13 / psycopg2 ビルド失敗への対処
+
+### 状況整理
+- Raspberry Pi OS (Debian trixie, Python 3.13) 上で `psycopg2-binary==2.9.9` をビルドすると `_PyInterpreterState_Get` が見つからず `error: implicit declaration of function '_PyInterpreterState_Get'` → `undefined symbol` で失敗する。  
+- これは公式 Issue [psycopg/psycopg2#1692](https://github.com/psycopg/psycopg2/issues/1692) で追跡されており、Python 3.13 で `_PyInterpreterState_Get` が `PyInterpreterState_Get` に公開/改名されたことが原因と明記されている。Linux (aarch64) でも同じビルドエラーが再現する。  
+- Pi4 でのみ顕在化したのは、Window A (tool-management-system02) だけがまだ `psycopg2` を固定しており、Pi Zero / Pi5 はすでに `RaspberryPiSystem_001/server` と同様に `psycopg[binary]>=3.2` へ移行済みだったため。
+
+### ラズパイ別の影響
+- **Pi Zero / Pi5**: `server/pyproject.toml` で `psycopg[binary]>=3.2.0` を採用済み。Python 3.13 / Debian trixie でもインストール可能であり、`server/.venv` 上で `pytest` が 31 件 PASS することを確認 (2025-11-11)。  
+- **Pi4 (Window A)**: 旧 `tool-management-system02` のままなので `requirements.txt` に `psycopg2-binary==2.9.9` が残っており、venv 再構築のたびにビルド失敗 → 作業が止まっていた。
+
+### 対処ポリシー
+1. **依存関係を `psycopg[binary]==3.2.12` に固定**  
+   ```text
+   Flask==2.3.3
+   Flask-SocketIO==5.3.6
+   psycopg[binary]==3.2.12
+   pyscard==2.0.7
+   requests==2.31.0
+   ```
+2. **DB 接続コードを psycopg3 API に揃える**  
+   ```python
+   import psycopg
+
+   def get_connection():
+       return psycopg.connect(
+           host=DB["host"],
+           port=DB["port"],
+           dbname=DB["dbname"],
+           user=DB["user"],
+           password=DB["password"],
+           connect_timeout=5,
+       )
+   ```
+3. **テストダブルの更新**  
+   - `tests/test_load_plan.py` などで `psycopg2.connect` をモックしていた箇所を `psycopg.connect` に変更。  
+   - Flask サーバー起動スクリプト (`app_flask.py`) も psycopg3 へ統一する。
+
+### ラズパイセットアップ手順 (再掲)
+```bash
+cd ~/tool-management-system02
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pytest
+```
+- Debian trixie では PEP 668 によりシステム Python への `pip install` がブロックされるため、**必ず venv を作成**する。`--break-system-packages` の乱用は避け、どうしても必要なら一時的な検証に限定する。参考: [PEP 668 – Marking Python base environments as “externally managed”](https://peps.python.org/pep-0668/).
+
+### 公式情報との整合
+- psycopg2 Issue [#1692](https://github.com/psycopg/psycopg2/issues/1692) で Python 3.13 との非互換が議論され、「3.13 向けの公式ビルドは 2.9.10 以降で提供予定」とメンテナが回答済み。  
+- 我々の対応 (psycopg3 への移行) は、同 issue で案内されている「Python 3.13 では新 API を用いる」方針と一致する。  
+- Pi Zero / Pi5 側も同じ psycopg3 を採用することで、新 OS へ切り替わっても追加作業は不要になる。
 
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  

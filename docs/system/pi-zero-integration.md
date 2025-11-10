@@ -200,6 +200,18 @@ sudo journalctl -fu handheld@tools01.service
   - Pi Zero 実機では `sudo mirrorctl status` をドキュメント化したチェックリストに含め、ログを `docs/test-notes/2025-11/pi-zero-precheck.md` へ記録する運用を継続する。  
   - Phase-2 の TODO: `mirrorctl` ソースコードを旧リポジトリから移植し、systemd テンプレートやログパスなどを新ディレクトリ構成に合わせて更新する。
 
+#### 0.7.1 Window D (OnSiteLogistics) から移植する対象
+- `scripts/mirrorctl_status.py` / `scripts/mirrorctl_audit.py`: Window D で実際に `mirrorctl status` / `mirrorctl audit` を実装している CLI。Pi Zero 側では `/home/tools01/.onsitelogistics/mirrorctl_state.json` を読んで 14 日の成否や `last_success_at` を記録しているため、同じ JSON フォーマットを `RaspberryPiSystem_001/handheld/src/mirrorctl_client.py`（新規）に集約する。
+- `systemd/mirrorctl@.service` と override: ミラー状態を 15 分ごとに計測し、`mirrorctl disable` 時は LED を点滅させる処理が入っている。`/etc/systemd/system/mirrorctl@.service.d/override.conf` の中身を確認し、新リポジトリの `scripts/setup_serial_env.sh` と同じく `scripts/setup_mirrorctl.sh` を用意する。
+- `docs/mirrorctl.md`: エラーコードや監査ログの書式が定義されている。Pi Zero 移行後も監査ログを `pi-zero-logs/<host>-<timestamp>/mirrorctl-status.txt` に収集する運用なので、ドキュメントの用語を本ファイルへ反映させる。
+- `mirror_compare.py`（Window D の手動比較スクリプト）: 14 日無通信時に Pi5 のバックログを照合するための補助スクリプト。Phase-2 では `handheld/scripts/mirror_compare.py` へ移植し、`retry_loop` の `mirrorctl_hook` から再利用できるようにする。
+
+#### 0.7.2 新リポジトリ側での実装メモ
+- `handheld/src/retry_loop.py` の `mirrorctl_hook` に `Callable[[int, int], None]` を渡し、送信成功/失敗件数を mirrorctl 側へ反映させる。hook の実装は `handheld/src/mirrorctl_client.py`（新規）で `update_status(success, failure)` を提供する想定。  
+- `handheld/tests/test_retry_loop.py` には hook 呼び出しのテストがあるため、mirrorctl クライアントを差し替えるだけで回帰テストを追加できる。hook によるファイル書き込みや CLI 呼び出しは `pytest` から `tmp_path` を使って検証する。  
+- 監査ログ (`mirrorctl audit`) は `~/.onsitelogistics/mirrorctl_audit.log` を踏襲する。`scripts/pi_zero_pull_logs.sh` は既に `sudo mirrorctl status` の結果を `mirrorctl-status.txt` に保存しているので、Phase-2 で `audit` の結果も同時に取得する。
+- Phase-2 では `docs/system/pi-zero-integration.md` に mirrorctl の状態遷移図と JSON スキーマを追加し、Pi Zero で `mirrorctl enable/disable` を誰が実行したかを記録する欄を設ける。
+
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
   `server/scripts/manage_api_token.py --rotate` 等で再発行した場合は Pi Zero (`/etc/onsitelogistics/config.json`)、Pi5 (`/srv/rpi-server/config/local.toml`)、Window A、DocumentViewer へ同じ Bearer トークンを配布する。

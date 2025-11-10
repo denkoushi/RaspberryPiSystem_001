@@ -13,9 +13,10 @@
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero シリアル復旧済み、Pi5 API 応答あり。旧キューに `scan_id=None` が残存） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
 | 体制整備 | 進行中 | すべてのデバイスを RaspberryPiSystem_001 リポジトリに統一（tools01 ワーキングツリー同期済み。Pi5 側は未統合） | docs/system/repo-structure-plan.md, AGENTS.md, scripts/update_handheld_override.sh |
-| 実機検証 | 準備中 | DocumentViewer / Window A Socket.IO 実機テスト | docs/test-notes/2025-11/window-a-socket-plan.md |
+| 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (psycopg3 反映後に e2e 予定) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
+| ドキュメント更新 | 新規 | Window A psycopg3 移行手順と既知課題の記録 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 完了 | スモーク手順・イベントペイロードの整備 | server/README.md, docs/system/documentviewer-integration.md |
 
 ## 直近マイルストーンとサブブランチ方針
@@ -81,7 +82,11 @@ sudo -u tools01 -H bash -lc '
    - 現在の `feature/repo-structure-plan` の差分を棚卸しし、マイルストーン専用ブランチへ整理。PR にはシリアル検出ログと API 送信ログを添付。  
 3. **Pi5 統合後の確認タスク**  
    - `/srv/RaspberryPiSystem_001` で `.venv/bin/python` の稼働を継続監視し、`curl http://localhost:8501/healthz` の結果と `raspi-server.service` ログをテストノートへ記録。  
-4. **mirrorctl / 14 日監視の仕様洗い出し**  
+4. **Window A 依存更新 → Socket.IO 実機テスト**  
+   - `tool-management-system02` に `psycopg[binary]==3.2.12` と psycopg3 API を反映し、`requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` をコミット → push。  
+   - Pi4 (tools02) で `python3 -m venv venv && pip install --upgrade pip && pip install -r requirements.txt && pytest` を通し、`docs/test-notes/2025-11/window-a-demo.md` にログを追記。  
+   - 依存更新後に `docs/test-notes/2025-11/window-a-socket-plan.md` の手順で Pi Zero → Pi5 → Window A → DocumentViewer の Socket.IO e2e を実施する。  
+5. **mirrorctl / 14 日監視の仕様洗い出し**  
    - 旧 OnSiteLogistics の `docs/handheld-reader.md` / `docs/mirrorctl.md` 等をレビューし、移植対象と工数を一覧化。  
    - 結果を本ファイルおよび `docs/system/pi-zero-integration.md` に反映し、Phase-2 の TODO を固める。
 
