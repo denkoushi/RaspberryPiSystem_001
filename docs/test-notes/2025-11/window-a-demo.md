@@ -116,6 +116,27 @@ pytest
 - 我々の対応 (psycopg3 への移行) は、同 issue で案内されている「Python 3.13 では新 API を用いる」方針と一致する。  
 - Pi Zero / Pi5 側も同じ psycopg3 を採用することで、新 OS へ切り替わっても追加作業は不要になる。
 
+## Raspberry Pi 3 台の Python 3.13 / psycopg3 反映状況（2025-11-11）
+
+| デバイス | 実体 | リポジトリ/ディレクトリ | 依存状況 | 確認・実施すべき手順 |
+| --- | --- | --- | --- | --- |
+| Pi5 (tools02) | `/srv/RaspberryPiSystem_001` | `server/pyproject.toml` に `psycopg[binary]>=3.2.0` を記載済み。`server/.venv` では `pip install -e ".[dev]"` と `pytest` (31 件) が 2025-11-11 に PASS。 | 反映済み | `sudo -u pi5 -H bash -lc 'cd /srv/RaspberryPiSystem_001/server && source .venv/bin/activate && pip show psycopg && pytest'` を定期実行してログを `docs/test-notes/2025-11/pi5-verification.md` 等に記録する。 |
+| Pi Zero (tools01) | `/home/tools01/RaspberryPiSystem_001` | handheld モジュールで psycopg3 を利用中（`handheld/src/retry_loop.py` など）。`scripts/update_handheld_override.sh` で main ブランチと同期。 | 反映済み (コード側) | `sudo -u tools01 -H bash -lc 'cd ~/RaspberryPiSystem_001 && git status -sb && source ~/.venv-handheld/bin/activate && pip show psycopg'` で 3.2.x か確認。再送キュー drain も合わせてログ化。 |
+| Pi4 (Window A / tools02) | `~/tool-management-system02` | 旧 `psycopg2-binary==2.9.9` のまま。本リポジトリ内の `docs/test-notes/2025-11/window-a-demo.md` に対策メモのみ記載。`requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` はローカルで修正済みだが **Git 未反映**。 | 未反映（要コミット & デプロイ） | 1. VS Code で `tool-management-system02` の差分 (`requirements.txt`, `app_flask.py`, `tests/test_load_plan.py`) をコミットし、リモートへ push。<br>2. Pi4 で `git pull && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && pytest` を実行。<br>3. 成功ログを本ファイルに貼り付け、`docs/system/next-steps.md` のダッシュボードを「完了」に更新する。 |
+
+### Pi4 実施コマンド（例）
+```bash
+cd ~/tool-management-system02
+git pull
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pytest
+```
+> Pi4 は PEP 668 によりシステム Python が「外部管理」扱いなので、`--break-system-packages` を避け、必ず venv 内で完結させる。pytest ログと `pip show psycopg` の出力を `docs/test-notes/2025-11/window-a-demo.md` に追記する。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
