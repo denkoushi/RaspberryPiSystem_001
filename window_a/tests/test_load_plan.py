@@ -109,12 +109,17 @@ def _ensure_raspi_client_stub():
     class DummyClient:
         def __init__(self, *args, **kwargs):
             self.base_url = "http://stub"
+            self.token = "stub-token"
 
         def is_configured(self):
             return False
 
         def get_json(self, *args, **kwargs):
             raise RuntimeError("raspi_client stub")
+
+        @classmethod
+        def from_env(cls):
+            return cls()
 
     class DummyError(Exception):
         pass
