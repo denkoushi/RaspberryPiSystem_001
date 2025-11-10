@@ -127,6 +127,39 @@ def _ensure_raspi_client_stub():
     )
 
 
+def _ensure_api_token_store_stub():
+    try:
+        importlib.import_module("api_token_store")
+        return
+    except ModuleNotFoundError:
+        pass
+
+    def _get_token_info(*args, **kwargs):
+        return {"token": "stub", "expires_at": None}
+
+    def _get_active_tokens(*args, **kwargs):
+        return []
+
+    def _list_tokens(*args, **kwargs):
+        return []
+
+    def _issue_token(*args, **kwargs):
+        return {"token": "stub"}
+
+    def _revoke_token(*args, **kwargs):
+        return True
+
+    sys.modules["api_token_store"] = SimpleNamespace(
+        get_token_info=_get_token_info,
+        get_active_tokens=_get_active_tokens,
+        list_tokens=_list_tokens,
+        issue_token=_issue_token,
+        revoke_token=_revoke_token,
+        API_TOKEN_FILE="api_tokens.json",
+        API_TOKEN_HEADER="X-API-Token",
+    )
+
+
 def _import_app_flask(repo_root: Path):
     sys.path.insert(0, str(repo_root))
     _ensure_socketio_stub()
@@ -135,6 +168,7 @@ def _import_app_flask(repo_root: Path):
     _ensure_usb_sync_stub()
     _ensure_station_config_stub()
     _ensure_raspi_client_stub()
+    _ensure_api_token_store_stub()
     if "app_flask" in sys.modules:
         return importlib.reload(sys.modules["app_flask"])
     return importlib.import_module("app_flask")
