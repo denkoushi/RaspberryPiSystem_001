@@ -11,6 +11,7 @@
 ## 2. 実施手順と 2025-11-10 ログ
 1. **Pi Zero 側の事前チェック**
    - `sudo mirrorctl status`、`sudo systemctl status handheld@tools01.service`、`./scripts/pi_zero_pull_logs.sh …` を実行。
+   - ログ採取は root 権限で `sudo journalctl -u handheld@tools01.service -n 80 --since "YYYY-MM-DD HH:MM"` を使う（tools01 だけでは閲覧不可）。  
    - ログ取得結果を `docs/test-notes/YYYY-MM/pi-zero-*.md` に貼り付け。
 2. **テスト用バーコードのスキャン**
    - 既存テンプレートに従い注文バーコード→棚バーコードのペアを読み取る。
@@ -38,6 +39,7 @@
    - 2025-11-10 実施メモ  
      - Pi Zero: `[SERIAL] forcing /dev/minjcode0 @ 115200bps` → `[SERIAL] scanner ready` → A/B (`4989999058963`, `https://e.bambulab.com/...`) で電子ペーパー更新完了。  
      - Pi5: API 受信は成功。旧キューで `scan_id=None` だった行は削除済み。`sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT COUNT(*) FROM scan_queue;'` の結果は 0。  
+     - drain-only を headless で実行する場合は `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` を使用し、GPIO 初期化エラーを避ける。  
      - 今後は PR 用に上記ログを添付し、Phase-1 ブランチへまとめる。
 
 ## 3. 想定リスクと対処

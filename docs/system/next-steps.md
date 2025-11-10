@@ -31,19 +31,17 @@
 ### Handheld Migration Phase-1 ブランチ準備チェックリスト
 1. `feature/repo-structure-plan` 上の差分を棚卸しし、`handheld/scripts/**`・`docs/system/**`・`docs/test-notes/2025-11/pi-zero-test-plan.md` が Phase-1 の対象であることを明確にする。  
 2. Pi Zero 実機ログを収集し、以下の 2 点を PR 添付用に保管する。  
-   - `journalctl -u handheld@tools01.service -n 80 --since "2025-11-10 08:20"`（A/B スキャン完了と `[SERIAL] scanner ready` を含む）  
+   - `sudo journalctl -u handheld@tools01.service -n 80 --since "2025-11-10 08:20"`（A/B スキャン完了と `[SERIAL] scanner ready` を含む）  
    - `/home/tools01/.onsitelogistics/logs/handheld.log` の 2025-11-10 08:26 JST 付近の抜粋（`Server accepted payload` 連続記録）  
 3. `sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT COUNT(*) FROM scan_queue;'` の結果が 0 であるスクリーンショット／ログを添付し、旧データが残っていないことを証明する。  
-   - 2025-11-10 08:30 JST の時点では 2 件残存している。`SELECT id, payload FROM scan_queue;` で内容を控え、`DELETE FROM scan_queue WHERE id IN (...);` または JSON 補正 + `--drain-only` で 0 件にするまで再送を試みる。  
+   - 2025-11-10 09:02 JST に ID 4/5 を削除し 0 件を確認済み。今後も `SELECT id, payload FROM scan_queue;` → `DELETE ...` → `SELECT COUNT(*)` の流れを残し、Pending=0 の証跡を添付する。  
 4. `docs/system/pi-zero-integration.md` と `docs/test-notes/2025-11/pi-zero-test-plan.md` に本日の結果を反映したうえで、`git switch -c feature/handheld-migration-p1` を実行し、Phase-1 ブランチで PR を作成する。  
 5. PR 説明欄には「Mac → GitHub → tools01 同期フロー」「Pi Zero 実機確認ログ」「scan_queue 空確認」の 3 点を添付し、レビュー時の確認工数を下げる。
 
 #### 推奨ログ取得コマンド
 ```bash
 # Pi Zero (tools01) のサービスログ 80 行
-sudo -u tools01 -H bash -lc '
-  journalctl -u handheld@tools01.service -n 80 --since "2025-11-10 08:20"
-'
+sudo journalctl -u handheld@tools01.service -n 80 --since "2025-11-10 08:20"
 
 # Pi Zero handheld.log (末尾 100 行)
 sudo -u tools01 -H bash -lc '
@@ -53,6 +51,12 @@ sudo -u tools01 -H bash -lc '
 # queue の件数確認
 sudo -u tools01 -H sqlite3 /home/tools01/.onsitelogistics/scan_queue.db \
   "SELECT COUNT(*) FROM scan_queue;"
+
+# queue ゼロ化後に drain-only で再送（UI 初期化不要な場合は HANDHELD_HEADLESS=1）
+sudo -u tools01 -H bash -lc '
+  source ~/.venv-handheld/bin/activate
+  HANDHELD_HEADLESS=1 python /home/tools01/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py --drain-only
+'
 ```
 
 ## 旧 OnSiteLogistics → 新リポジトリ移植状況
