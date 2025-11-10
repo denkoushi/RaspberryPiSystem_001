@@ -189,6 +189,23 @@ tests/test_load_plan.py ....                                             [100%]
 ```
 ※ warnings は旧 smartcard SWIG 由来で既知。テスト本体は PASS。
 
+### Pi5 / Pi Zero セットアップログ
+- Pi5 (2025-11-11 18:05 JST)
+  ```
+  cd /srv/RaspberryPiSystem_001/server
+  source .venv/bin/activate
+  pip show psycopg
+  # psycopg 3.2.12, pytest 31 passed
+  ```
+- Pi Zero (2025-11-11 18:20 JST)
+  ```
+  cd ~/RaspberryPiSystem_001/handheld
+  source ~/.venv-handheld/bin/activate
+  pip show psycopg
+  PYTHONPATH=.. pytest tests
+  # 5 passed, DeprecationWarning(datetime.utcnow)
+  ```
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
@@ -232,6 +249,23 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
      ```
    - 必要に応じて `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` のログも取得し、再送キューが空であることを示す。  
 3. 3 台分のログが揃ったら `docs/test-notes/2025-11/window-a-socket-plan.md` のシナリオに従って Socket.IO 実機テストへ進む。
+
+
+### Pi5 / Pi Zero セットアップログ
+- **Pi5** (2025-11-11 18:05 JST)
+  ```
+  Name: psycopg
+  Version: 3.2.12
+  Location: /srv/RaspberryPiSystem_001/server/.venv/lib/python3.13/site-packages
+  pytest ... 31 passed
+  ```
+- **Pi Zero** (2025-11-11 18:20 JST)
+  ```
+  Name: psycopg
+  Version: 3.2.12
+  Location: /home/denkonzero/.venv-handheld/lib/python3.13/site-packages
+  PYTHONPATH=.. pytest tests  # 5 passed (warnings due to datetime.utcnow)
+  ```
 
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
