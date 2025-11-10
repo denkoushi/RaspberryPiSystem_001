@@ -55,7 +55,8 @@
      2. `/etc/systemd/system/toolmgmt.service` と `toolmgmt.service.d/window-a.conf` から旧 `~/tool-management-system02` パスを削除し、`WorkingDirectory=/home/tools02/RaspberryPiSystem_001/window_a`、`ExecStart=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin/python .../app_flask.py` に統一する。  
      3. `Environment=PATH=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin:...` のように `.venv` への PATH を明示し、`.env` 類も `window_a/config` に集約する。  
      4. USB 同期 API 用のスタブ (`window_a/usb_sync.py`) を配置し、旧リポジトリ依存が無くても `app_flask` import が成功するようにした。実機で USB 同期を行う際は `WINDOW_A_USB_SYNC_CMD` か `window_a/scripts/usb_sync.sh` を配置し、スタブ経由で呼び出す。  
-     5. `window_a/logs` を作成し、アプリ内の `LOG_DIR` なども新パスへ変更したうえで `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を実施。`journalctl -u toolmgmt.service -n 80` を記録して完了とする。  
+     5. ステーション設定 API 用のスタブ (`window_a/station_config.py`) を配置し、`window_a/config/station_config.json` へ JSON 保存する。実運用で別パスを使う場合は `WINDOW_A_STATION_CONFIG` を設定する。  
+     6. `window_a/logs` を作成し、アプリ内の `LOG_DIR` なども新パスへ変更したうえで `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を実施。`journalctl -u toolmgmt.service -n 80` を記録して完了とする。  
    - **Pi Zero（handheld）**  
      1. ホスト名を統一後、`~/RaspberryPiSystem_001/handheld` と `~/.venv-handheld` を標準作業ディレクトリ／仮想環境とする。  
      2. `handheld@tools01.service` の `WorkingDirectory` と `ExecStart=/home/tools01/.venv-handheld/bin/python /home/tools01/RaspberryPiSystem_001/handheld/src/main.py` を確認し、`Environment=PYTHONPATH=/home/tools01/RaspberryPiSystem_001` を追加してテスト時の `PYTHONPATH=..` を不要にする。  
@@ -71,3 +72,4 @@
 - [ ] Pi5/Pi4/Pi Zero のホスト名・systemd ユニット名・ログパス名寄せを実施し、本ドキュメントに進捗を記録
 - [x] RaspberryPiServer (Pi5) で `logging.path` を読むファイルハンドラを実装し、`/srv/RaspberryPiSystem_001/server/logs/app.log` に出力させる（`server/tests/test_logging_config.py` で検証済み）
 - [ ] Window A の USB 同期スクリプトを移植し、`window_a/usb_sync.py` から実行できるようにする
+- [ ] Window A の station_config 永続化を本番仕様（PostgreSQL or Pi5 API）へ移行する

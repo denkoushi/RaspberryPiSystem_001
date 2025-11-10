@@ -274,6 +274,11 @@ sudo journalctl -u toolmgmt.service -n 120 --no-pager
   - 上記が存在しない場合は WARNING を記録しつつ returncode=1 の結果を返す（API が 500 を返すのは維持）。
 - これにより `app_flask` import 時の `ModuleNotFoundError` が解消され、Window A systemd サービスは起動可能となる。実運用の USB 同期ロジックは後続タスクで `scripts/usb_sync.sh` を移植する。
 
+### station_config スタブの追加（2025-11-11 09:20 JST）
+- `window_a/station_config.py` を新設。`window_a/config/station_config.json` を読み書きする軽量実装を提供し、環境変数 `WINDOW_A_STATION_CONFIG` で保存場所を切り替えられる。
+- `tests/test_station_config.py` を追加して `load_station_config` / `save_station_config` の正常動作を保証 (`pytest` 6 件 PASS)。
+- 今後、旧リポジトリにあったステーション設定ロジックを段階的に移植するまではこの JSON ストレージを参照する。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
