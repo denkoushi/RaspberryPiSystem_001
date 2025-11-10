@@ -53,7 +53,7 @@
 
 | 日時 | シナリオ | Pi5 ログ確認 | Window A ログ | DocumentViewer ログ | 結果 | 備考 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2025-11-10 (予定) | 通常スキャン (A/B) | `journalctl -u raspberrypiserver.service -n 80` / `tail -n 120 socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Phase-1 PR 後に実行予定 |
+| 2025-11-10 11:30 (予定) | 通常スキャン (A/B) | `journalctl -u raspi-server.service -n 80` / `tail -n 120 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Pi5 統合後初の Socket.IO 実機テスト |
 | 2025-11-10 11:13 | Pi5 新 systemd 反映 / healthz 確認 | `sudo journalctl -u raspi-server.service --since "2025-11-10 11:13"` | - | - | PASS | `/srv/RaspberryPiSystem_001/server/.venv/bin/python ...` で稼働、`curl -I http://localhost:8501/healthz` が 200 OK。旧 `/srv/rpi-server` は `*_legacy_20251110` に退避済み。 |
 
 ## 記録テンプレート（追記用）
