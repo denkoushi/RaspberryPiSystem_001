@@ -123,7 +123,7 @@ pytest
 | --- | --- | --- | --- | --- |
 | Pi5 (tools02) | `/srv/RaspberryPiSystem_001` | `server/pyproject.toml` に `psycopg[binary]>=3.2.0` を記載済み。`server/.venv` では `pip install -e ".[dev]"` と `pytest` (31 件) が 2025-11-11 に PASS。 | 反映済み | `sudo -u pi5 -H bash -lc 'cd /srv/RaspberryPiSystem_001/server && source .venv/bin/activate && pip show psycopg && pytest'` を定期実行してログを `docs/test-notes/2025-11/pi5-verification.md` 等に記録する。 |
 | Pi Zero (tools01) | `/home/tools01/RaspberryPiSystem_001` | handheld モジュールで psycopg3 を利用中（`handheld/src/retry_loop.py` など）。`scripts/update_handheld_override.sh` で main ブランチと同期。 | 反映済み (コード側) | `sudo -u tools01 -H bash -lc 'cd ~/RaspberryPiSystem_001 && git status -sb && source ~/.venv-handheld/bin/activate && pip show psycopg'` で 3.2.x か確認。再送キュー drain も合わせてログ化。 |
-| Pi4 (Window A / tools02) | `~/tool-management-system02` | 旧 `psycopg2-binary==2.9.9` のまま。本リポジトリ内の `docs/test-notes/2025-11/window-a-demo.md` に対策メモのみ記載。`requirements.txt` / `app_flask.py` / `tests/test_load_plan.py` はローカルで修正済みだが **Git 未反映**。 | 未反映（要コミット & デプロイ） | 1. VS Code で `tool-management-system02` の差分 (`requirements.txt`, `app_flask.py`, `tests/test_load_plan.py`) をコミットし、リモートへ push。<br>2. Pi4 で `git pull && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && pytest` を実行。<br>3. 成功ログを本ファイルに貼り付け、`docs/system/next-steps.md` のダッシュボードを「完了」に更新する。 |
+| Pi4 (Window A / tools02) | `~/RaspberryPiSystem_001/window_a` | 2025-11-11 に `~/tool-management-system02` を `*_legacy_` へ退避し、新リポジトリを clone。`pip show psycopg` で 3.2.12、`pytest` で 4 件 PASS を確認済み。 | 反映済み (2025-11-11) | 以後は `~/RaspberryPiSystem_001/window_a` で `git pull` → `.venv/bin/pytest` を実行し、systemd `toolmgmt.service` の WorkingDirectory も同パスに統一する。 |
 
 ### Pi4 実施コマンド（例）
 ```bash
@@ -156,20 +156,38 @@ pytest
 3. **Window A サブディレクトリのセットアップ**  
    - `window_a/requirements.txt` を使って venv を作成。  
    - `client_window_a/` も同じワークツリーで管理し、`npm install` などのセットアップをやり直す。  
-   ```bash
-   cd ~/RaspberryPiSystem_001/window_a
-   python3 -m venv .venv
+```bash
+cd ~/RaspberryPiSystem_001/window_a
+python3 -m venv .venv
    source .venv/bin/activate
    pip install --upgrade pip
    pip install -r requirements.txt
    pip show psycopg
    pytest
-   ```
+```
 4. **systemd 更新**  
    - `setup_auto_start.sh` や `/etc/systemd/system/toolmgmt.service` の `WorkingDirectory` と `ExecStart` を `/home/tools02/RaspberryPiSystem_001/window_a` に変更。  
    - `sudo systemctl daemon-reload && sudo systemctl start toolmgmt.service` で再起動。
 5. **ログ記録**  
    - 上記コマンドの出力を本ファイルに貼り付け、`docs/system/next-steps.md` のダッシュボードを更新する。
+
+### Pi4 セットアップ実績（2025-11-11 17:20 JST）
+```
+(.venv) tools02@raspberrypi:~/RaspberryPiSystem_001/window_a $ pip show psycopg
+Name: psycopg
+Version: 3.2.12
+Location: /home/tools02/RaspberryPiSystem_001/window_a/.venv/lib/python3.13/site-packages
+
+(.venv) tools02@raspberrypi:~/RaspberryPiSystem_001/window_a $ pytest
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-9.0.0, pluggy-1.6.0
+rootdir: /home/tools02/RaspberryPiSystem_001/window_a
+collected 4 items
+
+tests/test_load_plan.py ....                                             [100%]
+======================== 4 passed, 2 warnings in 1.14s =========================
+```
+※ warnings は旧 smartcard SWIG 由来で既知。テスト本体は PASS。
 
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
