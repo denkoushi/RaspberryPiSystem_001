@@ -44,7 +44,7 @@
    - **Pi5（server）**  
      1. `sudo mkdir -p /srv/RaspberryPiSystem_001/server/logs && sudo chown -R denkon5ssd:denkon5ssd /srv/RaspberryPiSystem_001/server/logs` でログディレクトリを用意する。  
      2. `/etc/systemd/system/raspi-server.service` の `WorkingDirectory` と `ExecStart` が `/srv/RaspberryPiSystem_001/server` 配下を向いているか確認し、`.venv` は `.venv` というディレクトリ名で統一する。  
-     3. `server/config/default.toml:19-22` と `server/config/local.toml` の `[logging].path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` に揃える。  
+     3. `server/config/default.toml:19-22` と `server/config/local.toml` の `[logging].path` を `/srv/RaspberryPiSystem_001/server/logs/app.log` に揃える（未指定でも `server/src/raspberrypiserver/app.py` が `<repo>/logs/app.log` をフォールバックで生成する）。  
      4. 下記コマンドで反映し、`journalctl -u raspi-server.service -n 120` と `tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log` の結果をテストノートへ転記する。  
         ```bash
         sudo systemctl daemon-reload

@@ -44,6 +44,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 socketio = SocketIO(async_mode="gevent", cors_allowed_origins="*")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_LOG_PATH = REPO_ROOT / "logs" / "app.log"
 
 
 def create_app() -> Flask:
@@ -137,7 +139,7 @@ def configure_logging(app: Flask) -> None:
     console_handler.setFormatter(formatter)
     handlers.append(console_handler)
 
-    log_path = logging_cfg.get("path")
+    log_path = logging_cfg.get("path") or str(DEFAULT_LOG_PATH)
     if log_path:
         try:
             log_file = Path(log_path).expanduser()

@@ -237,6 +237,10 @@ tests/test_logging_config.py .                                           [ 90%]
 ```
 → `APP_NAME` に応じたログ行が `tmp/logs/app.log` に書き込まれることを確認済み。Pi5 実機に反映すると `/srv/RaspberryPiSystem_001/server/logs/app.log` が自動生成される見込み。
 
+### Pi5 ログファイル標準パスのフォールバック追加（2025-11-11 18:40 JST）
+- `server/src/raspberrypiserver/app.py` に `DEFAULT_LOG_PATH=<repo_root>/logs/app.log` を定義し、`.toml` に `[logging]` 設定が無くても `<リポジトリ>/logs/app.log` が作成されるように変更。
+- Pi5 実機では `/srv/RaspberryPiSystem_001/server/logs/app.log` が自動生成される想定。既存の `server/config/default.toml` でパス指定済みのため、Pi5 側では `git pull` → `.venv` 再インストール後に `sudo systemctl restart raspi-server.service && tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log` を再実行して生成を確認する。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
