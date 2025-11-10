@@ -61,7 +61,7 @@ PY"
    - 参照元: [Waveshare 2.13inch e-Paper HAT Wiki](https://www.waveshare.com/wiki/2.13inch_e-Paper_HAT)
    - `.env` や systemd override で `/home/tools01/e-Paper/RaspberryPi_JetsonNano/python/lib` を `PYTHONPATH` に足しておくと import が安定する。
 5. スキャナ（CDC-ACM）環境  
-   - 旧システムと同様に MINJCODE をシリアルモードで扱う。`scripts/setup_serial_env.sh` を root で実行すると udev ルール（`/dev/minjcode0`）と systemd の再起動まで自動化できる。  
+- 旧システムと同様に MINJCODE をシリアルモードで扱う。`scripts/setup_serial_env.sh` を root で実行すると udev ルール（`/dev/minjcode0`）と systemd の再起動まで自動化できる。  
      ```bash
      cd ~/RaspberryPiSystem_001
      sudo ./scripts/setup_serial_env.sh tools01
@@ -192,6 +192,13 @@ sudo journalctl -fu handheld@tools01.service
   1. **削除**: `DELETE FROM scan_queue WHERE id=<ID>;` を実行して破棄。  
   2. **補正**: `UPDATE scan_queue SET payload='<修正後JSON>' WHERE id=<ID>;` で整合を取った後、`--drain-only` で再送。  
 - キューが空になったかは `SELECT COUNT(*) FROM scan_queue;` で確認する。ゼロであれば `handheld_scan_display.py --drain-only` の実行結果も「Pending queue size: 0」となる。
+
+### 0.7 mirrorctl / 14日監視メモ
+- 旧システムで運用していた `mirrorctl` の役割と設定は `Window D: /Users/tsudatakashi/OnSiteLogistics/docs/handheld-reader.md` に記載されている。新リポジトリで再実装する際のポイントは以下。  
+  - `mirrorctl status` でミラーリングモード（ON/OFF）と最終同期時刻を取得できるようにする。Pi Zero への常駐設定は systemd で実施。  
+  - 14 日無通信監視は `mirrorctl audit` のようなサブコマンドでログに記録する。SQLite や JSON ファイルで `last_seen_at` を管理していたため、同じ情報を新 `docs/system/pi-zero-integration.md` に設計として追記する。  
+  - Pi Zero 実機では `sudo mirrorctl status` をドキュメント化したチェックリストに含め、ログを `docs/test-notes/2025-11/pi-zero-precheck.md` へ記録する運用を継続する。  
+  - Phase-2 の TODO: `mirrorctl` ソースコードを旧リポジトリから移植し、systemd テンプレートやログパスなどを新ディレクトリ構成に合わせて更新する。
 
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
