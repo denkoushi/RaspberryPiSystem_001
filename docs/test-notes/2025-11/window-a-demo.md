@@ -241,6 +241,20 @@ tests/test_logging_config.py .                                           [ 90%]
 - `server/src/raspberrypiserver/app.py` に `DEFAULT_LOG_PATH=<repo_root>/logs/app.log` を定義し、`.toml` に `[logging]` 設定が無くても `<リポジトリ>/logs/app.log` が作成されるように変更。
 - Pi5 実機では `/srv/RaspberryPiSystem_001/server/logs/app.log` が自動生成される想定。既存の `server/config/default.toml` でパス指定済みのため、Pi5 側では `git pull` → `.venv` 再インストール後に `sudo systemctl restart raspi-server.service && tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log` を再実行して生成を確認する。
 
+### Pi5 ログ出力確認（2025-11-11 08:30 JST）
+```
+denkon5ssd@raspi-server:/srv/RaspberryPiSystem_001/server $ sudo systemctl daemon-reload
+denkon5ssd@raspi-server:/srv/RaspberryPiSystem_001/server $ sudo systemctl restart raspi-server.service
+denkon5ssd@raspi-server:/srv/RaspberryPiSystem_001/server $ sudo journalctl -u raspi-server.service -n 120 --no-pager
+... Started raspi-server.service ...
+denkon5ssd@raspi-server:/srv/RaspberryPiSystem_001/server $ tail -n 50 /srv/RaspberryPiSystem_001/server/logs/app.log
+2025-11-11 08:28:04,839 WARNING [raspberrypiserver.services.backlog] Skipping backlog row id=2 due to missing order/location (order=None, location=LOC-MISSING)
+2025-11-11 08:28:04,840 INFO [raspberrypiserver.services.backlog] Backlog drain succeeded: processed=1 limit=10 table=scan_ingest_backlog
+...
+2025-11-11 08:28:04,952 INFO [raspberrypiserver.services.backlog] Backlog drain succeeded: processed=1 limit=5 table=scan_ingest_backlog
+```
+→ `/srv/RaspberryPiSystem_001/server/logs/app.log` に backlog / Socket.IO の詳細ログが出力されることを確認。既存の backlog テストデータにより WARNING が複数出ているが、ログファイル生成自体は成功している。
+
 ### Pi4 systemd 切り替えログ
 ```
 # PATH/ExecStart の .venv 化と旧 EnvironmentFile の除去
