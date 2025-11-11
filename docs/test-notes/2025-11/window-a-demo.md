@@ -380,6 +380,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-11 15:28 JST SocketIO 受信テスト（Pi4）
 - `cd ~/DocumentViewer && git pull && mv config/docviewer.env.local config/docviewer.env` で最新化し、`FLASK_APP=viewer.py flask run --host 0.0.0.0 --port 8500` を再起動。`curl -X POST http://127.0.0.1:8500/api/socket-events ...` で 201 応答を確認し、`~/DocumentViewer/logs/client.log` へ `Socket.IO event: connect.test payload={'note': 'manual test'}` が記録されることを確認。
 - Window A 手動リスナー（`TS_NODE_TRANSPILE_ONLY=1 ... scripts/listen_for_scans.ts`）で `[scan-socket] event scan.ingested {...}` が出力され、並行して `tail -f ~/DocumentViewer/logs/client.log` は `2025-11-11 15:17:03,082 INFO Socket.IO event: connect.test payload={'note': 'manual test'}` のみ記録（`scan.ingested` は今回まだ未記録のため、後続でイベント送信フローを継続監視する）。
+- 追加で `VIEWER_SOCKET_EVENTS=scan.ingested,part_location_updated,scan_update` を `config/docviewer.env` に追記し再テストしたが、現時点ではログは `connect.test` のみで `scan.ingested` は未記録。DocumentViewer フロントの `/api/socket-events` 呼び出しを継続調査中。
 
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
