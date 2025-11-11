@@ -54,10 +54,11 @@
      1. ホスト名変更後に `sudo systemctl stop toolmgmt.service` を実行し、停止した状態で設定を入れ替える。  
      2. `/etc/systemd/system/toolmgmt.service` と `toolmgmt.service.d/window-a.conf` から旧 `~/tool-management-system02` パスを削除し、`WorkingDirectory=/home/tools02/RaspberryPiSystem_001/window_a`、`ExecStart=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin/python .../app_flask.py` に統一する。  
      3. `Environment=PATH=/home/tools02/RaspberryPiSystem_001/window_a/.venv/bin:...` のように `.venv` への PATH を明示し、`.env` 類も `window_a/config` に集約する。  
-     4. USB 同期 API 用のスタブ (`window_a/usb_sync.py`) を配置し、旧リポジトリ依存が無くても `app_flask` import が成功するようにした。実機で USB 同期を行う際は `WINDOW_A_USB_SYNC_CMD` か `window_a/scripts/usb_sync.sh` を配置し、スタブ経由で呼び出す。  
-     5. ステーション設定 API 用のスタブ (`window_a/station_config.py`) を配置し、`window_a/config/station_config.json` へ JSON 保存する。実運用で別パスを使う場合は `WINDOW_A_STATION_CONFIG` を設定する。  
-     6. API トークン管理 (`window_a/api_token_store.py`) と Pi5 REST クライアント (`window_a/raspi_client.py`) を本リポジトリに移植し、`pytest` で 12 件 PASS を確認。  
-     7. `window_a/logs` を作成し、アプリ内の `LOG_DIR` なども新パスへ変更したうえで `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を実施。`journalctl -u toolmgmt.service -n 80` を記録して完了とする。  
+     4. `config/window-a.env` を旧リポジトリ（`~/tool-management-system02/config/window-a-client.env.sample`）を参照して作成し、`RASPI_SERVER_BASE`・`RASPI_SERVER_API_TOKEN`・`DATABASE_URL=postgresql://app:app@raspi-server.local:15432/sensordb` などを移植。`/etc/systemd/system/toolmgmt.service.d/window-a-env.conf` で `EnvironmentFile=/home/tools02/RaspberryPiSystem_001/window_a/config/window-a.env` を読み込む。  
+     5. USB 同期 API 用のスタブ (`window_a/usb_sync.py`) を配置し、旧リポジトリ依存が無くても `app_flask` import が成功するようにした。実機で USB 同期を行う際は `WINDOW_A_USB_SYNC_CMD` か `window_a/scripts/usb_sync.sh` を配置し、スタブ経由で呼び出す。  
+     6. ステーション設定 API 用のスタブ (`window_a/station_config.py`) を配置し、`window_a/config/station_config.json` へ JSON 保存する。実運用で別パスを使う場合は `WINDOW_A_STATION_CONFIG` を設定する。  
+     7. API トークン管理 (`window_a/api_token_store.py`) と Pi5 REST クライアント (`window_a/raspi_client.py`) を本リポジトリに移植し、`pytest` で 12 件 PASS を確認。  
+     8. `window_a/logs` を作成し、アプリ内の `LOG_DIR` なども新パスへ変更したうえで `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を実施。`journalctl -u toolmgmt.service -n 80` を記録して完了とする。  
    - **Pi Zero（handheld）**  
      1. ホスト名を統一後、`~/RaspberryPiSystem_001/handheld` と `~/.venv-handheld` を標準作業ディレクトリ／仮想環境とする。  
      2. `handheld@tools01.service` の `WorkingDirectory` と `ExecStart=/home/tools01/.venv-handheld/bin/python /home/tools01/RaspberryPiSystem_001/handheld/src/main.py` を確認し、`Environment=PYTHONPATH=/home/tools01/RaspberryPiSystem_001` を追加してテスト時の `PYTHONPATH=..` を不要にする。  

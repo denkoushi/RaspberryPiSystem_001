@@ -279,6 +279,12 @@ sudo journalctl -u toolmgmt.service -n 120 --no-pager
 - `tests/test_station_config.py` を追加して `load_station_config` / `save_station_config` の正常動作を保証 (`pytest` 6 件 PASS)。
 - 今後、旧リポジトリにあったステーション設定ロジックを段階的に移植するまではこの JSON ストレージを参照する。
 
+### Pi4 → Pi5 DB 接続復旧ログ（2025-11-11 09:20 JST）
+- `window_a/config/window-a.env` を旧 `tool-management-system02/config/window-a-client.env.sample` を参照し、`RASPI_SERVER_BASE`・`RASPI_SERVER_API_TOKEN`・`DATABASE_URL=postgresql://app:app@raspi-server.local:15432/sensordb` などを移植。
+- `/etc/systemd/system/toolmgmt.service.d/window-a-env.conf` を追加し、Pi4 systemd から `.env` を読み込む構成へ変更。
+- Pi5 では Docker Compose の `postgres` サービスを起動（`docker compose up -d postgres`）し、`sudo docker compose exec postgres psql -U app -d sensordb -c "ALTER USER app WITH PASSWORD 'app';"` で旧システムと同じ資格情報に統一。
+- Window A リスタート時の `journalctl` には過去の `password authentication failed` が並ぶが、直後に Flask 起動ログ (`Serving Flask app 'app_flask'`) が出ており最新の再起動は成功。Pi5 DB 側が安定稼働した状態で再度 `journalctl` を確認し、エラーが消えたら本節を更新する予定。
+
 ### api_token_store / raspi_client の暫定実装（2025-11-11 09:45 JST）
 - `window_a/api_token_store.py`: `window_a/config/api_tokens.json` を用いたトークン管理を実装。`list_tokens`, `issue_token`, `revoke_token`, `get_active_tokens`, `get_token_info` を提供。テスト (`tests/test_api_token_store.py`) で file I/O を検証。
 - `window_a/raspi_client.py`: `requests` ベースの最小 HTTP クライアントを実装し、`RaspiServerClient.from_env()` で `RASPI_SERVER_BASE` / `RASPI_SERVER_API_TOKEN` を読み込む。`tests/test_raspi_client.py` で例外分岐と JSON パースを確認。
