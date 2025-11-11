@@ -39,6 +39,11 @@
      ```
    - Window A アプリは `client_window_a/`＋`window_a/` の構成で動作するため、systemd サービスや `setup_auto_start.sh` で参照しているパスを `/home/tools02/RaspberryPiSystem_001/window_a` / `/home/tools02/RaspberryPiSystem_001/client_window_a` に更新する。  
    - 依存インストールも `cd ~/RaspberryPiSystem_001/window_a && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` のように統一。旧 `~/tool-management-system02` は参照専用の `*_legacy_` ディレクトリとして保持する。
+7. **DocumentViewer 統合**
+   - 現状は Pi4 上の旧リポジトリ（`~/DocumentViewer`）で稼働しているが、最終的には `~/RaspberryPiSystem_001/document_viewer` へ移設し、GitHub の新リポジトリに統合する。
+   - 短期対応: 旧リポジトリを参照しつつ Socket.IO 連携などの修正を反映し、Pi4 では `git pull` で運用継続する。
+   - 中期対応: DocumentViewer のソース／docs／systemd を新リポジトリへコピーし、Mac 側で VS Code 管理下に置く。Pi4 の systemd/EnvironmentFile も新パスへ切り替える。
+   - 長期対応: 旧 `~/DocumentViewer` を `~/DocumentViewer_legacy_YYYYMMDD` へ退避し、旧 GitHub リポジトリは参照専用にする。以後は `RaspberryPiSystem_001` 上でのみ開発・運用する。
 6. **ホスト名・systemd・ログパスの名寄せ**  
    - **共通ルール**: 3 台すべてのホスト名をリポジトリ名と同じ `RaspberryPiSystem_001` に揃える。`/etc/hostname` と `/etc/hosts` を同時に編集し、`sudo hostnamectl set-hostname RaspberryPiSystem_001` を実行後に SSH を再接続する。PS1／MOTD も同名を表示させ、利用者がどのマシンでも同じプロンプトを目視できる状態を維持する。  
    - **Pi5（server）**  
