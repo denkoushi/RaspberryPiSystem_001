@@ -372,6 +372,11 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - `config/docviewer.env.sample` / `README.md` を更新し、新環境変数の使い方を明記。`docs/system/documentviewer-integration.md` の接続設定表も Pi5 実機の値に合わせて刷新。
 - `~/DocumentViewer/tests/test_viewer_app.py` を調整し、新しい環境変数が HTML と内部定数へ反映されることを検証。`cd ~/DocumentViewer && pytest` で 10件 PASS（2025-11-11 22:31 JST）。
 
+### DocumentViewer Socket ログ連携（2025-11-11 22:50 JST）
+- DocumentViewer に `/api/socket-events` を追加し、フロントエンドで受信した Socket.IO イベントを POST すると `VIEWER_LOG_PATH` へ `Socket.IO event: <name> payload=...` が記録されるようにした。`app/static/app.js` は `navigator.sendBeacon` → `fetch(keepalive)` でサーバーへ通知。
+- `tests/test_viewer_app.py` に API の 201 応答 / ログ書き込み / 非 JSON 400 応答のテストを追加。`pytest` は 12 件 PASS。
+- 次の検証時は Pi4 で DocumentViewer を再起動し、Window A から `curl` 送信 → `tail -f ~/DocumentViewer/logs/client.log` で `Socket.IO event: scan.ingested` を確認する。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
