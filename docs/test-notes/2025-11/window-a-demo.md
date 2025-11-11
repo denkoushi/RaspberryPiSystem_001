@@ -377,6 +377,10 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - `tests/test_viewer_app.py` に API の 201 応答 / ログ書き込み / 非 JSON 400 応答のテストを追加。`pytest` は 12 件 PASS。
 - 次の検証時は Pi4 で DocumentViewer を再起動し、Window A から `curl` 送信 → `tail -f ~/DocumentViewer/logs/client.log` で `Socket.IO event: scan.ingested` を確認する。
 
+### 2025-11-11 15:28 JST SocketIO 受信テスト（Pi4）
+- `cd ~/DocumentViewer && git pull && mv config/docviewer.env.local config/docviewer.env` で最新化し、`FLASK_APP=viewer.py flask run --host 0.0.0.0 --port 8500` を再起動。`curl -X POST http://127.0.0.1:8500/api/socket-events ...` で 201 応答を確認し、`~/DocumentViewer/logs/client.log` へ `Socket.IO event: connect.test payload={'note': 'manual test'}` が記録されることを確認。
+- Window A 手動リスナー（`TS_NODE_TRANSPILE_ONLY=1 ... scripts/listen_for_scans.ts`）で `[scan-socket] event scan.ingested {...}` が出力され、並行して `tail -f ~/DocumentViewer/logs/client.log` は `2025-11-11 15:17:03,082 INFO Socket.IO event: connect.test payload={'note': 'manual test'}` のみ記録（`scan.ingested` は今回まだ未記録のため、後続でイベント送信フローを継続監視する）。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
