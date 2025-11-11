@@ -3,16 +3,16 @@
 Pi5 側の Socket.IO ブロードキャストに合わせて DocumentViewer を切り替える際の準備事項を整理する。
 
 ## 1. 接続設定の確認
-- `config/viewer.env`（または `/etc/systemd/system/document-viewer.service.d/env.conf`）で以下を揃える。
+- `~/DocumentViewer/config/docviewer.env`（または `/etc/systemd/system/document-viewer.service.d/env.conf`）で以下を揃える。
 ```env
-API_BASE_URL=http://pi5.local:8501
-SOCKET_IO_URL=http://pi5.local:8501
-SOCKET_IO_NAMESPACE=/
-SOCKET_IO_EVENT=scan.ingested
-SOCKET_IO_PATH=/socket.io
-API_TOKEN=<SHARED_TOKEN>
+VIEWER_API_BASE=http://192.168.10.230:8501
+VIEWER_API_TOKEN=<shared-token>
+VIEWER_SOCKET_BASE=http://192.168.10.230:8501
+VIEWER_SOCKET_PATH=/socket.io
+VIEWER_SOCKET_EVENTS=scan.ingested,part_location_updated,scan_update
+# VIEWER_SOCKET_EVENT=scan.ingested  # 旧システム互換の単一指定
 ```
-- 旧リポジトリ `DocumentViewer` の `static/js/socket.js` を移植する場合は、`io("http://127.0.0.1:8501", { path: "/socket.io" })` のように IPv4 ループバックを利用する形へ更新する。
+- 旧リポジトリのハードコードを参照する場合でも、`VIEWER_SOCKET_EVENTS` を `scan.ingested` に必ず含め、Window A / Pi5 と同じイベント名で受信する。
 - systemd を経由する場合は `sudo systemctl daemon-reload && sudo systemctl restart document-viewer.service` で反映する。
 
 ## 2. 動作確認手順（ローカル）

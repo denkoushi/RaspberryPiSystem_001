@@ -366,6 +366,12 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - 切り分けのため `client_window_a/src/socket.ts` を更新し、`path`（`/socket.io` 既定）・namespace 正規化・debug ログ（connect/disconnect/onAny）を追加。CLI から `SOCKET_DEBUG=1` で詳細ログを取得できるようにした。`npm test -- tests/socket.test.ts` で回 regresion PASS。
 - 次ステップ: Pi4 で新バージョンを `git pull` → `npm install` → `scripts/listen_for_scans.ts` 再実行し、デバッグログ (`[scan-socket] event scan.ingested ...`) が出力されるか確認。DocumentViewer 側の JavaScript も同様の namespace/path を参照しているか要確認。
 
+### DocumentViewer Socket イベント更新（2025-11-11 22:30 JST）
+- `~/DocumentViewer/app/viewer.py` に `VIEWER_SOCKET_EVENTS` / `VIEWER_SOCKET_EVENT` の解決ロジックを追加し、デフォルトで `scan.ingested,part_location_updated,scan_update` を購読。`DOCVIEWER_CONFIG.socketEvents` 経由でフロントへ渡すよう更新。
+- `~/DocumentViewer/app/static/app.js` で `config.socketEvents` を正規化し、指定されたイベントそれぞれに `handleSocketPayload` を紐付けるよう実装。console.debug で受信イベントを出力。
+- `config/docviewer.env.sample` / `README.md` を更新し、新環境変数の使い方を明記。`docs/system/documentviewer-integration.md` の接続設定表も Pi5 実機の値に合わせて刷新。
+- `~/DocumentViewer/tests/test_viewer_app.py` を調整し、新しい環境変数が HTML と内部定数へ反映されることを検証。`cd ~/DocumentViewer && pytest` で 10件 PASS（2025-11-11 22:31 JST）。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
