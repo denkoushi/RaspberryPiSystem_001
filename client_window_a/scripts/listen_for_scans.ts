@@ -86,6 +86,8 @@ async function main(): Promise<void> {
     path: process.env.SOCKET_PATH ?? "/socket.io",
     eventName: options.eventName,
     token: options.token,
+    debug: (process.env.SOCKET_DEBUG ?? "1") !== "0",
+    logger: console,
   };
 
   const listener = new ScanSocket(socketOpts);

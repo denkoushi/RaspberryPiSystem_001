@@ -6,7 +6,8 @@ export async function bootstrapApp() {
 
   const state = new LocationState(baseUrl, {
     baseUrl,
-    namespace: process.env.SOCKET_NAMESPACE ?? "/socket.io",
+    namespace: process.env.SOCKET_NAMESPACE ?? "/",
+    path: process.env.SOCKET_PATH ?? "/socket.io",
     eventName: process.env.SOCKET_EVENT ?? "scan.ingested",
     token,
   });

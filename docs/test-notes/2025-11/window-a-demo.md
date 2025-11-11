@@ -359,6 +359,13 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   PYTHONPATH=.. pytest tests  # 5 passed (warnings due to datetime.utcnow)
   ```
 
+### Window A / DocumentViewer Socket 切り分けメモ（2025-11-11 21:45 JST）
+- Pi5 `logs/app.log` では `Socket.IO emit succeeded` が継続しており、POST `/api/v1/scans` → `scan.ingested` ブロードキャストまでは正常に動いていることを確認。
+- Pi4 側で `VIEWER_API_BASE` / `VIEWER_SOCKET_BASE` を `http://192.168.10.230:8501` に統一し、Flask を再起動。`tail -f ~/DocumentViewer/logs/client.log` はイベント未着のため空。
+- Window A 手動リスナー (`scripts/listen_for_scans.ts`) を `TS_NODE_TRANSPILE_ONLY=1` で起動し、`curl -X POST ...TEST-001...` を複数回発行してもイベントが出力されない事象を再現。
+- 切り分けのため `client_window_a/src/socket.ts` を更新し、`path`（`/socket.io` 既定）・namespace 正規化・debug ログ（connect/disconnect/onAny）を追加。CLI から `SOCKET_DEBUG=1` で詳細ログを取得できるようにした。`npm test -- tests/socket.test.ts` で回 regresion PASS。
+- 次ステップ: Pi4 で新バージョンを `git pull` → `npm install` → `scripts/listen_for_scans.ts` 再実行し、デバッグログ (`[scan-socket] event scan.ingested ...`) が出力されるか確認。DocumentViewer 側の JavaScript も同様の namespace/path を参照しているか要確認。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
