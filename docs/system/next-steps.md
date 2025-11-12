@@ -21,6 +21,7 @@
 | ドキュメント更新 | 新規 | Window A psycopg3 移行手順と既知課題の記録 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 完了 | スモーク手順・イベントペイロードの整備 | server/README.md, docs/system/documentviewer-integration.md |
 | 体制整備 | 新規 | DocumentViewer ログディレクトリ（`/var/log/document-viewer`）の自動整備手順を追加し、環境構築時に権限不足でログが書けなくなる再発を防ぐ | docs/system/documentviewer-integration.md, docs/test-notes/2025-11/window-a-demo.md |
+| 体制整備 | 新規 | DocumentViewer のコードを本リポジトリ（`document_viewer/` ディレクトリ）へ移設し、Pi4 の systemd も `~/RaspberryPiSystem_001` を参照するように切り替える | docs/system/documentviewer-integration.md, docs/system/repo-structure-plan.md |
 
 ## 直近マイルストーンとサブブランチ方針
 

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Document Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <script>
+    window.DOCVIEWER_CONFIG = {{ docviewer_config|tojson }};
+  </script>
+  {% if socket_script %}
+  <script defer src="{{ socket_script }}"></script>
+  {% endif %}
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <header class="status-bar">
+    <span class="socket-status" id="socket-status" data-state="connecting">Socket: 接続準備中…</span>
+  </header>
+  <main class="app" id="app" data-state="idle">
+    <section class="screen" data-screen="idle">
+      <div class="screen__content">
+        <h2>バーコードをスキャンしてください</h2>
+        <p>移動票のバーコードを読み取ると該当部品の作業要領書が表示されます。</p>
+        <label class="barcode-input" for="barcode-input">バーコード入力欄</label>
+        <input id="barcode-input" type="text" autocomplete="off" inputmode="text" />
+      </div>
+      <footer class="screen__footer">
+        <span>USB に最新の PDF をコピーして挿入すると自動更新されます。</span>
+        <button type="button" id="manual-open" class="secondary">入力を手動で確定</button>
+      </footer>
+    </section>
+
+    <section class="screen" data-screen="viewer">
+      <div class="viewer-shell">
+        <div class="viewer-main">
+          <div class="viewer-meta-bar">
+            <div class="viewer-meta-info">
+              <span id="viewer-part-number" class="viewer-meta__part">部品番号</span>
+              <span id="viewer-filename" class="viewer-meta__filename"></span>
+            </div>
+            <div class="viewer-actions">
+              <span class="status chip" id="status-indicator">待機中</span>
+              <button type="button" id="return-to-idle" class="chip">待機画面に戻る</button>
+            </div>
+          </div>
+          <div class="viewer-document">
+            <iframe id="pdf-frame" title="PDF Viewer" allow="clipboard-write"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="error">
+      <div class="screen__content">
+        <h2>該当資料が見つかりません</h2>
+        <p id="error-message">指定された部品番号の PDF が見つかりませんでした。</p>
+        <div class="timer" id="error-timer"></div>
+      </div>
+      <footer class="screen__footer">
+        <button type="button" id="error-reset" class="primary">待機画面に戻る</button>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>
