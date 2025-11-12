@@ -1,0 +1,15 @@
+[Unit]
+Description=Toolmaster USB ingest (%I)
+Requires=local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+Environment=SERVER_ROOT=/srv/RaspberryPiSystem_001/toolmaster
+Environment=USB_INGEST_LABEL=TM-INGEST
+ExecStart=/usr/local/bin/tool-ingest-sync.sh --device /dev/%I
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

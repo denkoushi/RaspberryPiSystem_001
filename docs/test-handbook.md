@@ -51,6 +51,7 @@
    sudo /usr/local/bin/tool-backup-export.sh --target /media/TM-BACKUP
    ```
    - ログ: `/srv/RaspberryPiSystem_001/server/logs/usb_ingest.log`, `/srv/RaspberryPiSystem_001/server/logs/usb_dist_export.log`, `/srv/RaspberryPiSystem_001/server/logs/backup.log`（旧 `/srv/rpi-server/logs/*`。参照: `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-160`）を確認し、エラーが無いことを記録する。
+   - Pi5 では `scripts/server/toolmaster/systemd/usb-*.service` と `scripts/server/toolmaster/udev/90-toolmaster.rules` を `/etc/systemd/system` / `/etc/udev/rules.d` へ配置することで、USB 接続時に上記コマンドが自動で起動する（`docs/system/documentviewer-integration.md` 参照）。手動試験でも udev/systemd のステータスを合わせて記録する。
 4. **Pi4 での DIST 受信と DocumentViewer 反映**
    ```bash
    sudo /usr/local/bin/tool-dist-sync.sh --device /dev/sdX

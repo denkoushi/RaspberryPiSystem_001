@@ -1,0 +1,15 @@
+[Unit]
+Description=Toolmaster USB dist export (%I)
+Requires=local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+Environment=SERVER_ROOT=/srv/RaspberryPiSystem_001/toolmaster
+Environment=USB_DIST_LABEL=TM-DIST
+ExecStart=/usr/local/bin/tool-dist-export.sh --device /dev/%I
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

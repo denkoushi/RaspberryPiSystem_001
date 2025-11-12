@@ -1,0 +1,8 @@
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="TM-INGEST", \
+    ENV{SYSTEMD_WANTS}="usb-ingest@%k.service"
+
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="TM-DIST", \
+    ENV{SYSTEMD_WANTS}="usb-dist-export@%k.service"
+
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="TM-BACKUP", \
+    ENV{SYSTEMD_WANTS}="usb-backup@%k.service"

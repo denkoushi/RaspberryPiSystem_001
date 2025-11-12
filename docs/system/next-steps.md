@@ -24,6 +24,7 @@
 | 体制整備 | 完了 | DocumentViewer のコードを本リポジトリ（`document_viewer/` ディレクトリ）へ移設し、Pi4 の systemd も `~/RaspberryPiSystem_001` を参照するように切り替える（2025-11-12 Pi4 実機反映済） | docs/system/documentviewer-integration.md, docs/system/repo-structure-plan.md, docs/test-notes/2025-11/window-a-demo.md |
 | コード実装 | 進行中 | Pi5 側 USB 処理 (`tool-ingest-sync.sh`, `tool-dist-export.sh`, `tool-backup-export.sh`) と共通ライブラリ `lib/toolmaster-usb.sh` を `~/RaspberryPiSystem_001/scripts/server/` へ移植し、`/srv/RaspberryPiSystem_001/toolmaster` を標準データルートとするよう更新（旧 `/srv/rpi-server` 互換維持）。次ステップで `usb-ingest@.service` などの systemd/udev 設計を再構築する | /Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md, /Users/tsudatakashi/RaspberryPiServer/scripts/** |
 | コード実装 | 進行中 | 端末側 `tool-dist-sync.sh` と DocumentViewer `document-importer.service` を連携させ、`TM-DIST` USB で `master/` / `docviewer/` を同期 → DocumentViewer を再起動する一連フローを `~/RaspberryPiSystem_001` へ実装する（DocumentViewer 取り込み先を `~/RaspberryPiSystem_001/document_viewer/documents` に統一済み） | /Users/tsudatakashi/RaspberryPiServer/scripts/tool-dist-sync.sh, /Users/tsudatakashi/tool-management-system02/** |
+| 体制整備 | 新規 | Shell script lint を標準化し、`scripts/dev/run_shellcheck.sh`（Docker fallback 付き）で `toolmaster` 系スクリプトを常時検証できるようにする | scripts/dev/run_shellcheck.sh |
 
 ## 直近マイルストーンとサブブランチ方針
 
