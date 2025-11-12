@@ -15,6 +15,7 @@ default_targets=(
   "scripts/server/toolmaster/tool-dist-export.sh"
   "scripts/server/toolmaster/tool-backup-export.sh"
   "scripts/server/toolmaster/tool-dist-sync.sh"
+  "scripts/server/toolmaster/install_usb_services.sh"
   "scripts/dev/run_shellcheck.sh"
 )
 

@@ -122,18 +122,15 @@ sudo systemctl enable --now document-viewer.service
 - `document-importer.sh` で扱うのは `docviewer/` 配下だけだが、`TM-INGEST` / `TM-DIST` の USB には工具管理 CSV など他モジュールのデータも含まれる。将来的に Window A / 工具管理の同期スクリプト（`tool-dist-sync.sh`, `tool-ingest-sync.sh` 等）を `~/RaspberryPiSystem_001` へ移植する際は、同じ USB 内構成を前提に実装すること。
 - テスト時は `/.toolmaster/role` の内容と ext4 ラベルが一致しているかを必ず確認し、`udev` ルールまたは手動コマンドで誤った USB を処理しないようにする。
 
-### 3.4 Pi5 側の systemd / udev テンプレート（自動同期）
-- 旧 RaspberryPiServer の systemd/udev 設計（`/Users/tsudatakashi/RaspberryPiServer/systemd/usb-*.service`, `/Users/tsudatakashi/RaspberryPiServer/udev/90-toolmaster.rules`）を本リポジトリへ移植済み。Pi5 では以下をインストールしておく。
-  ```bash
-  cd ~/RaspberryPiSystem_001
-  sudo install -m 644 scripts/server/toolmaster/systemd/usb-ingest@.service /etc/systemd/system/
-  sudo install -m 644 scripts/server/toolmaster/systemd/usb-dist-export@.service /etc/systemd/system/
-  sudo install -m 644 scripts/server/toolmaster/systemd/usb-backup@.service /etc/systemd/system/
-  sudo install -m 644 scripts/server/toolmaster/udev/90-toolmaster.rules /etc/udev/rules.d/
-  sudo systemctl daemon-reload
-  sudo udevadm control --reload
-  ```
-- 各 Unit では `SERVER_ROOT=/srv/RaspberryPiSystem_001/toolmaster` および `SNAPSHOT_DIR=/srv/RaspberryPiSystem_001/toolmaster/snapshots` を既定値としているため、Pi5 のデータディレクトリを先に作成し `root:root` 所有で維持すること。
+-### 3.4 Pi5 側の systemd / udev テンプレート（自動同期）
+- 旧 RaspberryPiServer の systemd/udev 設計（`/Users/tsudatakashi/RaspberryPiServer/systemd/usb-*.service`, `/Users/tsudatakashi/RaspberryPiServer/udev/90-toolmaster.rules`）を本リポジトリへ移植済み。Pi5 では次のスクリプトで一括インストールできる。
+-  ```bash
+-  cd ~/RaspberryPiSystem_001
+-  sudo ./scripts/server/toolmaster/install_usb_services.sh
+-  ```
+-  - スクリプトは `/srv/RaspberryPiSystem_001/toolmaster/{master,docviewer,snapshots}` を作成し、`/etc/systemd/system/usb-*.service` および `/etc/udev/rules.d/90-toolmaster.rules` を上書き配置する。  
+-  - 実行後に `systemctl daemon-reload` / `udevadm control --reload` を自動で呼び出す。既存の udev を即時反映させたい場合は `sudo udevadm trigger --subsystem-match=block --action=add` を追加で実行する。
+- 各 Unit では `SERVER_ROOT=/srv/RaspberryPiSystem_001/toolmaster` および `SNAPSHOT_DIR=/srv/RaspberryPiSystem_001/toolmaster/snapshots` を既定値としているため、Pi5 のデータディレクトリを `root:root` 所有で維持すること。
 - `TM-INGEST` / `TM-DIST` / `TM-BACKUP` を接続すると udev が自動でテンプレート Unit を起動し、対応するスクリプト（`tool-ingest-sync.sh`, `tool-dist-export.sh`, `tool-backup-export.sh`）が実行される。Pi4（Window A / DocumentViewer）では `tool-dist-sync.sh`＋`document-importer.service` を手動または自動で起動し、`~/RaspberryPiSystem_001/document_viewer/documents` へ反映させる。
 
 ## 4. 未整備タスク
