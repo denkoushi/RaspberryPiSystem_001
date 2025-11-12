@@ -1,0 +1,20 @@
+# 仮想環境
+.venv/
+venv/
+app/.venv/
+
+# キャッシュ／ビルド成果物
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# 実行時に作成されるディレクトリ／ログ
+logs/
+imports/
+*.log
+
+# ドキュメント配置先は README だけトラッキング
+documents/**
+!documents/README.md
+!documents/.gitignore

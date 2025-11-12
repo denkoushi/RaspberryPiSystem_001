@@ -3,7 +3,7 @@
 Pi5 側の Socket.IO ブロードキャストに合わせて DocumentViewer を切り替える際の準備事項を整理する。
 
 ## 1. 接続設定の確認
-- `~/DocumentViewer/config/docviewer.env`（または `/etc/systemd/system/document-viewer.service.d/env.conf`）で以下を揃える。
+- `~/RaspberryPiSystem_001/document_viewer/config/docviewer.env`（または `/etc/systemd/system/document-viewer.service.d/env.conf`）で以下を揃える。
 ```env
 VIEWER_API_BASE=http://127.0.0.1:8500
 VIEWER_API_TOKEN=<shared-token>
@@ -40,7 +40,7 @@ VIEWER_LOG_PATH=/var/log/document-viewer/client.log
 - 永続的に失敗する場合は `AUTO_DRAIN_ON_INGEST` の設定値と DB 反映状況（`part_locations` の `updated_at`）を確認し、イベントと REST の整合を取る。必要に応じて `GET /api/v1/admin/backlog-status` で backlog 件数を確認する。
 
 ## 3. systemd サービス整備
-Pi4 では引き続き旧 DocumentViewer リポジトリを `/home/tools02/DocumentViewer` に配置している。自動起動させる場合は以下のようなユニットを `/etc/systemd/system/document-viewer.service` として設置する。
+Pi4 を含む全端末で `~/RaspberryPiSystem_001/document_viewer` を正とする。旧 `~/DocumentViewer` は順次 `_legacy_YYYYMMDD` へ退避し、systemd も新パスを参照させる。以下は `/etc/systemd/system/document-viewer.service` の最新テンプレートである。
 
 ```ini
 [Unit]
@@ -52,10 +52,10 @@ Wants=network-online.target
 Type=simple
 User=tools02
 Group=tools02
-WorkingDirectory=/home/tools02/DocumentViewer/app
+WorkingDirectory=/home/tools02/RaspberryPiSystem_001/document_viewer/app
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=/home/tools02/DocumentViewer/config/docviewer.env
-ExecStart=/home/tools02/DocumentViewer/app/.venv/bin/python /home/tools02/DocumentViewer/app/viewer.py
+EnvironmentFile=/home/tools02/RaspberryPiSystem_001/document_viewer/config/docviewer.env
+ExecStart=/home/tools02/RaspberryPiSystem_001/document_viewer/.venv/bin/python /home/tools02/RaspberryPiSystem_001/document_viewer/app/viewer.py
 Restart=always
 RestartSec=5
 
@@ -66,9 +66,9 @@ wantedBy=multi-user.target
 初回セットアップ手順:
 
 ```bash
-cd ~/DocumentViewer/app
-python3 -m venv .venv
-source .venv/bin/activate
+cd ~/RaspberryPiSystem_001/document_viewer/app
+python3 -m venv ../.venv
+source ../.venv/bin/activate
 pip install -r requirements.txt
 sudo mkdir -p /var/log/document-viewer
 sudo chown tools02:tools02 /var/log/document-viewer

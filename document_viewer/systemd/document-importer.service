@@ -1,0 +1,16 @@
+[Unit]
+Description=Document Viewer USB Import Daemon
+After=local-fs.target
+RequiresMountsFor=/home/pi/document-viewer/documents
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/document-importer-daemon.sh
+Restart=always
+RestartSec=2
+Environment=IMPORTER_SCRIPT=/usr/local/bin/document-importer.sh
+Environment=WATCH_ROOT=/media/tools02
+Environment=IMPORT_DAEMON_LOG=/var/log/document-viewer/import-daemon.log
+
+[Install]
+WantedBy=multi-user.target

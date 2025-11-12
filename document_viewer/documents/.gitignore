@@ -1,0 +1,4 @@
+# 実機で配置する PDF は Git 管理対象外にする
+*
+!.gitignore
+!README.md

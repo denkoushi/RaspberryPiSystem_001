@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Document Viewer UI Prototype</title>
+  <style>
+    :root {
+      font-family: "Noto Sans JP", sans-serif;
+      font-size: 18px;
+      color: #111;
+      background: #f1f3f5;
+    }
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+    }
+    header {
+      width: 100%;
+      background: #1f2933;
+      color: #fff;
+      padding: 12px 24px;
+      font-size: 1.5rem;
+    }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px;
+      width: 100%;
+      max-width: 1400px;
+      box-sizing: border-box;
+    }
+    .screen {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      flex: 1 1 420px;
+      min-width: 380px;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      height: 720px;
+    }
+    .screen__header {
+      padding: 16px 24px;
+      background: #e4e7eb;
+      border-bottom: 1px solid #cbd2d9;
+      font-weight: 700;
+    }
+    .screen__body {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+    }
+    .screen__footer {
+      padding: 16px 24px;
+      border-top: 1px solid #cbd2d9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.1rem;
+    }
+    .barcode-input {
+      border: 2px dashed #9aa5b1;
+      padding: 12px 16px;
+      width: 80%;
+      font-size: 1.2rem;
+      background: rgba(154,165,177,0.1);
+    }
+    .pdf-frame {
+      background: #dfe3e8;
+      width: 85%;
+      height: 420px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: #52606d;
+    }
+    .page-controls {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    .page-controls button {
+      width: 110px;
+      height: 110px;
+      border-radius: 60px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+    }
+    .page-controls button:active {
+      transform: scale(0.97);
+    }
+    .screen--error .screen__header {
+      background: #b91c1c;
+      color: #fff;
+    }
+    .screen--error .screen__body {
+      color: #b91c1c;
+    }
+    .timer {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <header>Document Viewer UI Mock</header>
+  <main>
+    <section class="screen screen--idle">
+      <div class="screen__header">待機画面</div>
+      <div class="screen__body">
+        <h1>バーコードをスキャンしてください</h1>
+        <p>部品番号が読み取られると自動的に作業要領書を表示します。</p>
+        <div class="barcode-input">バーコード入力欄 (フォーカス固定)</div>
+      </div>
+      <div class="screen__footer">
+        <span>状態: 待機中</span>
+        <span>入力は自動的にクリアされます</span>
+      </div>
+    </section>
+
+    <section class="screen screen--viewer">
+      <div class="screen__header">表示中画面 (部品番号: ABC-1234)</div>
+      <div class="screen__body">
+        <div class="pdf-frame">PDF 1 / 10</div>
+        <div class="page-controls">
+          <button type="button">前へ</button>
+          <div>ページ 1 / 10</div>
+          <button type="button">次へ</button>
+        </div>
+      </div>
+      <div class="screen__footer">
+        <span>スクロールホイールでもページ送りできます</span>
+        <span>バーコード再読取で別部品へ</span>
+      </div>
+    </section>
+
+    <section class="screen screen--error">
+      <div class="screen__header">エラー画面</div>
+      <div class="screen__body">
+        <h1>該当資料が見つかりません</h1>
+        <p>部品番号 <strong>XYZ-9999</strong> のPDFが登録されていません。</p>
+        <p>管理担当者へ連絡し、USBで最新のPDFを登録してください。</p>
+        <div class="timer">5 秒後に待機画面に戻ります</div>
+      </div>
+      <div class="screen__footer">
+        <span>状態: エラー</span>
+        <span>ESCで即時待機画面に戻る (オプション)</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

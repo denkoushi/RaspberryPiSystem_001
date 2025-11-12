@@ -1,0 +1,18 @@
+[Unit]
+Description=Document Viewer (Flask)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{USER}}
+Group={{USER}}
+WorkingDirectory=/home/{{USER}}/DocumentViewer/app
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/docviewer
+ExecStart=/home/{{USER}}/DocumentViewer/venv/bin/python /home/{{USER}}/DocumentViewer/app/viewer.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

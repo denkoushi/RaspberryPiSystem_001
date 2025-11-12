@@ -3,6 +3,7 @@
 Raspberry Pi 上で部品ごとの PDF 手順書を表示するためのビューアです。バーコード付き移動票を読み取ると、対応する PDF を即座に全画面表示します。
 
 ## はじめに
+- 公式配置パス: `~/RaspberryPiSystem_001/document_viewer`（以下 `DOCVIEWER_HOME` と表記、例: `export DOCVIEWER_HOME=~/RaspberryPiSystem_001/document_viewer`）
 - Raspberry Pi への導入手順: `docs/setup-raspberrypi.md`
 - 機能要件・ロードマップ: `docs/requirements.md`
 - ドキュメント運用ルール: `docs/documentation-guidelines.md`
@@ -24,7 +25,7 @@ docs/test-notes/ 実機検証ログ・チェックリスト
 - 開発時は `app/` ディレクトリで仮想環境を作成し、`FLASK_APP=viewer.py flask run --port 5000` などで起動できます。
 - Raspberry Pi 上で常時運用する場合は、`docs/setup-raspberrypi.md` の手順に従って systemd サービス登録と kiosk 起動を設定してください。
 - `VIEWER_API_BASE` / `VIEWER_SOCKET_BASE` などの環境変数で RaspberryPiServer 連携先を切り替えられます（下表参照）。
-- `VIEWER_LOCAL_DOCS_DIR` を指定すると PDF の配置ディレクトリを任意パスへ変更できます。未指定時はリポジトリ直下の `documents/` を自動作成します（USB 取り込みを使う場合は `imports/failed/` も合わせて作成しておきます）。
+- `VIEWER_LOCAL_DOCS_DIR` を指定すると PDF の配置ディレクトリを任意パスへ変更できます。未指定時は `DOCVIEWER_HOME/documents/` を自動作成します（USB 取り込みを使う場合は `imports/failed/` も合わせて作成しておきます）。
 - `raspi-server.local` が解決できない場合は、Pi5 側のホスト名が `raspi-server` になっているか、クライアント側の Avahi (mDNS) が起動しているかを確認してください。
 - `VIEWER_LOG_PATH` を指定するとドキュメント検索・配信イベントがローテーション付きログ（最大 3 MB × 3 世代）として出力されます。未指定時は標準ログのみ利用します。
 - 実機設定・検証ログは `docs/test-notes/` 配下（例: `2025-10-26-docviewer-env.md`）に記録しています。
@@ -34,7 +35,7 @@ docs/test-notes/ 実機検証ログ・チェックリスト
     sudo ./scripts/install_docviewer_env.sh \
       --owner tools01:tools01 \
       --api-base http://raspi-server.local:8501 \
-      --docs-dir /home/tools01/DocumentViewer/documents \
+      --docs-dir "$DOCVIEWER_HOME/documents" \
       --log-path /var/log/document-viewer/client.log
     ```
   - RaspberryPiServer 側の 14 日チェック（`RaspberryPiServer/docs/mirror-verification.md`）と併せて運用状況を確認します。
@@ -53,8 +54,8 @@ docs/test-notes/ 実機検証ログ・チェックリスト
 | `VIEWER_SOCKET_EVENT` | 上記と同等の単一イベント指定（互換用） | 未設定 |
 | `VIEWER_ACCEPT_DEVICE_IDS` | 受信対象の `device_id` をカンマ区切りで指定 | 未指定で全受信 |
 | `VIEWER_ACCEPT_LOCATION_CODES` | 受信対象の `location_code` をカンマ区切りで指定 | 未指定で全受信 |
-| `VIEWER_LOCAL_DOCS_DIR` | PDF を格納するディレクトリ | `~/DocumentViewer/documents` |
-| `VIEWER_IMPORT_FAILED_DIR` | 取り込み失敗時に退避するフォルダ | `~/DocumentViewer/imports/failed` |
+| `VIEWER_LOCAL_DOCS_DIR` | PDF を格納するディレクトリ | `$DOCVIEWER_HOME/documents` |
+| `VIEWER_IMPORT_FAILED_DIR` | 取り込み失敗時に退避するフォルダ | `$DOCVIEWER_HOME/imports/failed` |
 | `VIEWER_LOG_PATH` | ローテーション付きログの出力先 | 未出力 |
 
 Pi5・Window A と同じ Bearer トークンを利用するため、ローテーション時は RaspberryPiServer RUNBOOK（4章）に従って `VIEWER_API_TOKEN` と Pi5 側の `API_TOKEN` / `VIEWER_API_TOKEN`、Window A 側 `RASPI_SERVER_API_TOKEN` を同時に更新してください。
@@ -65,7 +66,7 @@ Pi5・Window A と同じ Bearer トークンを利用するため、ローテー
 加えて `scripts/docviewer_check.py` で `/api/documents/<part>` の疎通確認とローカル PDF の存在チェックを実行できます。
 
 ```bash
-cd ~/DocumentViewer
+cd ~/RaspberryPiSystem_001/document_viewer
 python -m venv venv
 source venv/bin/activate
 pip install -r app/requirements.txt pytest
@@ -75,10 +76,10 @@ pytest
 ./scripts/docviewer_check.py --part TESTPART \
   --api-base http://raspi-server.local:8501 \
   --token "${VIEWER_API_TOKEN:-}" \
-  --docs-dir ~/DocumentViewer/documents
+  --docs-dir "$DOCVIEWER_HOME/documents"
 ```
 
-USB importer を利用する場合は、上記ディレクトリに加えて `mkdir -p ~/DocumentViewer/imports/failed`
+USB importer を利用する場合は、上記ディレクトリに加えて `mkdir -p "$DOCVIEWER_HOME/imports/failed"`
 を実行し、取り込み失敗時の退避先を用意してください。
 
 ## 連携するシステム
