@@ -382,6 +382,15 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - Window A 手動リスナー（`TS_NODE_TRANSPILE_ONLY=1 ... scripts/listen_for_scans.ts`）で `[scan-socket] event scan.ingested {...}` が出力され、並行して `tail -f ~/DocumentViewer/logs/client.log` は `2025-11-11 15:17:03,082 INFO Socket.IO event: connect.test payload={'note': 'manual test'}` のみ記録（`scan.ingested` は今回まだ未記録のため、後続でイベント送信フローを継続監視する）。
 - 追加で `VIEWER_SOCKET_EVENTS=scan.ingested,part_location_updated,scan_update` を `config/docviewer.env` に追記し再テストしたが、現時点ではログは `connect.test` のみで `scan.ingested` は未記録。DocumentViewer フロントの `/api/socket-events` 呼び出しを継続調査中。
 
+### 2025-11-12 10:30 JST /var/log/document-viewer 整備
+- Pi4 で `VIEWER_API_BASE=http://127.0.0.1:8500`, `VIEWER_SOCKET_BASE=http://192.168.10.230:8501`, `VIEWER_SOCKET_CLIENT_SRC=https://cdn.socket.io/4.7.5/socket.io.min.js` へ設定を戻し、`sudo mkdir -p /var/log/document-viewer && sudo chown tools02:tools02 /var/log/document-viewer` を実行。
+- DocumentViewer を再起動し、Window A から `curl` で `TEST-001` を送信したところ `/var/log/document-viewer/client.log` に以下が記録されることを確認。
+  ```
+  2025-11-12 10:10:52,956 INFO Socket.IO event: scan.ingested payload={'order_code': 'TEST-001', 'location_code': 'RACK-A1', 'device_id': 'HANDHELD-01'}
+  2025-11-12 10:10:52,986 INFO Document not found: TEST-001
+  ```
+- これにより Socket.IO 受信ログが正常化したため、今後の環境構築手順に `/var/log/document-viewer` の作成と権限設定を必須作業として追加する。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  
