@@ -88,6 +88,21 @@ sudo systemctl enable --now document-viewer.service
   ```
 - コピー後は `sudo systemctl restart document-viewer.service` → `tail -n 5 /var/log/document-viewer/client.log` で最新 PDF が表示されることを確認する。
 
+### 3.2 USB importer サービス
+- importer / daemon スクリプトを `/usr/local/bin` へ配置する。
+  ```bash
+  cd ~/RaspberryPiSystem_001/document_viewer
+  sudo install -m 755 scripts/document-importer.sh /usr/local/bin/document-importer.sh
+  sudo install -m 755 scripts/document-importer-daemon.sh /usr/local/bin/document-importer-daemon.sh
+  ```
+- systemd ユニットをユーザー名に合わせて配置する。
+  ```bash
+  sudo sed "s/{{USER}}/tools02/g" systemd/document-importer.service | sudo tee /etc/systemd/system/document-importer.service >/dev/null
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now document-importer.service
+  ```
+- importer は `WATCH_ROOT=/media/<user>` を監視し、USB の `docviewer/` フォルダを検出すると `document-importer.sh` で PDF を検証しつつ `~/RaspberryPiSystem_001/document_viewer/documents` へコピーする。完了後に `document-viewer.service` を自動で再起動するため、Window A/DocumentViewer 側で最新 PDF が利用できる。
+
 ## 4. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。
 - API トークン更新時、DocumentViewer の環境ファイルを同期する手順を RUNBOOK に追記。

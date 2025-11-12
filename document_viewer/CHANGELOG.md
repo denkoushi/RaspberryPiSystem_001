@@ -23,4 +23,5 @@
 - Pi4 の運用ディレクトリを `~/RaspberryPiSystem_001/document_viewer` へ正式移行。systemd テンプレートと `install_docviewer_service.sh` を更新し、`document-viewer.service` として展開するよう統一。
 - 旧 `docviewer.service` 表記をドキュメント・スクリプト全体で `document-viewer.service` に置き換え、`scripts/document-importer.sh` の再起動処理も新サービス名へ対応。
 - 旧 `~/DocumentViewer/documents` から新ディレクトリへ PDF を同期する `scripts/migrate_legacy_documents.sh` を追加し、README とテストノートに移行手順を追記。
+- USB importer 用 systemd テンプレート (`systemd/document-importer.service`) を刷新し、`DOCVIEWER_HOME` を基準に `document-importer.service` を構築できるようにした。セットアップ手順を `docs/system/documentviewer-integration.md` / `docs/setup-raspberrypi.md` に追記。
 - `install_docviewer_env.sh` / `setup_docviewer_env.sh` などの補助スクリプトに新パス（`$DOCVIEWER_HOME`）を反映し、ログ/環境ファイルのセットアップ手順を一本化。

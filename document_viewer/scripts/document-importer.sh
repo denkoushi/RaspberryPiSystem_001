@@ -3,7 +3,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DEFAULT_PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [[ -n "${DOCVIEWER_HOME:-}" ]]; then
+  PROJECT_DIR="$(cd "$(eval echo "${DOCVIEWER_HOME}")" && pwd)"
+else
+  PROJECT_DIR="${DEFAULT_PROJECT_DIR}"
+fi
 
 LOG_FILE="${IMPORT_LOG:-/var/log/document-viewer/import.log}"
 DEST_DIR="${DEST_DIR:-${PROJECT_DIR}/documents}"

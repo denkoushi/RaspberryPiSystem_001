@@ -1,16 +1,20 @@
 [Unit]
 Description=Document Viewer USB Import Daemon
 After=local-fs.target
-RequiresMountsFor=/home/pi/document-viewer/documents
+RequiresMountsFor=/home/{{USER}}/RaspberryPiSystem_001/document_viewer/documents
 
 [Service]
 Type=simple
+User={{USER}}
+Group={{USER}}
+WorkingDirectory=/home/{{USER}}/RaspberryPiSystem_001/document_viewer
+Environment=DOCVIEWER_HOME=/home/{{USER}}/RaspberryPiSystem_001/document_viewer
+Environment=WATCH_ROOT=/media/{{USER}}
+Environment=IMPORT_DAEMON_LOG=/var/log/document-viewer/import-daemon.log
+Environment=IMPORTER_SCRIPT=/usr/local/bin/document-importer.sh
 ExecStart=/usr/local/bin/document-importer-daemon.sh
 Restart=always
-RestartSec=2
-Environment=IMPORTER_SCRIPT=/usr/local/bin/document-importer.sh
-Environment=WATCH_ROOT=/media/tools02
-Environment=IMPORT_DAEMON_LOG=/var/log/document-viewer/import-daemon.log
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

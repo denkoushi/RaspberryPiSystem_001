@@ -171,3 +171,19 @@ sudo DOCUMENT_VIEWER_USER=tools01 ./scripts/install_docviewer_service.sh
 - 停止/再起動: `sudo systemctl stop document-viewer.service` / `sudo systemctl restart document-viewer.service`
 
 > 既に手動で `python app/viewer.py` を動かしている場合は、サービス導入後にそのプロセスを停止してください。
+
+### 10.2 USB インポートサービスを導入する
+DocumentViewer で USB メモリから PDF を自動同期させる場合は、以下の手順で importer スクリプトと systemd サービスをセットアップする。
+
+```bash
+cd ~/RaspberryPiSystem_001/document_viewer
+sudo install -m 755 scripts/document-importer.sh /usr/local/bin/document-importer.sh
+sudo install -m 755 scripts/document-importer-daemon.sh /usr/local/bin/document-importer-daemon.sh
+sudo sed "s/{{USER}}/tools02/g" systemd/document-importer.service | sudo tee /etc/systemd/system/document-importer.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable --now document-importer.service
+```
+
+- `{{USER}}` の部分は実際に importer を動かすユーザー（Pi4 では `tools02`）へ置き換える。
+- importer はデフォルトで `/media/<user>` を監視し、USB に `docviewer/` フォルダがあると `document-importer.sh` を起動して `~/RaspberryPiSystem_001/document_viewer/documents` へコピーする。ログは `/var/log/document-viewer/import.log` と `/var/log/document-viewer/import-daemon.log` に出力される。
+- PDF や `meta.json` を手動で取り込む場合も、同スクリプトを直接実行すれば同じロジックで検証される。

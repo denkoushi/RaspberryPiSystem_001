@@ -47,6 +47,7 @@
 - **ログ確認**: `sudo tail -n 50 /var/log/document-viewer/client.log`
 - **USB 連携**: RaspberryPiServer の `tool-dist-sync.sh` により Window A と共通の `TM-DIST` を利用。
 - **障害対応**: PDF が表示されない場合は `/srv/rpi-server/documents` にファイルが存在するかとログを確認。必要に応じて importer 再実行。
+- **USB importer**: `document-importer.service` を有効化し、`scripts/migrate_legacy_documents.sh` / `document-importer.sh` で PDF を整合。ログは `/var/log/document-viewer/import.log`／`import-daemon.log` を参照する。
 
 ## 9. 今後の課題
 - Socket.IO 断状態を UI で明示し、リトライ状況を表示する。
