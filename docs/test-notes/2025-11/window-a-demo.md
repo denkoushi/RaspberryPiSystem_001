@@ -418,4 +418,16 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   2025-11-12 13:39:18,798 INFO Document served: TEST-001.pdf
   ```  
   が記録され、ブラウザ側でも PDF が自動表示された。
+
+### Pi4 DocumentViewer 旧ドキュメント移行（2025-11-12 14:20 JST）
+- `cd ~/RaspberryPiSystem_001/document_viewer && ./scripts/migrate_legacy_documents.sh --legacy ~/DocumentViewer/documents --target ~/RaspberryPiSystem_001/document_viewer/documents --dry-run` で差分を確認（`TEST-001.pdf`, `testpart.pdf` のみ検出）。
+- 同コマンドから `--dry-run` を外して本実行し、旧 `~/DocumentViewer/documents` から新 `document_viewer/documents` へコピー。rsync 出力をログへ記録。
+- `sudo systemctl restart document-viewer.service` 実行後、Window A から `curl -X POST /api/v1/scans ... TEST-001` を送信。  
+  `/var/log/document-viewer/client.log` に  
+  ```
+  2025-11-12 14:18:23,596 INFO Socket.IO event: scan.ingested payload={'order_code': 'TEST-001', 'location_code': 'RACK-A1', 'device_id': 'HANDHELD-01'}
+  2025-11-12 14:18:23,626 INFO Document lookup success: TEST-001 -> TEST-001.pdf
+  ```  
+  が追記され、ブラウザでも PDF が自動表示されたことを確認。
+- 今後は importer/systemd が新パスを前提としているため、追加 PDF も同スクリプトで同期後に `document-viewer.service` を再起動する。
 - **判定 / フォローアップ**: PASS/FAIL と追加アクション
