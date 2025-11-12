@@ -7,9 +7,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-source "${REPO_ROOT}/lib/toolmaster-usb.sh"
+# shellcheck source=scripts/server/toolmaster/lib/toolmaster-usb.sh
+source "${SCRIPT_DIR}/lib/toolmaster-usb.sh"
 
+# shellcheck disable=SC2034
 USB_LOG_FILE="usb_ingest.log"
+# shellcheck disable=SC2034
 USB_LOG_TAG="tool-ingest-sync"
 
 DEFAULT_SERVER_ROOT="/srv/RaspberryPiSystem_001/toolmaster"
@@ -219,8 +222,8 @@ load_api_token() {
     if [[ -n "${line}" ]]; then
       token_value="${line#*=}"
       token_value="${token_value%$'\r'}"
-      token_value="${token_value%"}"
-      token_value="${token_value#"}"
+      token_value="${token_value%\"}"
+      token_value="${token_value#\"}"
       API_TOKEN="${token_value}"
     fi
   fi
@@ -232,7 +235,6 @@ notify_plan_cache_refresh() {
     return 0
   fi
 
-  if ! command- v curl >/dev/null 2>&1; then
   if ! command -v curl >/dev/null 2>&1; then
     usb_log "warning" "curl not found; skipping plan cache refresh"
     return 0

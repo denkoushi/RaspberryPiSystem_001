@@ -5,11 +5,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=scripts/server/toolmaster/lib/toolmaster-usb.sh
+source "${SCRIPT_DIR}/lib/toolmaster-usb.sh"
 
-source "${REPO_ROOT}/lib/toolmaster-usb.sh"
-
+# shellcheck disable=SC2034
 USB_LOG_FILE="usb_backup.log"
+# shellcheck disable=SC2034
 USB_LOG_TAG="tool-backup-export"
 
 DEFAULT_SERVER_ROOT="/srv/RaspberryPiSystem_001/toolmaster"
@@ -146,4 +147,4 @@ else
   duration_ms=0
 fi
 
-usb_log "info" "backup export completed archive=${archive_name} size=${size_bytes} dry_run=${DRY_RUN}"
+usb_log "info" "backup export completed archive=${archive_name} size=${size_bytes} duration_ms=${duration_ms} dry_run=${DRY_RUN}"

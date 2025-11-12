@@ -5,11 +5,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=scripts/server/toolmaster/lib/toolmaster-usb.sh
+source "${SCRIPT_DIR}/lib/toolmaster-usb.sh"
 
-source "${REPO_ROOT}/lib/toolmaster-usb.sh"
-
+# shellcheck disable=SC2034
 USB_LOG_FILE="usb_dist_sync.log"
+# shellcheck disable=SC2034
 USB_LOG_TAG="tool-dist-sync"
 
 DEFAULT_CLIENT_HOME="${TOOLMASTER_CLIENT_HOME:-/home/tools02}"

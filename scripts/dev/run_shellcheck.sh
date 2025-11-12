@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Runs shellcheck against the repository's Bash scripts.
-# 旧 RaspberryPiServer でも `shellcheck` を用いた lint を運用していたため、
-# Docker イメージ (koalaman/shellcheck) を fallback として使用し、開発環境に
-# shellcheck が未導入でも同じ結果を得られるようにする。
+# Legacy RaspberryPiServer builds also relied on shellcheck; this wrapper
+# falls back to the koalaman/shellcheck Docker image so developers get the same
+# lint even when the host does not have shellcheck installed.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 default_targets=(
   "scripts/server/toolmaster/lib/toolmaster-usb.sh"
@@ -25,13 +25,15 @@ else
 fi
 
 run_shellcheck() {
+  local shellcheck_args=(-x)
   if command -v shellcheck >/dev/null 2>&1; then
-    shellcheck "$@"
+    shellcheck "${shellcheck_args[@]}" "$@"
     return 0
   fi
 
   if command -v docker >/dev/null 2>&1; then
-    docker run --rm -v "${REPO_ROOT}:/work" -w /work koalaman/shellcheck:stable "$@"
+    docker run --rm -v "${REPO_ROOT}:/work" -w /work koalaman/shellcheck:stable \
+      "${shellcheck_args[@]}" "$@"
     return 0
   fi
 
