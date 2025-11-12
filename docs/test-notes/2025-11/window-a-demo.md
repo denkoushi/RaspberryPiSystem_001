@@ -401,4 +401,20 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - **Window A ログ**: `scripts/listen_for_scans.ts` 出力  
 - **DocumentViewer ログ**: `/var/log/document-viewer/client.log` から抜粋  
 - **UI スクリーンショット**: Window A / DocumentViewer の更新結果  
+
+### Pi4 DocumentViewer 本リポジトリ移行（2025-11-12 13:40 JST）
+- Pi4 で `~/RaspberryPiSystem_001` を `git pull`。DocumentViewer 一式が `document_viewer/` として取り込まれていることを確認。
+- 旧 `document-viewer.service` を停止し、新ディレクトリで仮想環境を作成:  
+  `cd ~/RaspberryPiSystem_001/document_viewer/app && python3 -m venv ../.venv && source ../.venv/bin/activate && pip install -r requirements.txt`
+- `/etc/systemd/system/document-viewer.service` を `WorkingDirectory=/home/tools02/RaspberryPiSystem_001/document_viewer/app` 等に書き換え、`sudo systemctl daemon-reload && sudo systemctl enable --now document-viewer.service` で再登録。`status` は `active (running)` を確認。
+- `config/docviewer.env` の `VIEWER_API_BASE` を `http://127.0.0.1:5000` へ戻し（CORS 解消）、`VIEWER_SOCKET_BASE` は Pi5 (`http://192.168.10.230:8501`) を維持。`sudo systemctl restart document-viewer.service` で反映。
+- 旧リポジトリの `~/DocumentViewer/documents/TEST-001.pdf` を新ディレクトリの `documents/` へコピー。将来的には importer を新パスに合わせる必要あり。
+- Chromium で `http://127.0.0.1:5000` を再表示し、Window A から `curl -X POST /api/v1/scans`（order_code=TEST-001）を実行。  
+  `/var/log/document-viewer/client.log` に  
+  ```
+  2025-11-12 13:39:18,721 INFO Socket.IO event: scan.ingested payload={'order_code': 'TEST-001', ...}
+  2025-11-12 13:39:18,730 INFO Document lookup success: TEST-001 -> TEST-001.pdf
+  2025-11-12 13:39:18,798 INFO Document served: TEST-001.pdf
+  ```  
+  が記録され、ブラウザ側でも PDF が自動表示された。
 - **判定 / フォローアップ**: PASS/FAIL と追加アクション

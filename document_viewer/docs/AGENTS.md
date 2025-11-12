@@ -3,7 +3,7 @@
 DocumentViewer リポジトリで作業するエージェント向けの指針です。新しいスレッドや自動化タスクを開始するときは、最初に確認してください。
 
 ## 1. リポジトリ概要
-- ルートパス: `/Users/tsudatakashi/DocumentViewer`
+- ルートパス: `/Users/tsudatakashi/RaspberryPiSystem_001/document_viewer`
 - 主要ドキュメント:
   - `README.md`: 概要と導入手順への案内
   - `docs/setup-raspberrypi.md`: Raspberry Pi へのセットアップ手順

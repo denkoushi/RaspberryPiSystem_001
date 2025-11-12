@@ -7,7 +7,7 @@
 #   sudo ./scripts/install_docviewer_env.sh \
 #     --owner tools01:tools01 \
 #     --api-base http://raspi-server.local:8501 \
-#     --docs-dir /home/tools01/DocumentViewer/documents \
+#     --docs-dir /home/tools01/RaspberryPiSystem_001/document_viewer/documents \
 #     --log-path /var/log/document-viewer/client.log
 #
 
@@ -51,7 +51,7 @@ Options:
   sudo ./scripts/install_docviewer_env.sh \
     --owner tools01:tools01 \
     --api-base http://raspi-server.local:8501 \
-    --docs-dir /home/tools01/DocumentViewer/documents \
+    --docs-dir /home/tools01/RaspberryPiSystem_001/document_viewer/documents \
     --log-path /var/log/document-viewer/client.log
 USAGE
 }

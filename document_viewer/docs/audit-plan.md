@@ -1,6 +1,6 @@
 # DocumentViewer ドキュメント棚卸し計画（2025-10-31）
 
-対象: `/Users/tsudatakashi/DocumentViewer`
+対象: `/Users/tsudatakashi/RaspberryPiSystem_001/document_viewer`
 目的: Pi5 へのサーバー集約後も DocumentViewer リポジトリのドキュメントが現状と整合しているか確認し、索引と CHANGELOG を最新化する。
 
 ## ステップ
