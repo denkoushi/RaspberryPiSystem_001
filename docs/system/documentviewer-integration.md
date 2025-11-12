@@ -110,6 +110,17 @@ sudo systemctl enable --now document-viewer.service
   sudo chmod 440 /etc/sudoers.d/document-viewer
   ```
 
+### 3.3 USB メモリの役割とディレクトリ構成
+- 旧 DocumentViewer リポジトリのセットアップガイド（`/Users/tsudatakashi/DocumentViewer/docs/setup-raspberrypi.md:119-134`）では、USB ルート直下に `TOOLMASTER/master/`（工具管理 CSV）と `TOOLMASTER/docviewer/`（PDF と `meta.json`）を置くことが前提になっている。新システムでも同じレイアウトを維持し、`docviewer/` には PDF と `meta.json` 以外のファイルを配置しない。
+- 旧 RaspberryPiServer リポジトリの USB 手順書（`/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-130`）では、USB ラベルと役割を以下のように定義している。新しい Pi でも ext4 ラベルと `/.toolmaster/role` による識別を踏襲する。
+  | ラベル | `.toolmaster/role` | 主な用途 | 挿入先 |
+  | --- | --- | --- | --- |
+  | `TM-INGEST` | `INGEST` | 外部で更新した `master/` CSV や `docviewer/` PDF を Pi5 へ持ち込む。`tool-ingest-sync.sh` が比較してサーバー側を更新し、USB 側も最新化する。 | Pi5（書き込みあり） |
+  | `TM-DIST` | `DIST` | Pi5 で確定した `master/` と `docviewer/` を各端末（Window A / DocumentViewer）へ配布。端末側では `tool-dist-sync.sh` が USB → 端末の一方向コピーを行い、USB へは書き戻さない。 | Pi5（エクスポート）、Pi4/他端末（配布） |
+  | `TM-BACKUP` | `BACKUP` | Pi5 のスナップショットを `tar+zstd` で退避。DocumentViewer 直接は使わないが、USB 3 本の一貫した運用として管理する。 | Pi5（書き込みあり） |
+- `document-importer.sh` で扱うのは `docviewer/` 配下だけだが、`TM-INGEST` / `TM-DIST` の USB には工具管理 CSV など他モジュールのデータも含まれる。将来的に Window A / 工具管理の同期スクリプト（`tool-dist-sync.sh`, `tool-ingest-sync.sh` 等）を `~/RaspberryPiSystem_001` へ移植する際は、同じ USB 内構成を前提に実装すること。
+- テスト時は `/.toolmaster/role` の内容と ext4 ラベルが一致しているかを必ず確認し、`udev` ルールまたは手動コマンドで誤った USB を処理しないようにする。
+
 ## 4. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。
 - API トークン更新時、DocumentViewer の環境ファイルを同期する手順を RUNBOOK に追記。

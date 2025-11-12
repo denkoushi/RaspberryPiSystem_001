@@ -15,6 +15,61 @@
 - ハンディ端末運用: 旧 OnSiteLogistics リポジトリ `docs/handheld-reader.md`
 - テスト記録テンプレート: `docs/test-notes/`（`README.md` と `templates/` を参照）
 
+## 2. USB メモリ運用チェック（INGEST / DIST / BACKUP）
+- 参照元
+  - `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-130`（USB ラベル・役割・`/.toolmaster/role`）
+  - `/Users/tsudatakashi/DocumentViewer/docs/setup-raspberrypi.md:119-134`（`TOOLMASTER/master` / `docviewer` のディレクトリ構成）
+
+### 目的
+- USB 3 本（`TM-INGEST`, `TM-DIST`, `TM-BACKUP`）が正しいラベルとシグネチャファイルを持ち、想定されたフォルダ構成（`master/*.csv`, `docviewer/*.pdf + meta.json` など）が維持されていることを確認する。
+- DocumentViewer / Window A / Pi5 のスクリプト（`tool-ingest-sync.sh`, `tool-dist-sync.sh`, `document-importer.sh` 等）が同じ USB 構成を前提に正しく動作することを担保する。
+
+### 事前条件
+- Pi5 には旧仕様と同等の USB スクリプトが配置されている（例: `/usr/local/bin/tool-dist-export.sh`）。
+- Pi4 (Window A / DocumentViewer) には `tool-dist-sync.sh`, `document-importer.sh` が `/usr/local/bin` に配置され、`document-importer.service` が稼働している。
+- `/etc/sudoers.d/document-viewer` が設定されており、DocumentViewer の再起動がパスワード無しで実行できる。
+
+### 手順
+1. **USB ラベルとシグネチャの確認**
+   ```bash
+   sudo blkid | grep TM-
+   sudo cat /media/TM-INGEST/.toolmaster/role
+   sudo cat /media/TM-DIST/.toolmaster/role
+   sudo cat /media/TM-BACKUP/.toolmaster/role
+   ```
+   - `TM-INGEST` → `INGEST`、`TM-DIST` → `DIST`、`TM-BACKUP` → `BACKUP` であることを確認。異なる場合は処理を中断する。
+2. **ディレクトリ構成の検証**
+   ```bash
+   tree -L 2 /media/TM-INGEST/TOOLMASTER
+   tree -L 2 /media/TM-DIST/TOOLMASTER
+   ```
+   - `master/*.csv` と `docviewer/meta.json` `docviewer/*.pdf` 以外のファイルが無いか確認する。DocumentViewer 取り込みは `docviewer/` のみを対象にする。
+3. **Pi5 での INGEST / DIST エクスポート**
+   ```bash
+   sudo /usr/local/bin/tool-ingest-sync.sh --refresh
+   sudo /usr/local/bin/tool-dist-export.sh --target /media/TM-DIST
+   sudo /usr/local/bin/tool-backup-export.sh --target /media/TM-BACKUP
+   ```
+   - ログ: `/srv/rpi-server/logs/usb_ingest.log`, `/srv/rpi-server/logs/usb_dist_export.log`, `/srv/rpi-server/logs/backup.log` を確認し、エラーが無いことを記録する。
+4. **Pi4 での DIST 受信と DocumentViewer 反映**
+   ```bash
+   sudo /usr/local/bin/tool-dist-sync.sh --device /dev/sdX
+   sudo mount --bind /media/tools02/TMP-USB /media/tool-dist-test  # ループバック試験時
+   sudo journalctl -u document-importer.service --since "1 minute ago" --no-pager
+   sudo tail -n 10 /var/log/document-viewer/import.log
+   ```
+   - `INFO copied …` と `INFO restarted document-viewer.service` が出力されることを確認。必要に応じて Window A 側のログ (`/var/log/tool-dist-sync.log`) も併せて記録する。
+5. **テストログへの記録**
+   - `docs/test-notes/templates/usb-flow.md` をコピーし、実施日・USB ラベル・結果（○/×）を記録する。異常があった場合は該当 USB を隔離し、マニュアル（旧 RaspberryPiServer RUNBOOK）に従って再作成する。
+
+### 成功判定
+- 3 本すべてでラベル・シグネチャ・フォルダ構成が一致し、Pi5 側スクリプトと Pi4 側 importer がエラーなく完了すること。
+- DocumentViewer で `docviewer/` に入れた PDF が表示されること、Window A の工具管理 UI が `master/` CSV を取り込めることを確認し、ログをスクリーンショットや `docs/test-notes/YYYY-MM-DD-*.md` へ添付する。
+
+### フォローアップ
+- ラベルや構成が異なる USB が見つかった場合は `/srv/rpi-server/scripts/setup_usb_tests.sh` のような既存スクリプトを参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
+- Window A / DocumentViewer の importer が対応していないデータ種別（標準工数や生産日程 CSV）については、対応する同期スクリプトを `~/RaspberryPiSystem_001` へ移植し、それぞれのテストケースを本ハンドブックへ追記する。
+
 ## 1. ハンディ送信フロー（Pi Zero → Pi5 → クライアント）
 
 ### 目的
