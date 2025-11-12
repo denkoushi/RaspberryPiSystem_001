@@ -17,3 +17,10 @@
 - DocumentViewer の要件 (`docs/requirements.md`) を Pi5 サーバー集約後の構成に合わせて再整備。
 - README / setup ガイドに Pi5 ホスト名 (`raspi-server-*.local`) や追加依存パッケージを反映。
 - ドキュメント索引 (`docs/docs-index.md`) とテストノート索引を棚卸しし、✅ を記録。
+
+## 2025-11-12
+
+- Pi4 の運用ディレクトリを `~/RaspberryPiSystem_001/document_viewer` へ正式移行。systemd テンプレートと `install_docviewer_service.sh` を更新し、`document-viewer.service` として展開するよう統一。
+- 旧 `docviewer.service` 表記をドキュメント・スクリプト全体で `document-viewer.service` に置き換え、`scripts/document-importer.sh` の再起動処理も新サービス名へ対応。
+- 旧 `~/DocumentViewer/documents` から新ディレクトリへ PDF を同期する `scripts/migrate_legacy_documents.sh` を追加し、README とテストノートに移行手順を追記。
+- `install_docviewer_env.sh` / `setup_docviewer_env.sh` などの補助スクリプトに新パス（`$DOCVIEWER_HOME`）を反映し、ログ/環境ファイルのセットアップ手順を一本化。

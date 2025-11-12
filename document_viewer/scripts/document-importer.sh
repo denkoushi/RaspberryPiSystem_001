@@ -11,7 +11,7 @@ STAGING_DIR="${STAGING_DIR:-${PROJECT_DIR}/imports}"
 FAILED_DIR="${FAILED_DIR:-${STAGING_DIR}/failed}"
 LOCAL_META="${LOCAL_META:-${DEST_DIR}/meta.json}"
 USB_SUBDIR="${USB_SUBDIR:-docviewer}"
-VIEWER_SERVICE="${VIEWER_SERVICE:-docviewer.service}"
+VIEWER_SERVICE="${VIEWER_SERVICE:-document-viewer.service}"
 TMP_DIR=""
 
 log() {

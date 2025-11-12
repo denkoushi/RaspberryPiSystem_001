@@ -82,6 +82,16 @@ pytest
 USB importer を利用する場合は、上記ディレクトリに加えて `mkdir -p "$DOCVIEWER_HOME/imports/failed"`
 を実行し、取り込み失敗時の退避先を用意してください。
 
+### 既存 PDF の移行手順
+- 旧 Pi4 リポジトリ (`~/DocumentViewer/documents`) に残っている PDF を新しい `document_viewer/documents/` へコピーする場合は、以下のスクリプトで rsync を実行できます。
+  ```bash
+  cd ~/RaspberryPiSystem_001/document_viewer
+  ./scripts/migrate_legacy_documents.sh \
+    --legacy ~/DocumentViewer/documents \
+    --target "$DOCVIEWER_HOME/documents"
+  ```
+- `--dry-run` オプションを付けるとコピー内容だけを確認できます。移行後は `sudo systemctl restart document-viewer.service` と `tail -n 5 /var/log/document-viewer/client.log` で最新 PDF が参照されているか確認してください。
+
 ## 連携するシステム
 - **tool-management-system02（Window A）**: 右ペインの所在ビューと連動し、OnSiteLogistics から送られた `part_locations` を Socket.IO 経由で参照します。DocumentViewer は `VIEWER_SOCKET_EVENTS`（既定: `scan.ingested,part_location_updated,scan_update`）で指定したイベントを購読し、該当 PDF を自動表示します。USB 同期スクリプト（`scripts/usb-import.sh`）は Window A の `usb_master_sync.sh` から呼び出され、要領書 PDF を共通運用します。
 - **OnSiteLogistics（ハンディリーダ）**: 製造オーダーと棚位置を `feature/scan-intake` API で登録し、DocumentViewer と同じ Raspberry Pi 上の右ペインにリアルタイム反映されます（詳細は Window A の RUNBOOK 3.4 を参照）。

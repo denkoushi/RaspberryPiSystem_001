@@ -409,6 +409,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - `/etc/systemd/system/document-viewer.service` を `WorkingDirectory=/home/tools02/RaspberryPiSystem_001/document_viewer/app` 等に書き換え、`sudo systemctl daemon-reload && sudo systemctl enable --now document-viewer.service` で再登録。`status` は `active (running)` を確認。
 - `config/docviewer.env` の `VIEWER_API_BASE` を `http://127.0.0.1:5000` へ戻し（CORS 解消）、`VIEWER_SOCKET_BASE` は Pi5 (`http://192.168.10.230:8501`) を維持。`sudo systemctl restart document-viewer.service` で反映。
 - 旧リポジトリの `~/DocumentViewer/documents/TEST-001.pdf` を新ディレクトリの `documents/` へコピー。将来的には importer を新パスに合わせる必要あり。
+- 既存 PDF の大量移行用に `document_viewer/scripts/migrate_legacy_documents.sh` を追加。`./scripts/migrate_legacy_documents.sh --legacy ~/DocumentViewer/documents --target "$DOCVIEWER_HOME/documents"` で一括コピー可能（`--dry-run` 対応）。
 - Chromium で `http://127.0.0.1:5000` を再表示し、Window A から `curl -X POST /api/v1/scans`（order_code=TEST-001）を実行。  
   `/var/log/document-viewer/client.log` に  
   ```

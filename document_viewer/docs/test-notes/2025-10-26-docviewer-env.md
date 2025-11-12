@@ -1,7 +1,7 @@
 # 2025-10-26 DocumentViewer `/etc/default/docviewer` 設定メモ
 
 ## 目的
-- Window A 実機で `docviewer.service` が参照する環境ファイル `/etc/default/docviewer` をテンプレートから展開し、環境変数の整合性を確認する。
+- Window A 実機で `document-viewer.service` が参照する環境ファイル `/etc/default/docviewer` をテンプレートから展開し、環境変数の整合性を確認する。
 - `VIEWER_LOG_PATH` を利用したアクセスログの出力先を明示し、14 日チェックシートへ転記できる手順を整理する。
 
 ## 手順
@@ -35,8 +35,8 @@
 
 3. サービス再起動
     ```bash
-    sudo systemctl restart docviewer.service
-    sudo systemctl status docviewer.service
+    sudo systemctl restart document-viewer.service
+    sudo systemctl status document-viewer.service
     ```
 
 4. 動作確認

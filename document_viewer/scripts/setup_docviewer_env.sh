@@ -120,6 +120,6 @@ fi
 cat <<INFO
 DocumentViewer 環境ファイルを配置しました: ${TARGET}
 必要に応じて内容を編集し、完了後に以下を実行してください:
-  sudo systemctl restart docviewer.service
-  sudo journalctl -u docviewer.service -n 20
+  sudo systemctl restart document-viewer.service
+  sudo journalctl -u document-viewer.service -n 20
 INFO

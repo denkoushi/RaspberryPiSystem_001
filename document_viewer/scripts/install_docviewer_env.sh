@@ -236,4 +236,4 @@ if [[ -n "${LOG_PATH}" ]]; then
   fi
 fi
 
-echo "完了しました。必要に応じて systemctl restart docviewer.service を実行してください。"
+echo "完了しました。必要に応じて systemctl restart document-viewer.service を実行してください。"

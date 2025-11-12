@@ -43,7 +43,7 @@
 ```
 
 ## 8. 運用・メンテナンス
-- **サービス操作**: `sudo systemctl restart docviewer.service`
+- **サービス操作**: `sudo systemctl restart document-viewer.service`
 - **ログ確認**: `sudo tail -n 50 /var/log/document-viewer/client.log`
 - **USB 連携**: RaspberryPiServer の `tool-dist-sync.sh` により Window A と共通の `TM-DIST` を利用。
 - **障害対応**: PDF が表示されない場合は `/srv/rpi-server/documents` にファイルが存在するかとログを確認。必要に応じて importer 再実行。

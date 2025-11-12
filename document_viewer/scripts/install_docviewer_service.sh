@@ -14,7 +14,7 @@ PROJECT_DIR="${DOCUMENT_VIEWER_HOME:-${SERVICE_USER_HOME}/RaspberryPiSystem_001/
 VENVSCRIPT="${PROJECT_DIR}/.venv/bin/python"
 SERVICE_PATH="/etc/systemd/system/document-viewer.service"
 TEMPLATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEMPLATE_FILE="${TEMPLATE_DIR}/systemd/docviewer.service"
+TEMPLATE_FILE="${TEMPLATE_DIR}/systemd/document-viewer.service"
 
 if [[ ! -d "${PROJECT_DIR}" ]]; then
   echo "プロジェクトディレクトリが見つかりません: ${PROJECT_DIR}" >&2

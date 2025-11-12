@@ -78,6 +78,16 @@ sudo systemctl enable --now document-viewer.service
 
 以降は `config/docviewer.env` を更新したら `sudo systemctl restart document-viewer.service` で反映する。
 
+### 3.1 旧リポジトリからの PDF 移行
+- 旧 `~/DocumentViewer/documents/` を参照していた実機は、以下のスクリプトで新ディレクトリへ一括コピーする。`--dry-run` で差分だけ確認可能。
+  ```bash
+  cd ~/RaspberryPiSystem_001/document_viewer
+  ./scripts/migrate_legacy_documents.sh \
+    --legacy ~/DocumentViewer/documents \
+    --target ~/RaspberryPiSystem_001/document_viewer/documents
+  ```
+- コピー後は `sudo systemctl restart document-viewer.service` → `tail -n 5 /var/log/document-viewer/client.log` で最新 PDF が表示されることを確認する。
+
 ## 4. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。
 - API トークン更新時、DocumentViewer の環境ファイルを同期する手順を RUNBOOK に追記。

@@ -94,8 +94,8 @@ X-GNOME-Autostart-enabled=true
 - RaspberryPiServer 側の日次チェックリスト（`docs/test-notes/mirror-check-template.md`）に合わせ、DocumentViewer では以下を確認・記録する。
   - 工具管理 UI と同じオーダーが一覧に反映されていること（必要に応じてスクリーンショットを取得）。
   - `~/RaspberryPiSystem_001/document_viewer/documents/` 配下の PDF が最新タイムスタンプに更新されていること。
-  - `journalctl -u docviewer.service -n 50` でエラーがないこと。
-- チェック結果はチェックシートの DocumentViewer 欄へ○/×とメモを記入。異常時は `sudo systemctl restart docviewer.service` などで復旧後、再度確認する。
+  - `journalctl -u document-viewer.service -n 50` でエラーがないこと。
+- チェック結果はチェックシートの DocumentViewer 欄へ○/×とメモを記入。異常時は `sudo systemctl restart document-viewer.service` などで復旧後、再度確認する。
 
 ## 備考
 - iframe の sandbox 属性を外さないと Chromium が PDF 読み込みをブロックするため、`app/templates/index.html` の iframe は以下のように設定している。
@@ -107,11 +107,11 @@ X-GNOME-Autostart-enabled=true
 
 ## 運用時の安全な更新手順
 1. ターミナルまたは SSH で Raspberry Pi に接続し、`tools01` ユーザーでログインする。
-2. Document Viewer を停止: `sudo systemctl stop docviewer.service`
+2. Document Viewer を停止: `sudo systemctl stop document-viewer.service`
 3. リポジトリを更新: `cd ~/RaspberryPiSystem_001 && git fetch && git pull`
 4. 依存パッケージを更新: `source "$DOCVIEWER_HOME"/.venv/bin/activate && pip install -r "$DOCVIEWER_HOME"/app/requirements.txt`
-5. サービスを再起動: `sudo systemctl daemon-reload` (必要に応じて) および `sudo systemctl restart docviewer.service`
-6. 状態確認: `sudo systemctl status docviewer.service` が `active (running)` であることを確認。
+5. サービスを再起動: `sudo systemctl daemon-reload` (必要に応じて) および `sudo systemctl restart document-viewer.service`
+6. 状態確認: `sudo systemctl status document-viewer.service` が `active (running)` であることを確認。
 7. Chromium が自動で再接続しない場合は `Ctrl+R` または再起動 (`sudo reboot`) で画面を更新する。
 
 > 注意: 仮想環境は `$DOCVIEWER_HOME/.venv` に配置している。誤ってリポジトリ直下に `.venv` を作成すると `git pull` で競合するので、常にこちらの環境を利用する。
@@ -149,7 +149,7 @@ sudo bash scripts/usb-import.sh /dev/sda1
   ```bash
   sudo install -m 640 config/docviewer.env.sample /etc/default/docviewer
   sudo nano /etc/default/docviewer
-  sudo systemctl restart docviewer.service
+  sudo systemctl restart document-viewer.service
   ```
 - `VIEWER_API_TOKEN` が不要な場合は行を削除してください。既存の `.service` テンプレートで `EnvironmentFile=-/etc/default/docviewer` を読み込むため、ファイルがない場合でもエラーになりません。
 - `VIEWER_SOCKET_BASE` を省略すると `VIEWER_API_BASE` が利用されます。`VIEWER_SOCKET_AUTO_OPEN=0` を指定すると Socket.IO 接続を無効化できます。
@@ -164,10 +164,10 @@ sudo DOCUMENT_VIEWER_USER=tools01 ./scripts/install_docviewer_service.sh
 ```
 
 - `DOCUMENT_VIEWER_USER` を省略すると `tools01` が利用されます。別ユーザーの場合は環境に合わせて指定してください。
-- スクリプトが `/etc/systemd/system/docviewer.service` を作成し、`systemctl enable --now docviewer.service` まで実行します。
+- スクリプトが `/etc/systemd/system/document-viewer.service` を作成し、`systemctl enable --now document-viewer.service` まで実行します。
 - サービス設定では `$DOCVIEWER_HOME/.venv/bin/python $DOCVIEWER_HOME/app/viewer.py` を常時起動します。仮想環境が無い場合は先に `python3 -m venv "$DOCVIEWER_HOME/.venv"` などで作成してください。
-- 状態確認: `sudo systemctl status docviewer.service`
-- ログ確認: `sudo journalctl -u docviewer.service -n 50`
-- 停止/再起動: `sudo systemctl stop docviewer.service` / `sudo systemctl restart docviewer.service`
+- 状態確認: `sudo systemctl status document-viewer.service`
+- ログ確認: `sudo journalctl -u document-viewer.service -n 50`
+- 停止/再起動: `sudo systemctl stop document-viewer.service` / `sudo systemctl restart document-viewer.service`
 
 > 既に手動で `python app/viewer.py` を動かしている場合は、サービス導入後にそのプロセスを停止してください。
