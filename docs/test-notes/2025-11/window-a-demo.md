@@ -431,3 +431,18 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   が追記され、ブラウザでも PDF が自動表示されたことを確認。
 - 今後は importer/systemd が新パスを前提としているため、追加 PDF も同スクリプトで同期後に `document-viewer.service` を再起動する。
 - **判定 / フォローアップ**: PASS/FAIL と追加アクション
+
+### Pi4 USB インポートデーモン整備（2025-11-12 15:40 JST）
+- `scripts/document-importer.sh` / `systemd/document-importer.service` を `DOCVIEWER_HOME=~/RaspberryPiSystem_001/document_viewer` 対応へ更新し、Pi4 でも `git pull` 後に `/usr/local/bin` へ再配置。
+- `sudo tee /etc/sudoers.d/document-viewer <<'EOF' ... EOF` を追加し、`tools02` が `sudo -n systemctl restart document-viewer.service` を実行できるようにした。
+- `/tmp/USB_TEST/docviewer` に `TEST-001.pdf` と `meta.json` を配置して `sudo mount --bind /tmp/USB_TEST /media/tools02/TMP-USB` を実施。  
+  `journalctl -u document-importer.service --since "1 minute ago"` には
+  ```
+  INFO detected mount at /media/tools02/TMP-USB
+  INFO USB payload validation passed
+  INFO found 1 pdf file(s) in /media/tools02/TMP-USB/docviewer
+  INFO copied TEST-001.pdf to /home/tools02/RaspberryPiSystem_001/document_viewer/documents
+  INFO restarted document-viewer.service
+  ```
+  が記録され、自動的に PDF がコピーされることを確認。
+- `/var/log/document-viewer/import.log` にも成功ログが追記され、Importer 手動実行時と同じログが残る。以降は sudoers 設定済みのため WARNING は解消。

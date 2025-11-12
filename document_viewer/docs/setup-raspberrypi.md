@@ -187,3 +187,10 @@ sudo systemctl enable --now document-importer.service
 - `{{USER}}` の部分は実際に importer を動かすユーザー（Pi4 では `tools02`）へ置き換える。
 - importer はデフォルトで `/media/<user>` を監視し、USB に `docviewer/` フォルダがあると `document-importer.sh` を起動して `~/RaspberryPiSystem_001/document_viewer/documents` へコピーする。ログは `/var/log/document-viewer/import.log` と `/var/log/document-viewer/import-daemon.log` に出力される。
 - PDF や `meta.json` を手動で取り込む場合も、同スクリプトを直接実行すれば同じロジックで検証される。
+- `document-viewer.service` を importer から再起動できるよう、sudoers に以下を追加する。
+  ```bash
+  sudo tee /etc/sudoers.d/document-viewer <<'EOF'
+  tools02 ALL=(root) NOPASSWD:/usr/bin/systemctl restart document-viewer.service
+  EOF
+  sudo chmod 440 /etc/sudoers.d/document-viewer
+  ```

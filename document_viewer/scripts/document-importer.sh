@@ -313,10 +313,14 @@ main() {
 
   if command -v systemctl >/dev/null 2>&1; then
     if systemctl cat "$VIEWER_SERVICE" >/dev/null 2>&1; then
-      if ! systemctl restart "$VIEWER_SERVICE"; then
-        log "WARN failed to restart $VIEWER_SERVICE (手動起動中かもしれません)"
+      if command -v sudo >/dev/null 2>&1; then
+        if ! sudo -n systemctl restart "$VIEWER_SERVICE"; then
+          log "WARN failed to restart $VIEWER_SERVICE (sudo 認証または手動起動中かもしれません)"
+        else
+          log "INFO restarted $VIEWER_SERVICE"
+        fi
       else
-        log "INFO restarted $VIEWER_SERVICE"
+        log "WARN sudo not available; skipping viewer restart"
       fi
     else
       log "WARN viewer service '$VIEWER_SERVICE' not found"

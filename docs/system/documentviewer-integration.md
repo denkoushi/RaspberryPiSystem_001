@@ -102,6 +102,13 @@ sudo systemctl enable --now document-viewer.service
   sudo systemctl enable --now document-importer.service
   ```
 - importer は `WATCH_ROOT=/media/<user>` を監視し、USB の `docviewer/` フォルダを検出すると `document-importer.sh` で PDF を検証しつつ `~/RaspberryPiSystem_001/document_viewer/documents` へコピーする。完了後に `document-viewer.service` を自動で再起動するため、Window A/DocumentViewer 側で最新 PDF が利用できる。
+- `document-viewer.service` をパスワードなしで再起動できるよう、sudoers に以下を追加しておく。
+  ```bash
+  sudo tee /etc/sudoers.d/document-viewer <<'EOF'
+  tools02 ALL=(root) NOPASSWD:/usr/bin/systemctl restart document-viewer.service
+  EOF
+  sudo chmod 440 /etc/sudoers.d/document-viewer
+  ```
 
 ## 4. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。
