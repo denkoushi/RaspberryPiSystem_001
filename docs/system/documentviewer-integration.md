@@ -5,13 +5,16 @@ Pi5 側の Socket.IO ブロードキャストに合わせて DocumentViewer を�
 ## 1. 接続設定の確認
 - `~/DocumentViewer/config/docviewer.env`（または `/etc/systemd/system/document-viewer.service.d/env.conf`）で以下を揃える。
 ```env
-VIEWER_API_BASE=http://192.168.10.230:8501
+VIEWER_API_BASE=http://127.0.0.1:8500
 VIEWER_API_TOKEN=<shared-token>
 VIEWER_SOCKET_BASE=http://192.168.10.230:8501
 VIEWER_SOCKET_PATH=/socket.io
 VIEWER_SOCKET_EVENTS=scan.ingested,part_location_updated,scan_update
+VIEWER_SOCKET_CLIENT_SRC=https://cdn.socket.io/4.7.5/socket.io.min.js
+VIEWER_LOG_PATH=/var/log/document-viewer/client.log
 # VIEWER_SOCKET_EVENT=scan.ingested  # 旧システム互換の単一指定
 ```
+- `/var/log/document-viewer` が存在しない場合は `sudo mkdir -p /var/log/document-viewer && sudo chown tools02:tools02 /var/log/document-viewer` を実行してから起動する（権限不足だとログ出力が失敗する）。
 - 旧リポジトリのハードコードを参照する場合でも、`VIEWER_SOCKET_EVENTS` を `scan.ingested` に必ず含め、Window A / Pi5 と同じイベント名で受信する。
 - systemd を経由する場合は `sudo systemctl daemon-reload && sudo systemctl restart document-viewer.service` で反映する。
 
