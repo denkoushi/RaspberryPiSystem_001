@@ -129,6 +129,7 @@ sudo systemctl enable --now document-viewer.service
 -  sudo ./scripts/server/toolmaster/install_usb_services.sh
 -  ```
 -  - スクリプトは `/srv/RaspberryPiSystem_001/toolmaster/{master,docviewer,snapshots}` を作成し、`/etc/systemd/system/usb-*.service` および `/etc/udev/rules.d/90-toolmaster.rules` を上書き配置する。  
+-  - 同時に `/usr/local/bin/lib/toolmaster-usb.sh` と `/usr/local/bin/tool-{ingest-sync,dist-export,dist-sync,backup-export}.sh` を最新化するため、手動コピーは不要。  
 -  - 実行後に `systemctl daemon-reload` / `udevadm control --reload` を自動で呼び出す。既存の udev を即時反映させたい場合は `sudo udevadm trigger --subsystem-match=block --action=add` を追加で実行する。
 - 各 Unit では `SERVER_ROOT=/srv/RaspberryPiSystem_001/toolmaster` および `SNAPSHOT_DIR=/srv/RaspberryPiSystem_001/toolmaster/snapshots` を既定値としているため、Pi5 のデータディレクトリを `root:root` 所有で維持すること。
 - `TM-INGEST` / `TM-DIST` / `TM-BACKUP` を接続すると udev が自動でテンプレート Unit を起動し、対応するスクリプト（`tool-ingest-sync.sh`, `tool-dist-export.sh`, `tool-backup-export.sh`）が実行される。Pi4（Window A / DocumentViewer）では `tool-dist-sync.sh`＋`document-importer.service` を手動または自動で起動し、`~/RaspberryPiSystem_001/document_viewer/documents` へ反映させる。
