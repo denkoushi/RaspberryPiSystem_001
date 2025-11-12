@@ -391,6 +391,10 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   ```
 - これにより Socket.IO 受信ログが正常化したため、今後の環境構築手順に `/var/log/document-viewer` の作成と権限設定を必須作業として追加する。
 
+### 2025-11-12 10:45 JST systemd テンプレート追記
+- `docs/system/documentviewer-integration.md` に DocumentViewer の systemd ユニット例とセットアップ手順（`.venv` 作成、`pip install -r requirements.txt`、`/var/log/document-viewer` 作成、`systemctl enable --now`）を追記。
+- これにより Pi4 での再起動手順が明文化され、新規 Pi 展開時も同じ設定で自動起動できる。
+
 ## 記録テンプレート（追記用）
 - **日時 / スキャン内容**: YYYY-MM-DD HH:MM, A=xxxx, B=xxxx  
 - **Pi5 ログ抜粋**: `api_actions.log`, `socket.log` の抜粋  

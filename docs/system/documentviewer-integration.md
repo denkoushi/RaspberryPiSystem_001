@@ -39,7 +39,46 @@ VIEWER_LOG_PATH=/var/log/document-viewer/client.log
 - Pi5 側では `/srv/rpi-server/logs/socket.log` に `Broadcast emit request` / `Socket.IO emit succeeded` / `Socket.IO emit failed` が出力される。切断時は Pi5 のログと DocumentViewer 側ログを突き合わせて原因を追う。
 - 永続的に失敗する場合は `AUTO_DRAIN_ON_INGEST` の設定値と DB 反映状況（`part_locations` の `updated_at`）を確認し、イベントと REST の整合を取る。必要に応じて `GET /api/v1/admin/backlog-status` で backlog 件数を確認する。
 
-## 3. 未整備タスク
+## 3. systemd サービス整備
+Pi4 では引き続き旧 DocumentViewer リポジトリを `/home/tools02/DocumentViewer` に配置している。自動起動させる場合は以下のようなユニットを `/etc/systemd/system/document-viewer.service` として設置する。
+
+```ini
+[Unit]
+Description=Document Viewer (Flask)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tools02
+Group=tools02
+WorkingDirectory=/home/tools02/DocumentViewer/app
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/home/tools02/DocumentViewer/config/docviewer.env
+ExecStart=/home/tools02/DocumentViewer/app/.venv/bin/python /home/tools02/DocumentViewer/app/viewer.py
+Restart=always
+RestartSec=5
+
+[Install]
+wantedBy=multi-user.target
+```
+
+初回セットアップ手順:
+
+```bash
+cd ~/DocumentViewer/app
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+sudo mkdir -p /var/log/document-viewer
+sudo chown tools02:tools02 /var/log/document-viewer
+sudo systemctl daemon-reload
+sudo systemctl enable --now document-viewer.service
+```
+
+以降は `config/docviewer.env` を更新したら `sudo systemctl restart document-viewer.service` で反映する。
+
+## 4. 未整備タスク
 - DocumentViewer の既存 Socket.IO クライアントコードを TypeScript 化し、テスト可能な形に整理。
 - API トークン更新時、DocumentViewer の環境ファイルを同期する手順を RUNBOOK に追記。
 - リスナーが切断された場合の再接続ログを標準化し、Pi5 側 `socket.log` と突き合わせて監視できるようにする。
