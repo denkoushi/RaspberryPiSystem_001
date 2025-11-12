@@ -12,7 +12,8 @@ source "${REPO_ROOT}/lib/toolmaster-usb.sh"
 USB_LOG_FILE="usb_backup.log"
 USB_LOG_TAG="tool-backup-export"
 
-SNAPSHOT_DIR="${SNAPSHOT_DIR:-/srv/rpi-server/snapshots}"
+DEFAULT_SERVER_ROOT="/srv/RaspberryPiSystem_001/toolmaster"
+SNAPSHOT_DIR="${SNAPSHOT_DIR:-${DEFAULT_SERVER_ROOT}/snapshots}"
 RETENTION_COUNT="${BACKUP_RETENTION:-4}"
 
 DEVICE=""

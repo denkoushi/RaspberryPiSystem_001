@@ -13,12 +13,12 @@
 ## 3. 使用環境
 - **サーバー**: Raspberry Pi 5（RaspberryPiServer リポジトリ）上で Docker Compose または systemd で常駐。
 - **クライアント**: Window A (Pi4) のブラウザ iframe (`http://raspi-server-*.local:8501/viewer`) で表示。
-- **データ保管**: PDF は `/srv/rpi-server/documents/` に集約。USB ingest や REST API 経由で更新する。macOS などの開発環境では `docker-compose.yml` の bind mount を用い、`./mnt/documents/` を同等パスとして扱い本番構成と一致させる。
+- **データ保管**: Pi5 側の公式コピーは `/srv/RaspberryPiSystem_001/toolmaster/docviewer/` に集約し、Pi4 DocumentViewer（`tools02` ユーザー）の表示用データは `~/RaspberryPiSystem_001/document_viewer/documents/` に同期する（旧 `/srv/rpi-server/documents/` から移行。参照: `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-160`）。macOS 等の開発環境では `docker-compose.yml` の bind mount を用い、`./mnt/documents/` を同等パスとして扱い本番構成と一致させる。
 
 ## 4. ドキュメント更新フロー
 1. PC で Excel テンプレートから PDF を生成（ファイル名＝部品番号）。
 2. USB `TM-INGEST/docviewer/` へ配置し RaspberryPiServer で ingest、または API を利用して直接アップロード。
-3. RaspberryPiServer が `/srv/rpi-server/documents` を更新し、Window A の USB 配布 (`tool-dist-sync.sh`) と共有する。
+3. RaspberryPiServer が `/srv/RaspberryPiSystem_001/toolmaster/docviewer` を更新し、Window A や DocumentViewer が `tool-dist-sync.sh`＋`document-importer.sh` でローカル（`~/RaspberryPiSystem_001/document_viewer/documents`）へ取り込む。
 4. DocumentViewer は最新 PDF を参照し、Socket.IO イベントで通知された部品番号の PDF を自動表示。
 
 ## 5. 機能要件
@@ -36,17 +36,17 @@
 
 ## 7. ファイル構成
 ```
-/srv/rpi-server/documents/          # 本番運用時の PDF 集約先
-/home/tools02/RaspberryPiSystem_001/document_viewer/mnt/documents/  # 開発時に bind mount するローカルディレクトリ
-/home/tools02/RaspberryPiSystem_001/document_viewer/app/    # Flask アプリケーション
-/var/log/document-viewer/client.log  # ログ（VIEWER_LOG_PATH 指定時）
+/srv/RaspberryPiSystem_001/toolmaster/docviewer/  # Pi5 側公式コピー（旧 /srv/rpi-server/documents）
+/home/tools02/RaspberryPiSystem_001/document_viewer/documents/  # Pi4 DocumentViewer 表示用
+/home/tools02/RaspberryPiSystem_001/document_viewer/app/        # Flask アプリケーション
+/var/log/document-viewer/client.log                            # ログ（VIEWER_LOG_PATH 指定時）
 ```
 
 ## 8. 運用・メンテナンス
 - **サービス操作**: `sudo systemctl restart document-viewer.service`
 - **ログ確認**: `sudo tail -n 50 /var/log/document-viewer/client.log`
-- **USB 連携**: RaspberryPiServer の `tool-dist-sync.sh` により Window A と共通の `TM-DIST` を利用。
-- **障害対応**: PDF が表示されない場合は `/srv/rpi-server/documents` にファイルが存在するかとログを確認。必要に応じて importer 再実行。
+- **USB 連携**: RaspberryPiServer の `tool-dist-export.sh` → Pi4 で `tool-dist-sync.sh` → `document-importer.sh` というフローで `TM-DIST` を利用する。
+- **障害対応**: PDF が表示されない場合は `/srv/RaspberryPiSystem_001/toolmaster/docviewer` および `~/RaspberryPiSystem_001/document_viewer/documents` の両方にファイルが存在するかを確認。必要に応じて importer を再実行する。
 - **USB importer**: `document-importer.service` を有効化し、`scripts/migrate_legacy_documents.sh` / `document-importer.sh` で PDF を整合。ログは `/var/log/document-viewer/import.log`／`import-daemon.log` を参照する。
 
 ## 9. 今後の課題

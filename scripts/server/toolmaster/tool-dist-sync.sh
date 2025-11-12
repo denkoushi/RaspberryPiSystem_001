@@ -12,8 +12,10 @@ source "${REPO_ROOT}/lib/toolmaster-usb.sh"
 USB_LOG_FILE="usb_dist_sync.log"
 USB_LOG_TAG="tool-dist-sync"
 
-LOCAL_MASTER_DIR="${LOCAL_MASTER_DIR:-/opt/toolmaster/master}"
-LOCAL_DOC_DIR="${LOCAL_DOC_DIR:-/opt/toolmaster/docviewer}"
+DEFAULT_CLIENT_HOME="${TOOLMASTER_CLIENT_HOME:-/home/tools02}"
+DEFAULT_CLIENT_ROOT="${DEFAULT_CLIENT_HOME}/RaspberryPiSystem_001"
+LOCAL_MASTER_DIR="${LOCAL_MASTER_DIR:-${DEFAULT_CLIENT_ROOT}/window_a/master}"
+LOCAL_DOC_DIR="${LOCAL_DOC_DIR:-${DEFAULT_CLIENT_ROOT}/document_viewer/documents}"
 
 DEVICE=""
 MOUNTPOINT=""

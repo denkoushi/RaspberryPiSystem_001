@@ -43,13 +43,13 @@
     - `curl http://127.0.0.1:5000/api/documents/testpart`（Window A 側 Flask のポート）で 200 / 404 を確認。
     - `tail -f /var/log/document-viewer/client.log` でアクセスログが追記されることを確認。
     - Socket.IO イベント発火後に自動表示されることをメイン画面で確認。必要なら `VIEWER_ACCEPT_DEVICE_IDS` のフィルタを一時解除してテスト。
-    - RaspberryPiServer 側 `/srv/rpi-server/logs/document_viewer.log` と突き合わせ、同一タイムスタンプで記録されているか確認する。
+    - RaspberryPiServer 側 `/srv/RaspberryPiSystem_001/server/logs/document_viewer.log`（旧 `/srv/rpi-server/logs/document_viewer.log`）と突き合わせ、同一タイムスタンプで記録されているか確認する。
     - オプション: `~/RaspberryPiSystem_001/document_viewer/scripts/docviewer_check.py --part <部品番号>` を利用して API 応答を確認し、ローカル PDF の有無も自動チェックする。
 
 ## ログ取り扱い
 - `/var/log/document-viewer/client.log` は最大 3MB × 3世代でローテーションされる（Flask 側設定）。
 - 14 日チェックシート（RaspberryPiServer 側）には、`client.log` のディレクトリパスと確認日時を記録する欄を追加予定。
-- RaspberryPiServer 側の `/srv/rpi-server/logs/document_viewer.log` と併せて、サーバー側・クライアント側双方のログを比較できるよう日付・時刻形式（ISO8601）で記録する。
+- RaspberryPiServer 側の `/srv/RaspberryPiSystem_001/server/logs/document_viewer.log`（旧 `/srv/rpi-server/logs/document_viewer.log`）と併せて、サーバー側・クライアント側双方のログを比較できるよう日付・時刻形式（ISO8601）で記録する。
 - ログの保管方針は RaspberryPiServer リポジトリの `docs/mirror-verification.md`・`docs/requirements.md` にも追記済み。双方の記載が一致しているか定期的に確認する。
 - RUNBOOK 上のトラブルシュート（RaspberryPiServer `RUNBOOK.md`）にも追記されたため、運用手順を更新した際は双方の記述を同期させる。
 

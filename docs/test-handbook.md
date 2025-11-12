@@ -50,7 +50,7 @@
    sudo /usr/local/bin/tool-dist-export.sh --target /media/TM-DIST
    sudo /usr/local/bin/tool-backup-export.sh --target /media/TM-BACKUP
    ```
-   - ログ: `/srv/rpi-server/logs/usb_ingest.log`, `/srv/rpi-server/logs/usb_dist_export.log`, `/srv/rpi-server/logs/backup.log` を確認し、エラーが無いことを記録する。
+   - ログ: `/srv/RaspberryPiSystem_001/server/logs/usb_ingest.log`, `/srv/RaspberryPiSystem_001/server/logs/usb_dist_export.log`, `/srv/RaspberryPiSystem_001/server/logs/backup.log`（旧 `/srv/rpi-server/logs/*`。参照: `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-160`）を確認し、エラーが無いことを記録する。
 4. **Pi4 での DIST 受信と DocumentViewer 反映**
    ```bash
    sudo /usr/local/bin/tool-dist-sync.sh --device /dev/sdX
@@ -67,7 +67,7 @@
 - DocumentViewer で `docviewer/` に入れた PDF が表示されること、Window A の工具管理 UI が `master/` CSV を取り込めることを確認し、ログをスクリーンショットや `docs/test-notes/YYYY-MM-DD-*.md` へ添付する。
 
 ### フォローアップ
-- ラベルや構成が異なる USB が見つかった場合は `/srv/rpi-server/scripts/setup_usb_tests.sh` のような既存スクリプトを参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
+- ラベルや構成が異なる USB が見つかった場合は 旧 RaspberryPiServer リポジトリの `/Users/tsudatakashi/RaspberryPiServer/scripts/setup_usb_tests.sh` を参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
 - Window A / DocumentViewer の importer が対応していないデータ種別（標準工数や生産日程 CSV）については、対応する同期スクリプトを `~/RaspberryPiSystem_001` へ移植し、それぞれのテストケースを本ハンドブックへ追記する。
 
 ## 1. ハンディ送信フロー（Pi Zero → Pi5 → クライアント）
@@ -104,8 +104,8 @@
    - 併せて `sudo ./scripts/check_connection.sh --last` で直近送信結果を取得しても良い。
 3. **Pi5 受信ログ確認**  
    ```bash
-   sudo tail -n 10 /srv/rpi-server/logs/mirror_requests.log
-   sudo tail -n 10 /srv/rpi-server/logs/api_actions.log
+  sudo tail -n 10 /srv/RaspberryPiSystem_001/server/logs/mirror_requests.log
+  sudo tail -n 10 /srv/RaspberryPiSystem_001/server/logs/api_actions.log
    ```  
    - 同一 `scan_id` と `HTTP 200` が記録されているか確認。  
    - `journalctl -u raspi-server.service -n 50` でエラーがないか確認。

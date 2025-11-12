@@ -36,7 +36,7 @@ VIEWER_LOG_PATH=/var/log/document-viewer/client.log
 4. 表示中の PDF が注文番号に合わせて切り替わるか目視し、必要ならブラウザのデベロッパーツールで Console/Network を確認。
 5. 再接続・障害対応
 - DocumentViewer の Socket.IO クライアントでは `reconnection: true`（デフォルト）を維持し、`reconnectionDelay=5000`, `reconnectionAttempts=0`（無制限）とする。
-- Pi5 側では `/srv/rpi-server/logs/socket.log` に `Broadcast emit request` / `Socket.IO emit succeeded` / `Socket.IO emit failed` が出力される。切断時は Pi5 のログと DocumentViewer 側ログを突き合わせて原因を追う。
+- Pi5 側では `/srv/RaspberryPiSystem_001/server/logs/socket.log`（旧 `/srv/rpi-server/logs/socket.log`。参照: `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md:1-130`）に `Broadcast emit request` / `Socket.IO emit succeeded` / `Socket.IO emit failed` が出力される。切断時は Pi5 のログと DocumentViewer 側ログを突き合わせて原因を追う。
 - 永続的に失敗する場合は `AUTO_DRAIN_ON_INGEST` の設定値と DB 反映状況（`part_locations` の `updated_at`）を確認し、イベントと REST の整合を取る。必要に応じて `GET /api/v1/admin/backlog-status` で backlog 件数を確認する。
 
 ## 3. systemd サービス整備
@@ -118,6 +118,7 @@ sudo systemctl enable --now document-viewer.service
   | `TM-INGEST` | `INGEST` | 外部で更新した `master/` CSV や `docviewer/` PDF を Pi5 へ持ち込む。`tool-ingest-sync.sh` が比較してサーバー側を更新し、USB 側も最新化する。 | Pi5（書き込みあり） |
   | `TM-DIST` | `DIST` | Pi5 で確定した `master/` と `docviewer/` を各端末（Window A / DocumentViewer）へ配布。端末側では `tool-dist-sync.sh` が USB → 端末の一方向コピーを行い、USB へは書き戻さない。 | Pi5（エクスポート）、Pi4/他端末（配布） |
   | `TM-BACKUP` | `BACKUP` | Pi5 のスナップショットを `tar+zstd` で退避。DocumentViewer 直接は使わないが、USB 3 本の一貫した運用として管理する。 | Pi5（書き込みあり） |
+- Pi5 側のデータルートは `/srv/RaspberryPiSystem_001/toolmaster/{master,docviewer,snapshots}` に統一し、旧 `/srv/rpi-server/**` と同じ役割を持たせる。`tool-ingest-sync.sh` / `tool-dist-export.sh` / `tool-backup-export.sh` で同パスを既定値にしている（参照: `/Users/tsudatakashi/RaspberryPiServer/scripts/tool-*.sh`）。
 - `document-importer.sh` で扱うのは `docviewer/` 配下だけだが、`TM-INGEST` / `TM-DIST` の USB には工具管理 CSV など他モジュールのデータも含まれる。将来的に Window A / 工具管理の同期スクリプト（`tool-dist-sync.sh`, `tool-ingest-sync.sh` 等）を `~/RaspberryPiSystem_001` へ移植する際は、同じ USB 内構成を前提に実装すること。
 - テスト時は `/.toolmaster/role` の内容と ext4 ラベルが一致しているかを必ず確認し、`udev` ルールまたは手動コマンドで誤った USB を処理しないようにする。
 
