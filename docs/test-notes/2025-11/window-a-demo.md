@@ -67,11 +67,24 @@
   - `docs/system/next-steps.md` の DocumentViewer セクションに「Pi4 importer 権限修正済み／自動検知検証 pending」と追記。  
   - Pi4 でも `scripts/server/toolmaster/install_usb_services.sh --mode client-dist --client-home /home/tools02` を適用し、`usb-dist-sync@.service` で `tool-dist-sync.sh`→`document-importer.sh` を自動実行する。  
 
+## Pi4 USB 自動同期リグレッション（2025-11-13）
+
+- **目的**: Pi5→TM-DIST→Pi4 DocumentViewer の配布フローを、USB 挿抜だけで“同期→importer→viewer”まで自動完結させる。  
+- **手順**  
+  1. Pi5 (`/srv/RaspberryPiSystem_001`) で `sudo /usr/local/bin/tool-dist-export.sh --device /dev/sda1` を実行し、`12:26:48` の `dist export completed` を確認。  
+  2. Pi4 (`~/RaspberryPiSystem_001`) で `sudo ./scripts/server/toolmaster/install_usb_services.sh --mode client-dist --client-home /home/tools02` を再適用し、`sudo udevadm trigger --subsystem-match=block --action=add` を実行。  
+  3. USB を挿し直して待機。`journalctl -u usb-dist-sync@sda1.service --since "1 minute ago"` に `running importer /usr/local/bin/document-importer.sh /run/toolmaster/sda1` → `importer completed for /run/toolmaster/sda1` が記録されることを確認。  
+  4. `sudo tail -n 20 /var/log/document-viewer/import.log` の最新行に `INFO USB payload validation passed` → `INFO local PDFs are up to date (usb_ts=..., local_ts=...)` → `INFO importer finished with code 0` が記録されていることを確認。  
+- **結果 (PASS)**  
+  - Pi4 は USB 挿抜だけで `tool-dist-sync.sh` → `document-importer.sh` が自動実行され、`DOCVIEWER_HOME=/home/tools02/RaspberryPiSystem_001/document_viewer` を参照して PDF を同期。  
+  - `tool-dist-sync.sh` の `RUN_IMPORTER_AFTER_SYNC=1` ルートで importer が呼び出され、`/run/toolmaster/sda1` から直接読み取り→アンマウントまで行うため、DocumentViewer サービス側の inotify 依存は不要になった。  
+  - DocumentViewer UI (`http://127.0.0.1:5000/`) で `TEST-001` を検索し、2025-11-13 13:09 JST に PDF が即時表示された。`/var/log/document-viewer/client.log` に `Document lookup success: TEST-001 -> TEST-001.pdf` と `Document served` が追記されている。  
+
 # Window A / DocumentViewer Socket.IO デモ記録（2025-11）
 
 | 日時 | シナリオ | Pi5 ログ確認 | Window A ログ | DocumentViewer ログ | 結果 | 備考 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2025-11-11 13:00 (準備中) | Pi Zero → Pi5 → Window A Socket.IO e2e | `journalctl -u raspi-server.service -n 120` / `tail -n 200 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io --token $SOCKET_API_TOKEN` | `sudo tail -f /var/log/document-viewer/client.log` | 未実施 | Window A 依存更新を反映後に実施。Pi Zero 側は `handheld_scan_display.py --drain-only` でトリガー予定。 |
+| 2025-11-13 13:29 | Pi5 → Window A Socket.IO e2e（`send_scan.py` + DocumentViewer 表示） | `/srv/RaspberryPiSystem_001/server/logs/app.log` に `Socket.IO emit succeeded` を確認 | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io --token raspi-token-20251026` | `/var/log/document-viewer/client.log` に `Document lookup success: TEST-HELLO -> TEST-HELLO.pdf` | PASS | Pi5 から `send_scan.py --order TEST-HELLO` を実行 → Pi4 DocumentViewer で即時表示。Pi Zero からの実機スキャンは次フェーズで実施。 |
 | 2025-11-10 11:30 (予定) | Pi Zero から通常スキャン (A/B) | `journalctl -u raspi-server.service -n 80` / `tail -n 120 /srv/RaspberryPiSystem_001/server/logs/socket.log` | `npx ts-node scripts/listen_for_scans.ts --api http://192.168.10.230:8501 --socket-path /socket.io` | `tail -f /var/log/document-viewer/client.log` | 未実施 | Pi5 統合後初の Socket.IO 実機テスト |
 | 2025-11-10 11:13 | Pi5 新 systemd 反映 / healthz 確認 | `sudo journalctl -u raspi-server.service --since "2025-11-10 11:13"` | - | - | PASS | `/srv/RaspberryPiSystem_001/server/.venv/bin/python ...` で稼働、`curl -I http://localhost:8501/healthz` が 200 OK。旧 `/srv/rpi-server` は `*_legacy_20251110` に退避済み。 |
 | 2025-11-13 10:30 | TM-DIST → DocumentViewer USB 同期（Pi5 export + Pi4 importer） | `/srv/RaspberryPiSystem_001/server/logs/usb_dist_export.log`（09:54 `dist export completed`） | `sudo /usr/local/bin/tool-dist-sync.sh --device /dev/sda1`, `sudo /usr/local/bin/document-importer.sh /media/tools02/TM-DIST` | `/var/log/document-viewer/import.log` と `client.log` に `Document lookup success: TEST-001` を確認 | PASS | `document-importer.sh` が `~/RaspberryPiSystem_001/document_viewer` を自動参照するよう修正済み。Pi4 の自動 importer でも同ディレクトリを扱えることを次回確認する。 |
