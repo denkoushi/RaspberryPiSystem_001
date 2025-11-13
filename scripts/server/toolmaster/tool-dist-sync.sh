@@ -17,6 +17,8 @@ DEFAULT_CLIENT_HOME="${TOOLMASTER_CLIENT_HOME:-/home/tools02}"
 DEFAULT_CLIENT_ROOT="${DEFAULT_CLIENT_HOME}/RaspberryPiSystem_001"
 LOCAL_MASTER_DIR="${LOCAL_MASTER_DIR:-${DEFAULT_CLIENT_ROOT}/window_a/master}"
 LOCAL_DOC_DIR="${LOCAL_DOC_DIR:-${DEFAULT_CLIENT_ROOT}/document_viewer/documents}"
+IMPORTER_BIN="${IMPORTER_BIN:-/usr/local/bin/document-importer.sh}"
+RUN_IMPORTER_AFTER_SYNC="${RUN_IMPORTER_AFTER_SYNC:-0}"
 
 DEVICE=""
 MOUNTPOINT=""
@@ -103,6 +105,19 @@ sync_dir() {
 
 sync_dir "${USB_MOUNT}/master" "${LOCAL_MASTER_DIR}"
 sync_dir "${USB_MOUNT}/docviewer" "${LOCAL_DOC_DIR}"
+
+if [[ "${RUN_IMPORTER_AFTER_SYNC}" == "1" ]]; then
+  if [[ -x "${IMPORTER_BIN}" ]]; then
+    usb_log "info" "running importer ${IMPORTER_BIN} ${USB_MOUNT}"
+    if "${IMPORTER_BIN}" "${USB_MOUNT}"; then
+      usb_log "info" "importer completed for ${USB_MOUNT}"
+    else
+      usb_log "warning" "importer returned non-zero for ${USB_MOUNT}"
+    fi
+  else
+    usb_log "warning" "importer binary not found: ${IMPORTER_BIN}"
+  fi
+fi
 
 if [[ ${DRY_RUN} -eq 0 ]]; then
   usb_log "info" "dist sync completed source=${USB_MOUNT}"

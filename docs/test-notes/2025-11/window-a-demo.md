@@ -65,7 +65,7 @@
 - **今後の TODO**  
   - USB 抜き差し時に `/media/tools02/TM-DIST1` などの生成を確認し、`journalctl -u document-importer.service --since "1 minute ago"` へ自動イベントが記録されることを撮影。  
   - `docs/system/next-steps.md` の DocumentViewer セクションに「Pi4 importer 権限修正済み／自動検知検証 pending」と追記。  
-  - Pi4 でも `scripts/server/toolmaster/install_usb_services.sh --mode client-dist --client-home /home/tools02` を適用し、`usb-dist-sync@.service` ＋ udev 連携で USB 挿入→`tool-dist-sync.sh` 起動を自動化する。  
+  - Pi4 でも `scripts/server/toolmaster/install_usb_services.sh --mode client-dist --client-home /home/tools02` を適用し、`usb-dist-sync@.service` で `tool-dist-sync.sh`→`document-importer.sh` を自動実行する。  
 
 # Window A / DocumentViewer Socket.IO デモ記録（2025-11）
 

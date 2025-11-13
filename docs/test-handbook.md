@@ -142,7 +142,7 @@
   sudo udevadm trigger --subsystem-match=block --action=add
   sudo journalctl -u usb-dist-sync@.service -n 20 --no-pager
   ```
-  - `systemd` 側に `usb-dist-sync@.service` が配置され、`/etc/udev/rules.d/90-toolmaster.rules` には `TM-DIST` → `usb-dist-sync@%k.service` のルールが入る。以後は USB を挿すだけで `tool-dist-sync.sh --device ...` が走り、DocumentViewer importer は `/media` 監視で自動起動する。
+  - `systemd` 側に `usb-dist-sync@.service` が配置され、`/etc/udev/rules.d/90-toolmaster.rules` には `TM-DIST` → `usb-dist-sync@%k.service` のルールが入る。以後は USB を挿すだけで `tool-dist-sync.sh --device ...` → `document-importer.sh <mount>` の順で実行され、DocumentViewer 側で自動的に PDF が反映される。
 ### フォローアップ
 - ラベルや構成が異なる USB が見つかった場合は 旧 RaspberryPiServer リポジトリの `/Users/tsudatakashi/RaspberryPiServer/scripts/setup_usb_tests.sh` を参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
 - Window A / DocumentViewer の importer が対応していないデータ種別（標準工数や生産日程 CSV）については、対応する同期スクリプトを `~/RaspberryPiSystem_001` へ移植し、それぞれのテストケースを本ハンドブックへ追記する。

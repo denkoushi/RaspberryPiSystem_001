@@ -7,6 +7,8 @@ After=local-fs.target
 Type=oneshot
 Environment=TOOLMASTER_CLIENT_HOME={{CLIENT_HOME}}
 Environment=USB_DIST_LABEL=TM-DIST
+Environment=RUN_IMPORTER_AFTER_SYNC=1
+Environment=IMPORTER_BIN=/usr/local/bin/document-importer.sh
 ExecStart=/usr/local/bin/tool-dist-sync.sh --device /dev/%I
 StandardOutput=journal
 StandardError=journal
