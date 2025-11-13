@@ -9,8 +9,13 @@ e-paper stack is unavailable (e.g., running headless or during CI).
 
 import argparse
 import logging
+import sys
 import uuid
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from handheld.scripts.handheld_scan_display import load_config
 from handheld.src.retry_loop import ScanTransmitter
