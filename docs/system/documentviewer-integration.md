@@ -95,6 +95,7 @@ sudo systemctl enable --now document-viewer.service
   sudo install -m 755 scripts/document-importer.sh /usr/local/bin/document-importer.sh
   sudo install -m 755 scripts/document-importer-daemon.sh /usr/local/bin/document-importer-daemon.sh
   ```
+  - `document-importer.sh` は `DOCVIEWER_HOME` が未設定でも `~/RaspberryPiSystem_001/document_viewer` を自動で参照するため、Pi4 で新ディレクトリへ移行済みなら追加設定は不要。
 - systemd ユニットをユーザー名に合わせて配置する。
   ```bash
   sudo sed "s/{{USER}}/tools02/g" systemd/document-importer.service | sudo tee /etc/systemd/system/document-importer.service >/dev/null

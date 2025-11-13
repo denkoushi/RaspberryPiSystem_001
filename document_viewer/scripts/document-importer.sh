@@ -3,12 +3,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_DEFAULT_DIR=""
+if REPO_DEFAULT_DIR="$(cd "${SCRIPT_DIR}/.." 2>/dev/null && pwd)"; then
+  :
+fi
+HOME_DEFAULT_DIR="${HOME}/RaspberryPiSystem_001/document_viewer"
 
 if [[ -n "${DOCVIEWER_HOME:-}" ]]; then
   PROJECT_DIR="$(cd "$(eval echo "${DOCVIEWER_HOME}")" && pwd)"
+elif [[ -d "${HOME_DEFAULT_DIR}" ]]; then
+  PROJECT_DIR="${HOME_DEFAULT_DIR}"
+elif [[ -n "${REPO_DEFAULT_DIR}" && -d "${REPO_DEFAULT_DIR}" ]]; then
+  PROJECT_DIR="${REPO_DEFAULT_DIR}"
 else
-  PROJECT_DIR="${DEFAULT_PROJECT_DIR}"
+  echo "ERROR: DocumentViewer home directory not found. Set DOCVIEWER_HOME or create ${HOME_DEFAULT_DIR}" >&2
+  exit 1
 fi
 
 LOG_FILE="${IMPORT_LOG:-/var/log/document-viewer/import.log}"
