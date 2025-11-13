@@ -119,6 +119,7 @@ sudo systemctl enable --now document-viewer.service
   | `TM-DIST` | `DIST` | Pi5 で確定した `master/` と `docviewer/` を各端末（Window A / DocumentViewer）へ配布。端末側では `tool-dist-sync.sh` が USB → 端末の一方向コピーを行い、USB へは書き戻さない。 | Pi5（エクスポート）、Pi4/他端末（配布） |
   | `TM-BACKUP` | `BACKUP` | Pi5 のスナップショットを `tar+zstd` で退避。DocumentViewer 直接は使わないが、USB 3 本の一貫した運用として管理する。 | Pi5（書き込みあり） |
 - Pi5 側のデータルートは `/srv/RaspberryPiSystem_001/toolmaster/{master,docviewer,snapshots}` に統一し、旧 `/srv/rpi-server/**` と同じ役割を持たせる。`tool-ingest-sync.sh` / `tool-dist-export.sh` / `tool-backup-export.sh` で同パスを既定値にしている（参照: `/Users/tsudatakashi/RaspberryPiServer/scripts/tool-*.sh`）。
+- `tool-backup-export.sh` は `/srv/RaspberryPiSystem_001/toolmaster/snapshots` に最新スナップショットが存在しない場合、WARN を出してスキップする。バックアップ検証前に `tar` でスナップショットを作成するか、`server/scripts/` 配下のスナップショット作成スクリプトを実行しておくこと。
 - `document-importer.sh` で扱うのは `docviewer/` 配下だけだが、`TM-INGEST` / `TM-DIST` の USB には工具管理 CSV など他モジュールのデータも含まれる。将来的に Window A / 工具管理の同期スクリプト（`tool-dist-sync.sh`, `tool-ingest-sync.sh` 等）を `~/RaspberryPiSystem_001` へ移植する際は、同じ USB 内構成を前提に実装すること。
 - テスト時は `/.toolmaster/role` の内容と ext4 ラベルが一致しているかを必ず確認し、`udev` ルールまたは手動コマンドで誤った USB を処理しないようにする。
 

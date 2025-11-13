@@ -69,16 +69,16 @@ if [[ -z "${DEVICE}" ]]; then
 fi
 
 if [[ ! -d "${SNAPSHOT_DIR}" ]]; then
-  usb_log "err" "snapshot directory not found: ${SNAPSHOT_DIR}"
-  exit 2
+  usb_log "warning" "snapshot directory not found: ${SNAPSHOT_DIR}; skipping backup export"
+  exit 0
 fi
 
 latest_snapshot="$(find "${SNAPSHOT_DIR}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
   | sort -nr | head -n1 | cut -d' ' -f2-)"
 
 if [[ -z "${latest_snapshot}" ]]; then
-  usb_log "err" "no snapshots available in ${SNAPSHOT_DIR}"
-  exit 3
+  usb_log "warning" "no snapshots available in ${SNAPSHOT_DIR}; skipping backup export"
+  exit 0
 fi
 
 snapshot_name="$(basename "${latest_snapshot}")"
