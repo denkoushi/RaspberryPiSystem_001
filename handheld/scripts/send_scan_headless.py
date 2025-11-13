@@ -8,7 +8,9 @@ e-paper stack is unavailable (e.g., running headless or during CI).
 """
 
 import argparse
+import json
 import logging
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -17,8 +19,29 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from handheld.scripts.handheld_scan_display import load_config
 from handheld.src.retry_loop import ScanTransmitter
+
+CONFIG_SEARCH_PATHS = [
+    os.environ.get("ONSITE_CONFIG"),
+    "/etc/onsitelogistics/config.json",
+    str(ROOT / "handheld" / "config" / "config.json"),
+]
+
+
+def load_config(explicit: str | None = None) -> dict:
+    """Simplified loader to avoid importing handheld_scan_display (which needs GPIO)."""
+    candidates = [explicit] if explicit else CONFIG_SEARCH_PATHS
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(candidate).expanduser()
+        if path.exists():
+            with path.open("r", encoding="utf-8") as fh:
+                return json.load(fh)
+
+    raise FileNotFoundError(
+        "Config file not found. Set ONSITE_CONFIG or create /etc/onsitelogistics/config.json"
+    )
 
 
 def parse_args() -> argparse.Namespace:
