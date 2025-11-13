@@ -7,7 +7,15 @@ REPO_DEFAULT_DIR=""
 if REPO_DEFAULT_DIR="$(cd "${SCRIPT_DIR}/.." 2>/dev/null && pwd)"; then
   :
 fi
-HOME_DEFAULT_DIR="${HOME}/RaspberryPiSystem_001/document_viewer"
+EFFECTIVE_USER="${SUDO_USER:-$USER}"
+USER_HOME="$(eval echo ~"${EFFECTIVE_USER}")"
+HOME_DEFAULT_DIR="${USER_HOME}/RaspberryPiSystem_001/document_viewer"
+EFFECTIVE_GROUP="$(id -gn "${EFFECTIVE_USER}")"
+RUN_UID="$(id -u)"
+INSTALL_OWNER_ARGS=()
+if [[ "$RUN_UID" -eq 0 ]]; then
+  INSTALL_OWNER_ARGS=(-o "$EFFECTIVE_USER" -g "$EFFECTIVE_GROUP")
+fi
 
 if [[ -n "${DOCVIEWER_HOME:-}" ]]; then
   PROJECT_DIR="$(cd "$(eval echo "${DOCVIEWER_HOME}")" && pwd)"
@@ -35,6 +43,14 @@ log() {
   message="$*"
   mkdir -p "$(dirname "$LOG_FILE")"
   printf '%s %s\n' "$timestamp" "$message" | tee -a "$LOG_FILE"
+}
+
+ensure_dir() {
+  local path="$1"
+  mkdir -p "$path"
+  if [[ "$RUN_UID" -eq 0 ]]; then
+    chown "$EFFECTIVE_USER:$EFFECTIVE_GROUP" "$path"
+  fi
 }
 
 validate_file_mime() {
@@ -232,8 +248,8 @@ main() {
   fi
 
   if [[ ! -d "$DEST_DIR" ]]; then
-    log "ERROR destination directory '$DEST_DIR' does not exist"
-    exit 1
+    log "WARN destination directory '$DEST_DIR' does not exist; creating it"
+    ensure_dir "$DEST_DIR"
   fi
 
   if [[ ! -d "$usb_dir" ]]; then
@@ -246,10 +262,14 @@ main() {
     return 2
   fi
 
-  mkdir -p "$STAGING_DIR" "$FAILED_DIR"
-  mkdir -p "$DEST_DIR"
+  ensure_dir "$STAGING_DIR"
+  ensure_dir "$FAILED_DIR"
+  ensure_dir "$DEST_DIR"
 
   if [[ ! -w "$DEST_DIR" ]]; then
+    if [[ "$RUN_UID" -eq 0 ]]; then
+      chown "$EFFECTIVE_USER:$EFFECTIVE_GROUP" "$DEST_DIR"
+    fi
     log "ERROR destination directory '$DEST_DIR' is not writable"
     exit 1
   fi
@@ -286,6 +306,9 @@ main() {
   log "INFO found ${#pdfs[@]} pdf file(s) in $usb_dir"
 
   TMP_DIR="$(mktemp -d "${STAGING_DIR}/import.XXXXXX")"
+  if [[ "$RUN_UID" -eq 0 ]]; then
+    chown "$EFFECTIVE_USER:$EFFECTIVE_GROUP" "$TMP_DIR"
+  fi
   trap 'if [[ -n ${TMP_DIR:-} && -d ${TMP_DIR:-} ]]; then rm -rf "$TMP_DIR"; fi' EXIT
 
   local success=0
@@ -297,12 +320,12 @@ main() {
     local staged="$TMP_DIR/$base"
 
     if cp -f "$src" "$staged"; then
-      if install -m 0644 "$staged" "$DEST_DIR/$base"; then
+      if install "${INSTALL_OWNER_ARGS[@]}" -m 0644 "$staged" "$DEST_DIR/$base"; then
         log "INFO copied $base to $DEST_DIR"
         ((success++))
       else
         log "ERROR failed to install $base to $DEST_DIR"
-        mkdir -p "$FAILED_DIR"
+        ensure_dir "$FAILED_DIR"
         mv -f "$staged" "$FAILED_DIR/$base" || true
         ((failure++))
       fi
