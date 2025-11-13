@@ -56,12 +56,7 @@ case "$MODE" in
     ;;
 esac
 
-CLIENT_HOME="$(python3 - <<'PY'
-import os, sys
-path = os.path.expanduser(sys.argv[1])
-print(os.path.abspath(path))
-PY
-"${CLIENT_HOME}")"
+CLIENT_HOME="$(python3 -c 'import os, sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "${CLIENT_HOME}")"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYSTEMD_SRC_DIR="${SCRIPT_DIR}/systemd"
