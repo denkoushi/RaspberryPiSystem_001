@@ -51,7 +51,12 @@ done
 
 echo "[3/6] Installing helper Python scripts under ${PY_DST_DIR}"
 mkdir -p "${PY_DST_DIR}"
-install -m 755 "${SCRIPT_DIR}/../scripts/update_plan_cache.py" "${PY_DST_DIR}/update_plan_cache.py"
+UPDATER_SRC="${SCRIPT_DIR}/../../scripts/update_plan_cache.py"
+if [[ -f "${UPDATER_SRC}" ]]; then
+  install -m 755 "${UPDATER_SRC}" "${PY_DST_DIR}/update_plan_cache.py"
+else
+  echo "  - Skipping update_plan_cache.py (not found at ${UPDATER_SRC})"
+fi
 
 echo "[4/6] Installing systemd units to ${SYSTEMD_DST_DIR}"
 install_unit "${SYSTEMD_SRC_DIR}/usb-ingest@.service"
