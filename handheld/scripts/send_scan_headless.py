@@ -15,11 +15,11 @@ import sys
 import uuid
 from pathlib import Path
 
+import requests
+
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from handheld.src.retry_loop import ScanTransmitter
 
 CONFIG_SEARCH_PATHS = [
     os.environ.get("ONSITE_CONFIG"),
@@ -76,7 +76,6 @@ def main() -> None:
     )
 
     config = load_config(args.config)
-    transmitter = ScanTransmitter(config)
 
     payload = {
         "order_code": args.order,
@@ -87,10 +86,35 @@ def main() -> None:
         },
     }
 
-    logging.info("Queueing payload: %s", payload)
-    transmitter.enqueue(payload)
-    transmitter.drain()
-    logging.info("Queue drained. Pending size: %s", transmitter.queue_size())
+    headers = {
+        "Authorization": f"Bearer {config['api_token']}",
+        "Content-Type": "application/json",
+    }
+
+    target_url = config["api_url"]
+    logging.info("POST %s: %s", target_url, payload)
+    response = requests.post(target_url, json=payload, headers=headers, timeout=config.get("timeout_seconds", 5))
+    response.raise_for_status()
+    logging.info("Server responded %s", response.status_code)
+
+    logistics_url = config.get("logistics_api_url")
+    if logistics_url:
+        logistics_payload = {
+            "job_id": f"job-{uuid.uuid4().hex}",
+            "part_code": args.order,
+            "from_location": config.get("logistics_default_from", "UNKNOWN"),
+            "to_location": args.location,
+            "status": config.get("logistics_status", "completed"),
+            "requested_at": payload["metadata"]["scan_id"],
+            "updated_at": payload["metadata"]["scan_id"],
+        }
+        try:
+            logging.info("Posting logistics payload to %s", logistics_url)
+            resp = requests.post(logistics_url, json=logistics_payload, headers=headers, timeout=config.get("timeout_seconds", 5))
+            resp.raise_for_status()
+            logging.info("Logistics API accepted payload")
+        except requests.RequestException as exc:
+            logging.warning("Logistics API call failed: %s", exc)
 
 
 if __name__ == "__main__":
