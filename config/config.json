@@ -1,0 +1,7 @@
+{
+  "api_url": "http://192.168.10.230:8501/api/v1/scans",
+  "api_token": "raspi-token-20251026",
+  "device_id": "HANDHELD-ZERO",
+  "queue_db_path": "~/.onsitelogistics/scan_queue.db",
+  "timeout_seconds": 5
+}
