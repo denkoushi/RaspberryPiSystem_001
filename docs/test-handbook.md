@@ -102,6 +102,9 @@
    sudo tail -n 20 /var/log/document-viewer/import.log
    ```
    - `found N pdf file(s)`、`copied ...`、`import complete` が記録される。
+   - ベストプラクティス:
+     - `document-importer.sh` は `DOCVIEWER_HOME` 未設定でも `sudo` の実効ユーザー（例: `tools02`）の `~/RaspberryPiSystem_001/document_viewer` を自動選択し、root 実行時は `documents` / `imports` の所有者を補正する。最新スクリプトを `/usr/local/bin` に再インストールしてから検証する。
+     - inotify デーモンは「`WATCH_ROOT` 配下に新しいディレクトリが作成される」イベントのみ監視する。既存の `/media/tools02/TM-DIST` に手動で `mount` した場合はログが動かないため、USB を物理的に抜き差しして OS に `/media/tools02/TM-DIST1` などの新ディレクトリを割り当てさせるか、`scripts/server/toolmaster/install_usb_services.sh` で udev/systemd 連携を導入して自動トリガーを確認する。
 4. **DocumentViewer サービスとクライアントログを確認**
    ```bash
    sudo systemctl status document-viewer.service --no-pager
@@ -122,12 +125,24 @@
 
 ### 期待結果
 - TM-DIST で配布した PDF が Pi4 の `~/RaspberryPiSystem_001/document_viewer/documents/` に同期され、DocumentViewer で即時表示される。
-- importer/service ログに WARN/ERROR がなく、Socket.IO で `scan.ingested` を受信すると PDF が切り替わる。
+   - importer/service ログに WARN/ERROR がなく、Socket.IO で `scan.ingested` を受信すると PDF が切り替わる。
 
 ### トラブルシュート
 - importer が停止する場合 → `sudo systemctl status document-importer.service` / `/var/log/document-viewer/import-daemon.log` を確認。
 - DocumentViewer が PDF を表示しない場合 → `documents/` ディレクトリのパーミッション、`VIEWER_LOG_PATH`、`client.log` を確認。
 - Socket.IO 断 → `server/logs/socket.log` と `client_window_a/scripts/listen_for_scans.ts` のログを突き合わせて再接続状況を記録。
+- Pi4(Window A) で USB 挿入時に `tool-dist-sync.sh` ＋ `document-importer.sh` を自動化するには、以下を一度だけ実行して udev/systemd を展開する。Pi5 と同じ `install_usb_services.sh` を `--mode client-dist` で呼び出すのがベストプラクティス。
+  ```bash
+  cd ~/RaspberryPiSystem_001
+  git pull
+  sudo ./scripts/server/toolmaster/install_usb_services.sh \
+    --mode client-dist \
+    --client-home /home/tools02
+
+  sudo udevadm trigger --subsystem-match=block --action=add
+  sudo journalctl -u usb-dist-sync@.service -n 20 --no-pager
+  ```
+  - `systemd` 側に `usb-dist-sync@.service` が配置され、`/etc/udev/rules.d/90-toolmaster.rules` には `TM-DIST` → `usb-dist-sync@%k.service` のルールが入る。以後は USB を挿すだけで `tool-dist-sync.sh --device ...` が走り、DocumentViewer importer は `/media` 監視で自動起動する。
 ### フォローアップ
 - ラベルや構成が異なる USB が見つかった場合は 旧 RaspberryPiServer リポジトリの `/Users/tsudatakashi/RaspberryPiServer/scripts/setup_usb_tests.sh` を参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
 - Window A / DocumentViewer の importer が対応していないデータ種別（標準工数や生産日程 CSV）については、対応する同期スクリプトを `~/RaspberryPiSystem_001` へ移植し、それぞれのテストケースを本ハンドブックへ追記する。

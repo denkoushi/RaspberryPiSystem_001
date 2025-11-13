@@ -49,6 +49,24 @@
   pi-zero-logs/pi-zero.local-20251105-104200/system-info.txt
   ```
 - 2025-11-05 10:45 (JST): 事前チェックログを `docs/test-notes/2025-11/pi-zero-precheck.md` にまとめ、実機検証開始前の状態を記録。
+# Pi4 DocumentViewer USB インポーター検証（2025-11-13）
+
+- **目的**: `document_viewer/scripts/document-importer.sh` の新しいデフォルト（`DOCVIEWER_HOME` 未指定でも実行ユーザーの `~/RaspberryPiSystem_001/document_viewer` を優先）と権限自動補正が Pi4（tools02）で機能するか確認する。
+- **前提**: `feature/repo-structure-plan` を最新化し、`sudo install -m 755 document_viewer/scripts/document-importer*.sh /usr/local/bin` を実施済み。`~/RaspberryPiSystem_001/document_viewer/{documents,imports}` は `tools02:tools02` に変更済み。
+- **手順**
+  1. `sudo mount /dev/sda1 /media/tools02/TM-DIST && sleep 5`
+  2. `sudo /usr/local/bin/document-importer.sh /media/tools02/TM-DIST`
+  3. `sudo tail -n 30 /var/log/document-viewer/import.log`
+  4. `sudo tail -n 20 /var/log/document-viewer/client.log`
+- **結果 (2025-11-13 11:15 JST)**  
+  - `import.log` に `INFO USB payload validation passed` → `INFO local PDFs are up to date (usb_ts=1762995277, local_ts=1762995277)` → `INFO importer finished with code 0` が追記され、`DOCVIEWER_HOME` の明示設定なしでも `/home/tools02/.../documents` を参照。  
+  - `client.log` は変化なし（TEST-001 の過去ログのみ）。  
+  - 自動 inotify は「新規マウントディレクトリ」作成時のみ発火するため、手動 `mount` ではログは動かず。物理的な USB 抜き差し、もしくは udev/systemd (`scripts/server/toolmaster/install_usb_services.sh`) を導入して `/media/tools02/TM-DIST1` などが生成されるパスで検証する必要がある。  
+- **今後の TODO**  
+  - USB 抜き差し時に `/media/tools02/TM-DIST1` などの生成を確認し、`journalctl -u document-importer.service --since "1 minute ago"` へ自動イベントが記録されることを撮影。  
+  - `docs/system/next-steps.md` の DocumentViewer セクションに「Pi4 importer 権限修正済み／自動検知検証 pending」と追記。  
+  - Pi4 でも `scripts/server/toolmaster/install_usb_services.sh --mode client-dist --client-home /home/tools02` を適用し、`usb-dist-sync@.service` ＋ udev 連携で USB 挿入→`tool-dist-sync.sh` 起動を自動化する。  
+
 # Window A / DocumentViewer Socket.IO デモ記録（2025-11）
 
 | 日時 | シナリオ | Pi5 ログ確認 | Window A ログ | DocumentViewer ログ | 結果 | 備考 |

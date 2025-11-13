@@ -1,0 +1,15 @@
+[Unit]
+Description=Toolmaster USB dist sync (%I)
+Requires=local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+Environment=TOOLMASTER_CLIENT_HOME={{CLIENT_HOME}}
+Environment=USB_DIST_LABEL=TM-DIST
+ExecStart=/usr/local/bin/tool-dist-sync.sh --device /dev/%I
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
