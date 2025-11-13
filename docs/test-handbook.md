@@ -67,6 +67,67 @@
 - 3 本すべてでラベル・シグネチャ・フォルダ構成が一致し、Pi5 側スクリプトと Pi4 側 importer がエラーなく完了すること。
 - DocumentViewer で `docviewer/` に入れた PDF が表示されること、Window A の工具管理 UI が `master/` CSV を取り込めることを確認し、ログをスクリーンショットや `docs/test-notes/YYYY-MM-DD-*.md` へ添付する。
 
+## 3. DocumentViewer / Window A 連携テスト（TM-DIST → importer）
+- 参照元
+  - `/Users/tsudatakashi/RaspberryPiServer/docs/usb-operations.md`
+  - `/Users/tsudatakashi/DocumentViewer/docs/setup-raspberrypi.md`
+  - 本リポジトリの `document_viewer/docs/requirements.md`、`docs/system/documentviewer-integration.md`
+
+### 目的
+- Pi5 → TM-DIST → Window A/DocumentViewer の同期フローを、USB／importer／Socket.IO まで含めて確認する。
+- DocumentViewer のログ（`/var/log/document-viewer/*.log`）と Pi5 の `socket.log` を照合し、イベント受信から PDF 表示までが途切れないことを保証する。
+
+### 事前条件
+- `~/RaspberryPiSystem_001/document_viewer/documents/` にテスト PDF（例: `TEST-001.pdf`）と `meta.json` が配置されている。`document_viewer/documents/README.md` を参照して不足ファイルを補う。
+- Pi4 (tools02) では `tool-dist-sync.sh`・`document-importer.sh` が `/usr/local/bin` にあり、`document-importer.service`・`document-viewer.service` が `~/RaspberryPiSystem_001` を WorkingDirectory として起動中。
+- Pi5 側の Pi5→USB 出力は §2 で検証済み（`scripts/server/toolmaster/install_usb_services.sh` を適用済み）。
+- Window A/DocumentViewer の `.env` が最新 (`document_viewer/config/docviewer.env`)。
+
+### 手順
+1. **Pi5 で TM-DIST を作成（再実行）**
+   ```bash
+   sudo /usr/local/bin/tool-dist-export.sh --device /dev/sdX1
+   sudo tail -n 20 /srv/RaspberryPiSystem_001/server/logs/usb_dist_export.log
+   ```
+   - `exporting master/docviewer data` → `dist export completed` を確認する。
+2. **Pi4 へ USB を接続し、ローカルへ同期**
+   ```bash
+   sudo /usr/local/bin/tool-dist-sync.sh --device /dev/sdX1
+   sudo tail -n 50 /var/log/tool-dist-sync.log
+   ```
+   - `rsync ...` のあと `dist sync completed` が出力されること。
+3. **DocumentViewer importer の確認**
+   ```bash
+   sudo journalctl -u document-importer.service --since "1 minute ago" --no-pager
+   sudo tail -n 20 /var/log/document-viewer/import.log
+   ```
+   - `found N pdf file(s)`、`copied ...`、`import complete` が記録される。
+4. **DocumentViewer サービスとクライアントログを確認**
+   ```bash
+   sudo systemctl status document-viewer.service --no-pager
+   sudo tail -n 50 /var/log/document-viewer/client.log
+   ```
+   - `Socket.IO connected`、`Document lookup success (order=...)` が出ること。
+5. **Window A UI / Socket.IO の動作確認**
+   - `npx ts-node scripts/listen_for_scans.ts --api http://<Pi5>:8501` を Window A リポジトリで実行し、`scan.ingested` を受信できるか確認。
+   - DocumentViewer 画面で該当注文番号の PDF が自動表示されるか目視。
+6. **Pi5 側 Socket.IO / importer ログ**
+   ```bash
+   sudo tail -n 50 /srv/RaspberryPiSystem_001/server/logs/socket.log
+   sudo tail -n 20 /srv/RaspberryPiSystem_001/server/logs/usb_ingest.log
+   ```
+   - `Broadcast emit succeeded` と USB 同期の INFO が同時刻で記録されるか確認。
+7. **テストノートへ記録**
+   - `docs/test-notes/2025-11/window-a-demo.md` または `templates/usb-flow.md` をコピーして結果（ログ抜粋・スクリーンショット・○/×）を追記する。
+
+### 期待結果
+- TM-DIST で配布した PDF が Pi4 の `~/RaspberryPiSystem_001/document_viewer/documents/` に同期され、DocumentViewer で即時表示される。
+- importer/service ログに WARN/ERROR がなく、Socket.IO で `scan.ingested` を受信すると PDF が切り替わる。
+
+### トラブルシュート
+- importer が停止する場合 → `sudo systemctl status document-importer.service` / `/var/log/document-viewer/import-daemon.log` を確認。
+- DocumentViewer が PDF を表示しない場合 → `documents/` ディレクトリのパーミッション、`VIEWER_LOG_PATH`、`client.log` を確認。
+- Socket.IO 断 → `server/logs/socket.log` と `client_window_a/scripts/listen_for_scans.ts` のログを突き合わせて再接続状況を記録。
 ### フォローアップ
 - ラベルや構成が異なる USB が見つかった場合は 旧 RaspberryPiServer リポジトリの `/Users/tsudatakashi/RaspberryPiServer/scripts/setup_usb_tests.sh` を参考に再フォーマットし、再発防止として RUNBOOK へ記録する。
 - Window A / DocumentViewer の importer が対応していないデータ種別（標準工数や生産日程 CSV）については、対応する同期スクリプトを `~/RaspberryPiSystem_001` へ移植し、それぞれのテストケースを本ハンドブックへ追記する。
