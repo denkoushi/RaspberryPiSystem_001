@@ -186,11 +186,21 @@ copy_to_usb() {
 
 refresh_plan_datasets() {
   local python_bin="${PYTHON_BIN:-python3}"
-  local updater="${REPO_ROOT}/scripts/update_plan_cache.py"
+  local updater=""
+  local candidates=(
+    "${REPO_ROOT}/scripts/update_plan_cache.py"
+    "/usr/local/scripts/update_plan_cache.py"
+  )
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "${candidate}" ]]; then
+      updater="${candidate}"
+      break
+    fi
+  done
 
-  if [[ ! -f "${updater}" ]]; then
-    usb_log "err" "plan cache updater not found: ${updater}"
-    return 1
+  if [[ -z "${updater}" ]]; then
+    usb_log "warning" "plan cache updater not found; skipping refresh"
+    return 0
   fi
 
   if [[ ${DRY_RUN} -eq 1 ]]; then

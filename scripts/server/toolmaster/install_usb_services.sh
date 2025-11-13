@@ -19,6 +19,7 @@ UDEV_RULE_DST="/etc/udev/rules.d/90-toolmaster.rules"
 DATA_ROOT="/srv/RaspberryPiSystem_001/toolmaster"
 BIN_DST_DIR="/usr/local/bin"
 LIB_DST_DIR="${BIN_DST_DIR}/lib"
+PY_DST_DIR="/usr/local/scripts"
 
 BIN_SCRIPTS=(
   "tool-ingest-sync.sh"
@@ -41,22 +42,26 @@ mkdir -p \
   "${DATA_ROOT}/docviewer" \
   "${DATA_ROOT}/snapshots"
 
-echo "[2/5] Installing toolmaster binaries under ${BIN_DST_DIR}"
+echo "[2/6] Installing toolmaster binaries under ${BIN_DST_DIR}"
 mkdir -p "${LIB_DST_DIR}"
 install -m 755 "${SCRIPT_DIR}/lib/toolmaster-usb.sh" "${LIB_DST_DIR}/toolmaster-usb.sh"
 for script in "${BIN_SCRIPTS[@]}"; do
   install -m 755 "${SCRIPT_DIR}/${script}" "${BIN_DST_DIR}/${script}"
 done
 
-echo "[3/5] Installing systemd units to ${SYSTEMD_DST_DIR}"
+echo "[3/6] Installing helper Python scripts under ${PY_DST_DIR}"
+mkdir -p "${PY_DST_DIR}"
+install -m 755 "${SCRIPT_DIR}/../scripts/update_plan_cache.py" "${PY_DST_DIR}/update_plan_cache.py"
+
+echo "[4/6] Installing systemd units to ${SYSTEMD_DST_DIR}"
 install_unit "${SYSTEMD_SRC_DIR}/usb-ingest@.service"
 install_unit "${SYSTEMD_SRC_DIR}/usb-dist-export@.service"
 install_unit "${SYSTEMD_SRC_DIR}/usb-backup@.service"
 
-echo "[4/5] Installing udev rule to ${UDEV_RULE_DST}"
+echo "[5/6] Installing udev rule to ${UDEV_RULE_DST}"
 install -m 644 "${UDEV_RULE_SRC}" "${UDEV_RULE_DST}"
 
-echo "[5/5] Reloading systemd and udev"
+echo "[6/6] Reloading systemd and udev"
 systemctl daemon-reload
 udevadm control --reload
 
