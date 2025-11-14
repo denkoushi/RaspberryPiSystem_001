@@ -1,0 +1,17 @@
+[Unit]
+Description=mirrorctl status reporter (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Group=%i
+WorkingDirectory=/home/%i/RaspberryPiSystem_001/handheld
+Environment=PYTHONPATH=/home/%i/RaspberryPiSystem_001
+ExecStart=/usr/bin/sudo -E PYTHONPATH=${PYTHONPATH} /bin/bash -c 'source /home/%i/RaspberryPiSystem_001/handheld/.venv/bin/activate && python scripts/mirrorctl.py status'
+Restart=on-failure
+RestartSec=900
+
+[Install]
+WantedBy=multi-user.target

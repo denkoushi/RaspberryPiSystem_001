@@ -223,6 +223,11 @@ sudo journalctl -fu handheld@tools01.service
 - `handheld/tests/test_retry_loop.py` には hook 呼び出しのテストがあるため、mirrorctl クライアントを差し替えるだけで回帰テストを追加できる。hook によるファイル書き込みや CLI 呼び出しは `pytest` から `tmp_path` を使って検証する。  
 - 監査ログ (`mirrorctl audit`) は `~/.onsitelogistics/mirrorctl_audit.log` を踏襲する。`scripts/pi_zero_pull_logs.sh` は既に `sudo mirrorctl status` の結果を `mirrorctl-status.txt` に保存しているので、Phase-2 で `audit` の結果も同時に取得する。
 - Phase-2 では `docs/system/pi-zero-integration.md` に mirrorctl の状態遷移図と JSON スキーマを追加し、Pi Zero で `mirrorctl enable/disable` を誰が実行したかを記録する欄を設ける。
+- 新テンプレート `handheld/systemd/mirrorctl@.service` は以下の流れで利用する。  
+  1. `sudo cp ~/RaspberryPiSystem_001/handheld/systemd/mirrorctl@.service /etc/systemd/system/`  
+  2. `sudo systemctl daemon-reload`  
+  3. `sudo systemctl enable --now mirrorctl@tools01.service`  
+  - 既定では 900 秒（15 分）毎に `scripts/mirrorctl.py status` を実行し、`~/.onsitelogistics/mirrorctl_state.json` を更新する。追加の監査コマンドを入れたい場合は `systemctl edit mirrorctl@tools01.service` で override を作成する。
 
 ## 1. 事前整備
 - [ ] **共通トークンの同期**  
