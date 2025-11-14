@@ -1,6 +1,7 @@
 APP_NAME = "RaspberryPiServer"
 SCAN_REPOSITORY_BACKEND = "db"
 SOCKET_BROADCAST_EVENT = "scan.ingested"
+LOGISTICS_JOBS_FILE = "/srv/RaspberryPiSystem_001/server/config/logistics-jobs.sample.json"
 
 [database]
 dsn = "postgresql://app:app@localhost:15432/sensordb"

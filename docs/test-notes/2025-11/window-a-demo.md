@@ -535,3 +535,8 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - `LOGISTICS_PROVIDER` を Flask アプリの config に設定すれば `.list_jobs(limit)` を通じて結果を差し替え可能。将来的に PostgreSQL や別システムと連携する場合は Provider を実装する。
 - `LOGISTICS_JOBS_FILE=/srv/RaspberryPiSystem_001/server/config/logistics-jobs.json` のように設定すると、`server/config/logistics-jobs.sample.json` を参考に静的 JSON を表示できる。Pi5 再起動時もこのファイルを編集すれば即座に Dashboard に反映される。
 - 当面はファイルベースで運用し、実データ連携を行う際は Pi5 側で Provider を差し込むこと。
+- Pi5 側設定例（`server/config/local.toml`）  
+  ```toml
+  LOGISTICS_JOBS_FILE = "/srv/RaspberryPiSystem_001/server/config/logistics-jobs.sample.json"
+  ```
+  `RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml` を指定し `sudo systemctl restart raspberrypiserver` すれば適用される。Window A Dashboard の “物流依頼” セクションにサンプルが表示されることを確認する。
