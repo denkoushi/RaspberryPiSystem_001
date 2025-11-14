@@ -29,6 +29,7 @@ from raspberrypiserver.services import (
     SocketIOBroadcastService,
     BacklogDrainService,
 )
+from raspberrypiserver.providers import FileLogisticsProvider
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
@@ -205,6 +206,11 @@ def initialize_services(app: Flask) -> None:
         part_repo = InMemoryPartLocationRepository(repo)
 
     app.config["PART_LOCATION_REPOSITORY"] = part_repo
+
+    if not app.config.get("LOGISTICS_PROVIDER"):
+        jobs_file = app.config.get("LOGISTICS_JOBS_FILE")
+        if jobs_file:
+            app.config["LOGISTICS_PROVIDER"] = FileLogisticsProvider(jobs_file)
 
 
 def run() -> None:

@@ -523,7 +523,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-14 14:25 JST DocumentViewer ステータス更新
 - `window_a/config/window-a.env` の `DOCUMENT_VIEWER_URL` を `http://127.0.0.1:5000` に設定し、`sudo systemctl restart toolmgmt.service` を実行。Dashboard のヘッダーが `DocumentViewer: ONLINE`（緑）になり、iframe 内にローカル 130.0.0.1 の DocumentViewer が表示されるようになった。
 - Dashboard の運用手順: Pi4 ブラウザで `http://192.168.10.223:8501` を開いたら、ヘッダーの DocumentViewer/Socket ステータスが `ONLINE/LIVE` になっていることを確認。DocumentViewer タブ（`http://127.0.0.1:5000`）も並行で開いておく。
-- `part_locations` と `logistics jobs` セクションは現状空欄。Pi5 の `/api/v1/part-locations` は `SCAN_REPOSITORY_BACKEND="memory"` のため再起動で消えるので、PostgreSQL 起動後に `db` backend へ切り替える必要がある。`/api/logistics/jobs` は 404 のため「Pi5 の `/api/logistics/jobs` が未実装の場合はこのまま空欄になります」と案内を入れている。
+- `part_locations` と `logistics jobs` セクションは現状空欄。Pi5 の `/api/v1/part-locations` は `SCAN_REPOSITORY_BACKEND="memory"` のため再起動で消えるので、PostgreSQL 起動後に `db` backend へ切り替える必要がある。`/api/logistics/jobs` はファイルプロバイダ（`LOGISTICS_JOBS_FILE`）でプレースホルダーデータを表示できるようになったが、実データ運用は今後のタスク。
 - **常時運用チェック（2025-11-14 時点）**  
   1. DocumentViewer (`http://127.0.0.1:5000`) をブラウザで開き、PDF が参照できる状態にする。  
   2. Window A Dashboard (`http://192.168.10.223:8501`) を開き、ヘッダーの `DocumentViewer: ONLINE` と `Socket: LIVE` を確認。  
@@ -533,4 +533,5 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-14 14:40 JST Logistics API プレースホルダー
 - Pi5 サーバーに `/api/logistics/jobs` を追加し、未実装時でも 404 ではなく `{"items": []}` を返すようにした（`server/src/raspberrypiserver/api/logistics.py`）。Dashboard は空リストをそのまま表示する。
 - `LOGISTICS_PROVIDER` を Flask アプリの config に設定すれば `.list_jobs(limit)` を通じて結果を差し替え可能。将来的に PostgreSQL や別システムと連携する場合は Provider を実装する。
-- 当面は空リストで運用し、実データ連携を行う際は Pi5 側で Provider を差し込むこと。
+- `LOGISTICS_JOBS_FILE=/srv/RaspberryPiSystem_001/server/config/logistics-jobs.json` のように設定すると、`server/config/logistics-jobs.sample.json` を参考に静的 JSON を表示できる。Pi5 再起動時もこのファイルを編集すれば即座に Dashboard に反映される。
+- 当面はファイルベースで運用し、実データ連携を行う際は Pi5 側で Provider を差し込むこと。

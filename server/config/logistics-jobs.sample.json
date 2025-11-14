@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "job_id": "JOB-1001",
+      "part_code": "ABC-123",
+      "from_location": "STAGING-A",
+      "to_location": "LINE-1",
+      "status": "pending",
+      "requested_at": "2025-11-14T02:00:00Z",
+      "updated_at": "2025-11-14T02:00:00Z"
+    },
+    {
+      "job_id": "JOB-1002",
+      "part_code": "XYZ-789",
+      "from_location": "WAREHOUSE-B",
+      "to_location": "LINE-3",
+      "status": "in_progress",
+      "requested_at": "2025-11-13T22:10:00Z",
+      "updated_at": "2025-11-14T01:30:00Z"
+    }
+  ]
+}
