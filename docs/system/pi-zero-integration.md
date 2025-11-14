@@ -285,6 +285,7 @@ print('pending', service.count_backlog())
 PY
    ```
    `SELECT COUNT(*) FROM scan_ingest_backlog;` で残数を確認。
+   - Pi5 側にログインできない場合は `server/scripts/drain_backlog.py --dsn postgresql://app:app@localhost:15432/sensordb --limit 100` を実行すると CLI から backlog を流せる。systemd 側で `AUTO_DRAIN_ON_INGEST=1` を有効にしておけば、通常はスキャン受付時に自動 drain が走る。
 5. **UI 反映確認**  
    Window A の所在一覧／DocumentViewer の PDF 表示が scancode に追随するかを目視し、必要に応じてスクリーンショットを保存。
 6. **管理 API 併用（必要時）**  

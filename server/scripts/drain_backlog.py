@@ -1,32 +1,37 @@
-"""Utility script to drain scan backlog into part_locations."""
+#!/usr/bin/env python3
+"""Utility to drain scan_ingest_backlog into part_locations."""
 
 from __future__ import annotations
 
 import argparse
-import logging
+import os
 
-import psycopg
-
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
+from raspberrypiserver.services.backlog import BacklogDrainService
 
 
-def drain(dsn: str, limit_count: int) -> int:
-    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
-        cur.execute("SELECT drain_scan_backlog(%s)", (limit_count,))
-        processed = cur.fetchone()[0]
-        conn.commit()
-        return processed
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Drain backlog table")
+    parser.add_argument(
+        "--dsn",
+        default=os.environ.get("RPI_DB_DSN", "postgresql://app:app@localhost:15432/sensordb"),
+        help="Database DSN (default: RPI_DB_DSN env or local DSN)",
+    )
+    parser.add_argument("--limit", type=int, default=50, help="Max rows to drain per run")
+    parser.add_argument("--table", default="scan_ingest_backlog", help="Backlog table name")
+    parser.add_argument("--target", default="part_locations", help="Target table name")
+    return parser.parse_args()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Drain scan backlog")
-    parser.add_argument("--dsn", required=True, help="PostgreSQL DSN")
-    parser.add_argument("--limit", type=int, default=100, help="Records to drain per run")
-
-    args = parser.parse_args()
-    processed = drain(args.dsn, args.limit)
-    LOGGER.info("Processed %s records", processed)
+    args = parse_args()
+    service = BacklogDrainService(
+        dsn=args.dsn,
+        limit=args.limit,
+        backlog_table=args.table,
+        target_table=args.target,
+    )
+    processed = service.drain_once()
+    print(f"drained rows: {processed}")
 
 
 if __name__ == "__main__":
