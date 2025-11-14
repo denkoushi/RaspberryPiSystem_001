@@ -30,6 +30,7 @@ from raspberrypiserver.services import (
     BacklogDrainService,
 )
 from raspberrypiserver.providers import FileLogisticsProvider
+from raspberrypiserver.providers.plan import FileJSONProvider
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
@@ -87,12 +88,14 @@ def register_blueprints(app: Flask) -> None:
         part_locations_bp,
         maintenance_bp,
         logistics_bp,
+        production_bp,
     )
 
     app.register_blueprint(scans_bp)
     app.register_blueprint(part_locations_bp)
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(logistics_bp)
+    app.register_blueprint(production_bp)
 
 
 @socketio.on("connect")
@@ -211,6 +214,16 @@ def initialize_services(app: Flask) -> None:
         jobs_file = app.config.get("LOGISTICS_JOBS_FILE")
         if jobs_file:
             app.config["LOGISTICS_PROVIDER"] = FileLogisticsProvider(jobs_file)
+
+    if not app.config.get("PRODUCTION_PLAN_PROVIDER"):
+        plan_file = app.config.get("PRODUCTION_PLAN_FILE")
+        if plan_file:
+            app.config["PRODUCTION_PLAN_PROVIDER"] = FileJSONProvider(plan_file)
+
+    if not app.config.get("STANDARD_TIME_PROVIDER"):
+        standard_file = app.config.get("STANDARD_TIMES_FILE")
+        if standard_file:
+            app.config["STANDARD_TIME_PROVIDER"] = FileJSONProvider(standard_file)
 
 
 def run() -> None:

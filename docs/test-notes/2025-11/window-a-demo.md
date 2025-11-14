@@ -538,5 +538,11 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - Pi5 側設定例（`server/config/local.toml`）  
   ```toml
   LOGISTICS_JOBS_FILE = "/srv/RaspberryPiSystem_001/server/config/logistics-jobs.sample.json"
+  PRODUCTION_PLAN_FILE = "/srv/RaspberryPiSystem_001/server/config/production-plan.sample.json"
+  STANDARD_TIMES_FILE = "/srv/RaspberryPiSystem_001/server/config/standard-times.sample.json"
   ```
-  `RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml` を指定し `sudo systemctl restart raspberrypiserver` すれば適用される。Window A Dashboard の “物流依頼” セクションにサンプルが表示されることを確認する。
+  `RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml` を指定し `sudo systemctl restart raspberrypiserver` すれば適用される。Window A Dashboard の “物流依頼” や “生産計画 / 標準工数” セクションでサンプルが表示されることを確認する。
+
+### 2025-11-14 16:00 JST 生産計画/標準工数モック
+- `/api/v1/production-plan` / `/api/v1/standard-times` を追加し、`PRODUCTION_PLAN_FILE` / `STANDARD_TIMES_FILE` が指定されている場合は JSON ファイルから entries を返す。未設定時は空配列。
+- サンプルデータは `server/config/production-plan.sample.json` / `server/config/standard-times.sample.json`。Pi5 でファイルを書き換えればそのまま Dashboard に反映される。

@@ -3,6 +3,8 @@ SCAN_REPOSITORY_BACKEND = "db"
 SOCKET_BROADCAST_EVENT = "scan.ingested"
 AUTO_DRAIN_ON_INGEST = 1
 LOGISTICS_JOBS_FILE = "/srv/RaspberryPiSystem_001/server/config/logistics-jobs.sample.json"
+PRODUCTION_PLAN_FILE = "/srv/RaspberryPiSystem_001/server/config/production-plan.sample.json"
+STANDARD_TIMES_FILE = "/srv/RaspberryPiSystem_001/server/config/standard-times.sample.json"
 
 [database]
 dsn = "postgresql://app:app@localhost:15432/sensordb"
