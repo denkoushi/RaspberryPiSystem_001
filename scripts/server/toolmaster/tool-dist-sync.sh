@@ -15,10 +15,15 @@ USB_LOG_TAG="tool-dist-sync"
 
 DEFAULT_CLIENT_HOME="${TOOLMASTER_CLIENT_HOME:-/home/tools02}"
 DEFAULT_CLIENT_ROOT="${DEFAULT_CLIENT_HOME}/RaspberryPiSystem_001"
+DEFAULT_CLIENT_USER="${TOOLMASTER_CLIENT_USER:-$(basename "${DEFAULT_CLIENT_HOME}")}"
 LOCAL_MASTER_DIR="${LOCAL_MASTER_DIR:-${DEFAULT_CLIENT_ROOT}/window_a/master}"
 LOCAL_DOC_DIR="${LOCAL_DOC_DIR:-${DEFAULT_CLIENT_ROOT}/document_viewer/documents}"
 IMPORTER_BIN="${IMPORTER_BIN:-/usr/local/bin/document-importer.sh}"
 RUN_IMPORTER_AFTER_SYNC="${RUN_IMPORTER_AFTER_SYNC:-0}"
+TOOLMGMT_PYTHON_BIN="${TOOLMGMT_PYTHON_BIN:-${DEFAULT_CLIENT_ROOT}/window_a/.venv/bin/python}"
+IMPORT_TOOL_MASTER_SCRIPT="${IMPORT_TOOL_MASTER_SCRIPT:-${DEFAULT_CLIENT_ROOT}/window_a/scripts/import_tool_master.py}"
+IMPORT_TOOL_MASTER_ENV="${IMPORT_TOOL_MASTER_ENV:-${DEFAULT_CLIENT_ROOT}/window_a/config/window-a.env}"
+RUN_TOOL_MASTER_IMPORT="${RUN_TOOL_MASTER_IMPORT:-1}"
 
 DEVICE=""
 MOUNTPOINT=""
@@ -116,6 +121,22 @@ if [[ "${RUN_IMPORTER_AFTER_SYNC}" == "1" ]]; then
     fi
   else
     usb_log "warning" "importer binary not found: ${IMPORTER_BIN}"
+  fi
+fi
+
+if [[ "${RUN_TOOL_MASTER_IMPORT}" == "1" ]]; then
+  if [[ -x "${TOOLMGMT_PYTHON_BIN}" && -f "${IMPORT_TOOL_MASTER_SCRIPT}" ]]; then
+    usb_log "info" "running tool master importer ${IMPORT_TOOL_MASTER_SCRIPT}"
+    if sudo -u "${DEFAULT_CLIENT_USER}" -H \
+      "${TOOLMGMT_PYTHON_BIN}" "${IMPORT_TOOL_MASTER_SCRIPT}" \
+        --env-file "${IMPORT_TOOL_MASTER_ENV}" \
+        --master-dir "${LOCAL_MASTER_DIR}"; then
+      usb_log "info" "tool master importer completed"
+    else
+      usb_log "warning" "tool master importer returned non-zero"
+    fi
+  else
+    usb_log "warning" "tool master importer prerequisites missing (python=${TOOLMGMT_PYTHON_BIN}, script=${IMPORT_TOOL_MASTER_SCRIPT})"
   fi
 fi
 

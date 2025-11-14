@@ -22,6 +22,17 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
      2. `sudo -u tools01 -H bash -lc 'cd ~/RaspberryPiSystem_001 && git fetch --all --tags --prune && git checkout <branch> && git reset --hard <commit>'` を実行  
    - これにより、サービスが必ず最新コミットを参照する。`git pull` を忘れて `tools01` 側だけ古くなる事故を防げる。  
    - **注意**: `tools01` リポジトリに手作業の差分を残さないこと（上記 `reset --hard` で破棄される）。Pi 固有の設定ファイルは `/etc/onsitelogistics` や `/home/tools01/.onsitelogistics` 側で管理する。
+
+#### 0.1.1 ユーザー名とリポジトリ名の考え方
+- `tools01` は **OS の実行ユーザー名**。systemd サービス（`handheld@tools01.service` / `mirrorctl@tools01.service`）がこのユーザーで起動する前提なので、Pi Zero を新規構築するときも必ず同名ユーザーを作成しておく。別名にすると override の `%i` 展開や `.venv-handheld` パスを書き換える必要があり手間が増える。  
+- `RaspberryPiSystem_001` は **Git リポジトリ名**。`git clone` すると Mac / Pi5 / Pi Zero いずれも同じディレクトリ構成が作られる。新しい Pi に環境を用意するときは `tools01` のホームディレクトリで `git clone https://github.com/denkoushi/RaspberryPiSystem_001.git` を実行すれば、Mac 側と同じ `handheld/`, `server/` 等が展開される。  
+- 作業者（例: `denkonzero`）が SSH で入って操作する場合は、自分のホームにも clone を置いて問題ない。ただし systemd が参照するのは `tools01` 側の clone なので、**Mac → GitHub → Pi Zero (tools01)** の順に必ず `git pull` で追従させる。  
+- まとめ:  
+  1. Pi を新規セットアップ → `tools01` を作成し、同ユーザーのホームに `RaspberryPiSystem_001` を clone。  
+  2. `tools01` のホームに `.venv-handheld` を作成し、`handheld/requirements.txt` をインストール。  
+  3. 以後は Mac からの更新を `git pull` で受け取り、systemd サービスが同じパスでコードを実行する。  
+  4. `denkonzero` など別ユーザーの clone は「検証や手作業用」であり、本番サービスは必ず `tools01` の clone を見る。  
+このルールを守れば、リポジトリ名と OS ユーザー名の違いで迷うことはなくなる。
 3. venv 準備  
    ```bash
    sudo -u tools01 -H python3 -m venv /home/tools01/.venv-handheld
@@ -209,6 +220,8 @@ sudo journalctl -fu handheld@tools01.service
   - 14 日無通信監視は `mirrorctl audit` のようなサブコマンドでログに記録する。SQLite や JSON ファイルで `last_seen_at` を管理していたため、同じ情報を新 `docs/system/pi-zero-integration.md` に設計として追記する。  
   - Pi Zero 実機では `sudo mirrorctl status` をドキュメント化したチェックリストに含め、ログを `docs/test-notes/2025-11/pi-zero-precheck.md` へ記録する運用を継続する。  
   - Phase-2 の TODO: `mirrorctl` ソースコードを旧リポジトリから移植し、systemd テンプレートやログパスなどを新ディレクトリ構成に合わせて更新する。
+- **適用タイミング**: mirrorctl は 14 日間無通信監視や Phase-2 のリモート監査準備が目的で、本番のツール送信系とは独立している。初期セットアップや最小構成の Pi Zero 展開では省略してもよいが、現地検証で「14 日無通信監視を有効化する」ステップに入ったタイミングで必ず導入し、その旨を `docs/test-notes/2025-11/pi-zero-test-plan.md` に記録する。  
+- **新ラズパイを追加する場合**: `tools01`（サービス実行ユーザー）のホーム配下に `~/RaspberryPiSystem_001` と `~/.venv-handheld` を作成し、`handheld/requirements.txt` を同 venv で導入後に systemd テンプレートを配置する。別ユーザー（例: `denkonzero`）の clone だけでは service が動作しない点に注意する。
 
 #### 0.7.1 Window D (OnSiteLogistics) から移植する対象
 - `scripts/mirrorctl_status.py` / `scripts/mirrorctl_audit.py`: Window D で実際に `mirrorctl status` / `mirrorctl audit` を実装している CLI。Pi Zero 側では `/home/tools01/.onsitelogistics/mirrorctl_state.json` を読んで 14 日の成否や `last_success_at` を記録しているため、同じ JSON フォーマットを `RaspberryPiSystem_001/handheld/src/mirrorctl_client.py`（新規）に集約する。

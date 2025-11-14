@@ -29,6 +29,31 @@ CREATE TABLE IF NOT EXISTS standard_time_entries (
     inserted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- Tool management tables shared with Window A
+CREATE TABLE IF NOT EXISTS users (
+    uid TEXT PRIMARY KEY,
+    full_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tool_master (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tools (
+    uid TEXT PRIMARY KEY,
+    name TEXT NOT NULL REFERENCES tool_master(name) ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS loans (
+    id BIGSERIAL PRIMARY KEY,
+    tool_uid TEXT NOT NULL,
+    borrower_uid TEXT NOT NULL,
+    loaned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    return_user_uid TEXT,
+    returned_at TIMESTAMP WITH TIME ZONE
+);
+
 -- Stored procedure for draining backlog (placeholder logic)
 CREATE OR REPLACE FUNCTION drain_scan_backlog(limit_count INTEGER DEFAULT 100)
 RETURNS INTEGER

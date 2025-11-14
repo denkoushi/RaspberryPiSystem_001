@@ -9,17 +9,17 @@
 | コード実装 | 完了 | `/api/v1/scans` の DB upsert（`scan_ingest_backlog`→`part_locations`）の実装とテスト拡充 | server/src/raspberrypiserver/services/backlog.py, tests/test_backlog_service.py, tests/test_repositories.py（pytest + 実DB検証済み） |
 | コード実装 | 完了 | BacklogDrainService のロギング強化・異常系テスト整備 | server/src/raspberrypiserver/services/backlog.py, tests/test_backlog_service.py |
 | コード実装 | 進行中 | Socket.IO 運用仕様（設定・ログ・再接続テスト）の確定 | server/src/raspberrypiserver/app.py, server/tests/test_api_scans.py, server/config/default.toml, docs/system/documentviewer-integration.md |
-| コード実装 | 進行中 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視）。2025-11-14 に `handheld/scripts/mirrorctl.py status` が実機 JSON を更新できることを確認済み。次は Phase-2 で systemd 連携と監査ログを移植する。 | docs/system/pi-zero-integration.md, handheld/scripts/** |
+| コード実装 | 進行中 | Pi Zero mirrorctl 連携：`mirrorctl@tools01.service` を新テンプレートで常駐させ、`tools01/.venv-handheld` + `/home/tools01/RaspberryPiSystem_001` で稼働することを 2025-11-14 21:29 に確認。Phase-2 では監査ログ（`mirrorctl audit`）と LED 制御を移植する。 | docs/system/pi-zero-integration.md, handheld/scripts/** |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（2025-11-14 10:36 Pi Zero 実機＋Window A ブラウザ常時起動で `client.log` に Socket.IO イベントが記録されることを確認。今後はブラウザ起動手順を忘れず実施） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 停滞 | Window A の PostgreSQL 接続 (`raspi-server.local:15432/sensordb`) が拒否されており貸出 UI が動作できない。Pi5 側 DB を起動し、`window_a/scripts/check_db_connection.py --env-file config/window-a.env` で疎通確認→ `/var/log/toolmgmt.log` へ成功ログを残す。 | docs/test-notes/2025-11/window-a-demo.md, window_a/scripts/check_db_connection.py, docs/system/postgresql-setup.md |
 | 実機検証 | 新規 | Window A Dashboard の DocumentViewer/Socket 表示を定常化する。`DOCUMENT_VIEWER_URL=http://127.0.0.1:5000` を設定し、ブラウザ起動チェックリストを `docs/test-notes/2025-11/window-a-demo.md` に反映（2025-11-14 14:25 対応済み、今後は再起動時に必ず確認）。 | window_a/config/window-a.env, docs/test-notes/2025-11/window-a-demo.md |
-| コード実装 | 新規 | Window A Dashboard に工具管理ペインを再構築する。現状はステータス表示のみのプレースホルダーを `TOOLMGMT_STATUS_MESSAGE` で案内。Pi Zero スキャン結果と DocumentViewer 連携が安定したため、旧貸出 UI を React/Flask テンプレートへ移植する計画を立てる。 | window_a/templates/index.html, window_a/app_flask.py |
+| コード実装 | 進行中 | Window A Dashboard の工具管理ペインを Pi5 REST API ベースに刷新。`window_a/app_flask.py` では `_proxy_toolmgmt_request()` や UI 用 API トークン表示を実装し、Dashboard から「手動返却/削除」ボタンで Pi5 `/api/v1/loans` を呼び出せるようにした。次は Pi4 で TM-DIST→`import_tool_master.py`→Dashboard 操作を実機確認する。 | window_a/app_flask.py, window_a/templates/index.html, docs/system/window-a-toolmgmt.md, server/src/raspberrypiserver/api/tool_management.py |
 | コード実装 | 進行中 | Pi5 `/api/v1/part-locations` / `/api/logistics/jobs` のデータ源を DB 化し、Window A Dashboard に実データを表示させる。`SCAN_REPOSITORY_BACKEND="db"` + `AUTO_DRAIN_ON_INGEST=1` で backlog → part_locations の流れは確認済み。`/api/logistics/jobs` は JSON ファイルでプレースホルダー表示可能。今後は実運用データ（PostgreSQL 連携など）へ置き換える。 | server/config/local.toml, server/src/raspberrypiserver/**, docs/system/postgresql-setup.md |
 | コード実装 | 進行中 | Pi5 `/api/v1/production-plan` / `/api/v1/standard-times` のモック実装を追加済み（JSON ファイル or DB テーブル `production_plan_entries` / `standard_time_entries` を選択可）。`server/scripts/seed_plan_tables.py` で DB を初期化できる。今後は実データ API へ接続し、Window A Dashboard に本番値を表示させる。 | server/src/raspberrypiserver/api/production.py, server/config/production-plan.sample.json, server/config/standard-times.sample.json, server/config/schema.sql |
 | 体制整備 | 進行中 | すべてのデバイスで `~/RaspberryPiSystem_001` のワークツリーを使用する（tools01 側は移行済み。Pi5 = `/srv/RaspberryPiSystem_001` へ統一済み。Pi4/Zero は legacy ディレクトリが残り、systemd 側が旧パスのまま） | docs/system/repo-structure-plan.md:1-41, AGENTS.md:21-35 |
 | 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (Pi5 `send_scan.py` および Pi Zero `send_scan_headless.py` で e2e 確認済み。次は Pi Zero 実機 UI/GPIO 版で最終確認) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md, window_a/** |
-| 体制整備 | 進行中 | Pi4 (Window A) を `~/RaspberryPiSystem_001` ベースに刷新し、旧 `~/tool-management-system02` は `*_legacy_` へ退避する（systemd 停止→clone→venv 再構築→toolmgmt.service 差し替え。USB/station_config/api_token_store/raspi_client のスタブと `config/window-a.env` を旧リポジトリから移管） | docs/system/repo-structure-plan.md:30-72, docs/test-notes/2025-11/window-a-demo.md |
+| 体制整備 | 進行中 | Pi4 (Window A) を `~/RaspberryPiSystem_001` ベースに刷新し、旧 `~/tool-management-system02` は `*_legacy_` へ退避する（systemd 停止→clone→venv 再構築→toolmgmt.service 差し替え。USB/station_config/api_token_store/raspi_client のスタブと `config/window-a.env` を旧リポジトリから移管。2025-11-14 に `window_a/README.md` を作成済みで、tools02 での clone/venv/systemd 手順を統一済み） | docs/system/repo-structure-plan.md:30-72, window_a/README.md, docs/test-notes/2025-11/window-a-demo.md |
 | 体制整備 | 進行中 | Pi5/Pi4/Pi Zero のホスト名・systemd・ログ出力をすべて `RaspberryPiSystem_001` へ名寄せ（hostname + `/etc/hosts` + PS1、WorkingDirectory/ExecStart、`/srv|~/RaspberryPiSystem_001/**/logs`。Pi5 は `server/src/raspberrypiserver/app.py` フォールバック＋ `/srv/.../logs/app.log` 出力を 2025-11-11 に確認済み） | docs/system/repo-structure-plan.md:42-66, server/config/default.toml:1-22 |
 | 実機検証 | 完了 | ローカル Docker + PostgreSQL での drain → `part_locations` 反映 | docs/test-notes/2025-11/window-a-demo.md |
 | ドキュメント更新 | 進行中 | 方針・進捗トラッカー（本ファイル＋ Pi Zero 手順の更新） | 本ファイル, docs/system/pi-zero-integration.md |
@@ -78,8 +78,26 @@ sudo -u tools01 -H bash -lc '
 | --- | --- | --- | --- | --- |
 | ハンディ本体（handheld_scan_display.py） | シリアル検出・再送キューは移植済み。Pi Zero では 2025-11-09 21:08 JST に A/B 完走を確認。 | Pi5 API が落ちているため end-to-end 送信確認が未完。`mirrorctl` 連携や LED/ボタン GPIO は未移植。 | 0.5 日（Pi5 復旧＋drain-only＋ログ採取）、+1 日（mirrorctl/GPIO 移植） | `docs/test-notes/2025-11/pi-zero-test-plan.md` にログ追記予定 |
 | Pi Zero デプロイ経路 | `update_handheld_override.sh` に tools01 同期を実装し、VS Code → GitHub → tools01 で整合が取れる状態 | `tools01` ディレクトリに手入力した設定ファイルは `reset --hard` で消えるため、除外リスト/別管理場所を整理する必要あり。 | 0.5 日 | `docs/system/pi-zero-integration.md` へ保護すべきファイル一覧を追加する |
-| Pi5 サーバー | 統一済み | `/srv/RaspberryPiSystem_001` で venv ＋ systemd 運用に移行済み（/healthz 応答 OK）。旧 `/srv/rpi-server` は参照専用。 | - | `docs/system/repo-structure-plan.md` Milestone3 完了 |
+| Pi5 サーバー | 統一済み | `/srv/RaspberryPiSystem_001` で venv ＋ systemd 運用に移行済み（/healthz 応答 OK）。`server/README.md` に clone/venv/systemd/`git pull` の手順を追記済み。旧 `/srv/rpi-server` は参照専用。 | - | `docs/system/repo-structure-plan.md` Milestone3 完了, server/README.md |
 | DocumentViewer / Window A | 旧リポジトリを参照のみで維持 | 新リポジトリへ統合するか、境界をどこに置くか未決。 | 要検討 | AGENTS.md で「参照のみ可」を明確化する |
+
+### Window A 工具管理ペイン再構築タスク
+- **データソースの棚卸し**  
+  - TM-DIST USB から Pi4 へ同期された `~/RaspberryPiSystem_001/window_a/master/` の CSV 群（ユーザー・工具定義・貸出履歴など）を確認し、旧 OnSiteLogistics（`/Users/tsudatakashi/OnSiteLogistics/docs/handheld-reader.md` 等）と突き合わせてカラム仕様を文書化する。  
+  - 仕様書は `docs/system/window-a-toolmgmt.md` に集約し、`tool-dist-sync.sh` が参照するローカルディレクトリとファイル名を一覧化する。  
+- **インポートサービスの整備**  
+  - `window_a/app_flask.py` には `tool_master`/`tools`/`users`/`loans` テーブルを初期化するロジックが存在する。`window_a/scripts/import_tool_master.py` を `tool-dist-sync.sh` に統合したので、`install_usb_services.sh --mode client-dist` を適用すると TM-DIST 同期後に自動で PostgreSQL が更新される。  
+  - インポート処理では CSV の更新時刻を保持し、UI 側でも「同期日時」や不整合を表示できるように `api_actions.log` と同様に記録する。  
+- **UI/表示要件**  
+  - Dashboard の「工具管理」セクションで以下を表示する: (1) 同期済み CSV の更新日時と件数サマリ、(2) 貸出中リスト（工具名・借用者・貸出日時）、(3) 直近の貸出/返却履歴、(4) 手動操作（貸出記録の強制完了・削除）ボタン。  
+  - Pi5 側に `/api/v1/loans`（互換 `/api/loans`）と手動返却・削除 API を実装済み。Window A の工具管理ビューも REST に切り替え済みで、`docs/system/window-a-toolmgmt.md` に仕様とルーティングを整理した。  
+  - UI 側では Socket.IO を使って貸出状況を push する必要はないが、API 認証 (`API_TOKEN_ENFORCE`) を通じて操作ログを `api_actions.log` に残す。  
+- **Pi5 / Pi4 実機確認タスク**  
+  - Pi5: `config/local.toml` の `[tool_management]` を `enabled=true` + DSN 指定で有効化し、`sudo systemctl restart raspi-server.service` → `curl http://<Pi5>:8501/api/v1/loans` でレスポンスを確認する。  
+  - Pi4(Window A): `scripts/server/toolmaster/install_usb_services.sh --mode client-dist` で USB サービスを再適用し、TM-DIST USB → `tool-dist-sync.sh` → `window_a/scripts/import_tool_master.py` の自動実行と `toolmgmt.service` の再起動を確認。Dashboard の工具管理カードと `docs/test-notes/2025-11/window-a-demo.md` に結果を追記する。  
+- **運用導線**  
+  - `window_a/README.md` に追記した `git pull` / `.venv` 手順に続き、工具管理ペインを更新するときのチェックリスト（CSV の場所確認、DB マイグレーション、`toolmgmt.service` 再起動、ブラウザでの確認）を `docs/test-notes/2025-11/window-a-demo.md` へテンプレート化する。  
+  - Pi Zero スキャン結果から Pi5 `/api/v1/scans` → part_locations → Window A 表示までの導線も合わせて記録し、工具貸出 UI と所在 UI の両方を同じダッシュボードから確認できるようにする。
 
 ## ここまでの状況サマリ（2025-11-10 午前）
 - Pi Zero: 08:25 JST の再起動後も `[SERIAL] forcing /dev/minjcode0 @ 115200bps` → `[SERIAL] scanner ready` が安定。A/B スキャン（4989999058963, https://e.bambulab...）で電子ペーパー更新を確認。  

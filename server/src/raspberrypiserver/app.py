@@ -28,6 +28,7 @@ from raspberrypiserver.services import (
     BroadcastService,
     SocketIOBroadcastService,
     BacklogDrainService,
+    ToolManagementService,
 )
 from raspberrypiserver.providers import (
     FileLogisticsProvider,
@@ -93,6 +94,7 @@ def register_blueprints(app: Flask) -> None:
         maintenance_bp,
         logistics_bp,
         production_bp,
+        toolmgmt_bp,
     )
 
     app.register_blueprint(scans_bp)
@@ -100,6 +102,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(logistics_bp)
     app.register_blueprint(production_bp)
+    app.register_blueprint(toolmgmt_bp)
 
 
 @socketio.on("connect")
@@ -198,6 +201,18 @@ def initialize_services(app: Flask) -> None:
             namespace=namespace,
             default_event=event_name,
         )
+
+    tool_cfg = app.config.get("tool_management") or {}
+    tool_enabled = str(tool_cfg.get("enabled", "")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if tool_enabled and not app.config.get("TOOLMGMT_SERVICE"):
+        tool_dsn = tool_cfg.get("dsn") or database_cfg.get("dsn")
+        if tool_dsn:
+            app.config["TOOLMGMT_SERVICE"] = ToolManagementService(dsn=tool_dsn)
 
     if backend == "db":
         backlog_service = BacklogDrainService(

@@ -1,0 +1,1 @@
+2025-11-15 08:07:26,161 WARNING [raspberrypiserver.app] Failed to configure file logging /srv/RaspberryPiSystem_001/server/logs/app.log: [Errno 30] Read-only file system: '/srv'

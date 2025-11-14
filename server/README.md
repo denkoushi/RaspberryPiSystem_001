@@ -25,6 +25,64 @@
 2. `SCAN_REPOSITORY_BACKEND = "db"` を有効化できるよう PostgreSQL 向け実装を用意し、Socket.IO など周辺ロジックを統合する。
 3. USB / mirrorctl 連携や Socket.IO など、高難度ロジックを独立モジュールとして整理する。
 
+## Pi5 実機デプロイ（標準手順）
+- **実行ユーザー / ディレクトリ**  
+  - Pi5 では `/srv/RaspberryPiSystem_001` が正本。`raspi-server.service` は root 権限で `/srv/RaspberryPiSystem_001/server/.venv/bin/python` を起動する。  
+  - CLI でメンテナンスを行うときは管理ユーザー（例: `denkon5ssd`）でログインし、常にこのディレクトリを `git pull` する。  
+- **初期セットアップ**  
+  ```bash
+  sudo mkdir -p /srv/RaspberryPiSystem_001
+  sudo chown denkon5ssd:denkon5ssd /srv/RaspberryPiSystem_001
+  cd /srv/RaspberryPiSystem_001
+  git clone https://github.com/denkoushi/RaspberryPiSystem_001.git .
+  cd server
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -e ".[dev]"
+  deactivate
+  ```
+  - `server/scripts/bootstrap_venv.sh` を使う場合もカレントディレクトリは `/srv/RaspberryPiSystem_001/server` に合わせる。
+- **定期更新フロー（Pi5 上での `git pull`）**  
+  ```bash
+  cd /srv/RaspberryPiSystem_001
+  git pull
+  cd server
+  source .venv/bin/activate
+  python -m pytest             # 必要に応じて
+  deactivate
+  sudo systemctl restart raspi-server.service
+  sudo journalctl -u raspi-server.service -n 40 --no-pager
+  ```
+  - `server/logs/app.log` も同じディレクトリ配下に生成されるため、`tail -f logs/app.log` で動作確認できる。  
+- **設定ファイルの配置**  
+  - `/srv/RaspberryPiSystem_001/server/config/local.toml` に Pi5 固有の DSN、DocumentViewer 連携、`SCAN_REPOSITORY_BACKEND` などを記載する。  
+  - systemd ユニットでは `Environment=RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml` を指定する。  
+- **systemd ユニット**  
+  - `/etc/systemd/system/raspi-server.service` の例:  
+    ```
+    [Service]
+    WorkingDirectory=/srv/RaspberryPiSystem_001/server
+    ExecStart=/srv/RaspberryPiSystem_001/server/.venv/bin/python /srv/RaspberryPiSystem_001/server/src/raspberrypiserver/app.py
+    Environment=PATH=/srv/RaspberryPiSystem_001/server/.venv/bin:/usr/bin:/bin
+    Environment=RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml
+    Restart=on-failure
+    ```
+  - 変更後は `sudo systemctl daemon-reload && sudo systemctl restart raspi-server.service` を実行し、`curl -I http://127.0.0.1:8501/healthz` でヘルスチェックを行う。
+
+## 工具管理 API（Window A 連携）
+- `config/local.toml` に以下のように設定し、Pi5 上でも工具貸出 API を有効化する。DSN を指定しない場合は `[database].dsn` を利用する。  
+  ```toml
+  [tool_management]
+  enabled = true
+  dsn = "postgresql://app:app@localhost:15432/sensordb"
+  ```
+- Database スキーマ（`server/config/schema.sql`）には `users` / `tool_master` / `tools` / `loans` テーブルが定義済み。Window A と同じ PostgreSQL を参照していれば追加のマイグレーションは不要。  
+- エンドポイント一覧:  
+  - `GET /api/v1/loans`（互換のため `/api/loans` も可）: 貸出中リストと直近履歴を返す。クエリパラメータ `open_limit` / `history_limit` で件数調整。  
+  - `POST /api/v1/loans/<loan_id>/manual_return`: 指定 ID の貸出を強制返却する。  
+  - `DELETE /api/v1/loans/<loan_id>`: 返却済みでないレコードを削除する。  
+- Window A (`window_a/app_flask.py`) の `/api/loans` エンドポイントは上記 API を呼び出す設計になっているため、Pi5 側で `tool_management.enabled = true` にすると REST 連携へ移行できる。
+
 ## バックログのドレイン（手動）
 PostgreSQL が稼働している環境では、以下のスクリプトで `scan_ingest_backlog` から本番テーブルへ移送できます。
 

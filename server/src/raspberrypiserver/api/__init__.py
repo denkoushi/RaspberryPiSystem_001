@@ -5,6 +5,7 @@ from .part_locations import part_locations_bp
 from .maintenance import maintenance_bp
 from .logistics import logistics_bp
 from .production import production_bp
+from .tool_management import toolmgmt_bp
 
 __all__ = [
     "scans_bp",
@@ -12,4 +13,5 @@ __all__ = [
     "maintenance_bp",
     "logistics_bp",
     "production_bp",
+    "toolmgmt_bp",
 ]

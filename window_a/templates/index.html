@@ -105,9 +105,125 @@
         <h2>工具管理 (Tool Management)</h2>
         <p>{{ toolmgmt_status }}</p>
         <p class="helper-text">
-          旧 Window A の貸出／返却操作パネルは再実装中です。Pi Zero からのスキャン結果と DocumentViewer の更新を確認しつつ、
-          このセクションでは進捗や注意事項のみを案内します。
+          APIトークン:
+          {% if api_token_present %}
+            {{ api_token_preview or "(mask省略)" }}（Station: {{ api_station_id or "-" }}）
+          {% else %}
+            <span class="status-fail">未設定です。`window_a/config/window-a.env` の `WINDOW_A_API_TOKEN_HEADER` と token 発行を確認してください。</span>
+          {% endif %}
         </p>
+        {% if toolmgmt_view.error %}
+          <p class="status-fail">{{ toolmgmt_view.error }}</p>
+        {% endif %}
+        <div
+          class="toolmgmt-action-panel"
+          data-toolmgmt-actions
+          data-api-token="{{ api_token_value }}"
+          data-api-header="{{ api_token_header }}"
+        >
+          <h3>同期ファイル</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ファイル</th>
+                <th>説明</th>
+                <th>件数</th>
+                <th>更新日時</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for file in toolmgmt_view.master_files %}
+                <tr>
+                  <td>{{ file.filename }}</td>
+                  <td>{{ file.label }}</td>
+                  <td>
+                    {% if file.exists %}
+                      {{ file.row_count }}
+                    {% else %}
+                      <span class="status-fail">未同期</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ file.updated_at or "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <h3>貸出中リスト</h3>
+          {% if toolmgmt_view.open_loans %}
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>工具名</th>
+                  <th>借用者</th>
+                  <th>貸出日時</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for loan in toolmgmt_view.open_loans %}
+                  <tr>
+                    <td>{{ loan.id }}</td>
+                    <td>{{ loan.tool_name }}</td>
+                    <td>{{ loan.borrower_name }}</td>
+                    <td>{{ loan.loaned_at }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        data-action="manual-return"
+                        data-loan-id="{{ loan.id }}"
+                      >
+                        手動返却
+                      </button>
+                      <button
+                        type="button"
+                        data-action="delete-loan"
+                        data-loan-id="{{ loan.id }}"
+                      >
+                        削除
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="helper-text">貸出中の工具はありません。</p>
+          {% endif %}
+
+          <h3>直近の貸出 / 返却履歴</h3>
+          {% if toolmgmt_view.history %}
+            <table>
+              <thead>
+                <tr>
+                  <th>区分</th>
+                  <th>工具</th>
+                  <th>利用者</th>
+                  <th>貸出</th>
+                  <th>返却</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in toolmgmt_view.history %}
+                  <tr>
+                    <td>{{ item.action }}</td>
+                    <td>{{ item.tool_name }}</td>
+                    <td>{{ item.borrower_name }}</td>
+                    <td>{{ item.loaned_at }}</td>
+                    <td>{{ item.returned_at or "-" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="helper-text">最近の履歴データはありません。</p>
+          {% endif %}
+
+          <p data-toolmgmt-result class="helper-text">
+            操作結果はここに表示されます。リスト更新にはページ再読込が必要です。
+          </p>
+        </div>
       </section>
 
       <section>
@@ -207,6 +323,80 @@
     <script>
       const socketClientConfig = {{ socket_client_config | tojson }};
       console.log("Socket client config:", socketClientConfig);
+    </script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const panel = document.querySelector('[data-toolmgmt-actions]');
+        if (!panel) return;
+        const token = panel.dataset.apiToken;
+        const headerName = panel.dataset.apiHeader || 'X-API-Token';
+        const statusEl = panel.querySelector('[data-toolmgmt-result]');
+        const buttons = panel.querySelectorAll('button[data-loan-id][data-action]');
+
+        const setResult = (message, isError = false) => {
+          if (!statusEl) return;
+          statusEl.textContent = message;
+          statusEl.classList.toggle('status-fail', isError);
+          statusEl.classList.toggle('status-ok', !isError);
+        };
+
+        if (!buttons.length) {
+          return;
+        }
+
+        if (!token) {
+          buttons.forEach((btn) => {
+            btn.disabled = true;
+          });
+          setResult('APIトークンが未設定のため、貸出操作は無効化されています。', true);
+          return;
+        }
+
+        const actionLabels = {
+          'manual-return': '手動返却',
+          'delete-loan': '貸出削除',
+        };
+
+        buttons.forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const loanId = btn.dataset.loanId;
+            const action = btn.dataset.action;
+            if (!loanId || !action) {
+              return;
+            }
+
+            const endpoint =
+              action === 'manual-return'
+                ? `/api/loans/${loanId}/manual_return`
+                : `/api/loans/${loanId}`;
+            const method = action === 'manual-return' ? 'POST' : 'DELETE';
+            const label = actionLabels[action] || '操作';
+
+            btn.disabled = true;
+            setResult(`${label}を実行中...`, false);
+
+            try {
+              const response = await fetch(endpoint, {
+                method,
+                headers: {
+                  'Content-Type': 'application/json',
+                  [headerName]: token,
+                },
+                body: method === 'POST' ? '{}' : undefined,
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                throw new Error((data && data.error) || response.statusText || 'unknown error');
+              }
+              setResult(`${label}に成功しました (loan_id=${loanId})。再読み込みで一覧を更新してください。`, false);
+            } catch (error) {
+              setResult(`エラー: ${error.message || error}`, true);
+            } finally {
+              btn.disabled = false;
+            }
+          });
+        });
+      });
     </script>
   </body>
 </html>

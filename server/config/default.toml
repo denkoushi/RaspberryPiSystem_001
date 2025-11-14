@@ -20,3 +20,7 @@ dsn = "postgresql://app:app@localhost:15432/sensordb"
 [logging]
 level = "INFO"
 path = "/srv/RaspberryPiSystem_001/server/logs/app.log"
+
+[tool_management]
+enabled = false
+dsn = ""

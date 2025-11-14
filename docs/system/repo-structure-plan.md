@@ -26,6 +26,16 @@
 4. **運用切り替え**
    - Mac からの変更は feature ブランチ→PR→main マージのみ
    - Pi 側で作業する場合も `~/RaspberryPiSystem_001` で `git checkout <branch>` を使用し、旧ディレクトリは参照専用にする。
+
+## 標準ユーザーと clone パス
+| デバイス | 役割 | 実行ユーザー | Git clone / 作業ディレクトリ | 補足 |
+| --- | --- | --- | --- | --- |
+| Pi Zero | ハンディ（scanner + mirrorctl） | `tools01`（systemd サービス実行用に固定） | `/home/tools01/RaspberryPiSystem_001` | `~/.venv-handheld` に `handheld/requirements.txt` を導入し、`handheld@tools01.service`／`mirrorctl@tools01.service` から使用する。作業アカウント（例: `denkonzero`）の clone は検証専用であり、本番サービスは必ず `tools01` 側を参照する。 |
+| Pi4 (Window A) | Dashboard / DocumentViewer クライアント | `tools02`（Window A 用アカウント） | `/home/tools02/RaspberryPiSystem_001` | `window_a/.venv` をここで構築し、`toolmgmt.service`／`client_window_a` ビルドも同ディレクトリを前提とする。旧 `~/tool-management-system02` は `_legacy_` フォルダへ退避。 |
+| Pi5 (Server) | Flask + Socket.IO + PostgreSQL API | `root`（systemd） / 管理ユーザー `denkon5ssd` | `/srv/RaspberryPiSystem_001` | `raspi-server.service` が `/srv/RaspberryPiSystem_001/server/.venv/bin/python` を起動する。手動操作は `cd /srv/RaspberryPiSystem_001 && git pull` を基本とし、`server/logs` も同配下に作成。 |
+
+> いずれのデバイスでも、Mac での作業 → GitHub → 各 Pi で `git pull` という一方向フローを徹底する。Pi 上で直接編集が必要な場合は必ず `~/RaspberryPiSystem_001` でコミット差分として残し、他ユーザーの clone と食い違わないよう `update_handheld_override.sh` などの同期スクリプトを活用する。
+
 5. **Pi4 (Window A) 再構築**  
    - 旧リポジトリ名 `tool-management-system02` を廃止し、`~/RaspberryPiSystem_001` へ統一する。  
    - Mac 側で作成した `window_a/requirements.txt`、`window_a/app_flask.py`、`window_a/tests/test_load_plan.py` をリポジトリ直下（`window_a/` サブディレクトリ）で管理し、Pi4 も同じソースを pull できるようにする。  

@@ -7,9 +7,8 @@ import json
 import csv
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Iterable
 from functools import wraps
-from typing import Optional
 import logging
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, has_request_context
@@ -108,6 +107,15 @@ app.logger.info(
     SOCKET_CLIENT_CONFIG["watchdog"],
 )
 
+TOOLMGMT_MASTER_DIR = Path(
+    os.getenv("TOOLMGMT_MASTER_DIR", str((Path(__file__).resolve().parent / "master").resolve()))
+)
+TOOLMGMT_MASTER_FILES = (
+    ("users.csv", "ユーザー一覧"),
+    ("tool_master.csv", "工具マスタ"),
+    ("tools.csv", "工具割当"),
+)
+
 
 def _create_raspi_client() -> RaspiServerClient:
     """Instantiate a RaspberryPiServer client using environment defaults."""
@@ -204,6 +212,99 @@ def log_api_action(action: str, status: str = "success", detail=None) -> None:
         # ログ出力で例外が出ても本体処理を止めない
         audit_logger.warning("ログ出力に失敗しました", exc_info=True)
 
+
+
+def _format_display_ts(value: Optional[datetime]) -> str:
+    if not value:
+        return ""
+    return value.astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def collect_master_file_status(base_dir: Path | None = None):
+    directory = Path(base_dir) if base_dir else TOOLMGMT_MASTER_DIR
+    entries = []
+    for filename, label in TOOLMGMT_MASTER_FILES:
+        path = directory / filename
+        entry = {
+            "filename": filename,
+            "label": label,
+            "exists": path.exists(),
+            "row_count": 0,
+            "updated_at": "",
+        }
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8-sig", newline="") as handle:
+                    reader = csv.reader(handle)
+                    row_count = -1  # subtract header
+                    for _ in reader:
+                        row_count += 1
+                    entry["row_count"] = max(row_count, 0)
+            except Exception as exc:  # pylint: disable=broad-except
+                entry["error"] = str(exc)
+            try:
+                entry["updated_at"] = datetime.fromtimestamp(path.stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
+            except Exception:  # pylint: disable=broad-except
+                entry["updated_at"] = ""
+        entries.append(entry)
+    return entries
+
+
+def build_toolmgmt_overview(limit_open: int = 20, limit_history: int = 20):
+    overview = {
+        "master_files": collect_master_file_status(),
+        "open_loans": [],
+        "history": [],
+        "error": None,
+    }
+    client = _create_raspi_client()
+    if not client.is_configured():
+        overview["error"] = "Pi5 API 未設定 (RASPI_SERVER_BASE)"
+        return overview
+
+    try:
+        payload = client.get_json(
+            "/api/v1/loans",
+            params={
+                "open_limit": limit_open,
+                "history_limit": limit_history,
+            },
+            allow_statuses={200, 503},
+        )
+    except RaspiServerAuthError as exc:
+        overview["error"] = f"Pi5 認証エラー: {exc}"
+        return overview
+    except RaspiServerClientError as exc:
+        overview["error"] = f"Pi5 API エラー: {exc}"
+        return overview
+
+    if isinstance(payload, dict) and payload.get("error"):
+        overview["error"] = payload.get("error")
+        return overview
+
+    overview["open_loans"] = payload.get("open_loans", []) if isinstance(payload, dict) else []
+    overview["history"] = payload.get("history", []) if isinstance(payload, dict) else []
+    return overview
+
+
+def _proxy_toolmgmt_request(method: str, path: str, *, allow_statuses: Optional[Iterable[int]] = None, **kwargs):
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return None, jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+    try:
+        response = client._request(  # noqa: SLF001
+            method,
+            path,
+            allow_statuses=allow_statuses,
+            **kwargs,
+        )
+    except RaspiServerAuthError as exc:
+        log_api_action("toolmgmt_proxy", status="denied", detail={"path": path, "error": str(exc)})
+        return None, jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("toolmgmt_proxy", status="error", detail={"path": path, "error": str(exc)})
+        return None, jsonify({"error": str(exc)}), 502
+    return response, None, None
 
 
 def _parse_due_date(value: str) -> Optional[datetime]:
@@ -890,15 +991,21 @@ def index():
     part_locations = fetch_part_locations()
     logistics_jobs = fetch_logistics_jobs()
     token_info = get_token_info()
+    token_value = token_info.get("token")
+    token_present = bool(token_value)
     toolmgmt_status = app.config.get(
         "TOOLMGMT_STATUS_MESSAGE",
         "工具管理ペインは再構築中です。旧 Window A の貸出 UI を統合するまで、このセクションは情報表示のみとなります。",
     )
+    toolmgmt_view = build_toolmgmt_overview()
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
-        api_token_required=API_TOKEN_ENFORCED and bool(token_info.get("token")),
+        api_token_required=API_TOKEN_ENFORCED,
+        api_token_present=token_present,
+        api_token_value=token_value or "",
+        api_token_preview=token_info.get("token_preview"),
         api_token_header=API_TOKEN_HEADER,
         api_station_id=token_info.get("station_id", ""),
         api_token_error=token_info.get("error"),
@@ -908,6 +1015,7 @@ def index():
         logistics_jobs=logistics_jobs,
         socket_client_config=SOCKET_CLIENT_CONFIG,
         toolmgmt_status=toolmgmt_status,
+        toolmgmt_view=toolmgmt_view,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
@@ -1181,23 +1289,14 @@ def api_tokens_revoke():
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
 @require_api_token("manual_return")
 def manual_return_loan(loan_id):
-    client = _create_raspi_client()
-    if not client.is_configured():
-        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
-    try:
-        raw_response = client._request(  # noqa: SLF001
-            "POST",
-            f"/api/loans/{loan_id}/manual_return",
-            json={},
-            allow_statuses=(404,),
-        )
-    except RaspiServerAuthError as exc:
-        log_api_action("manual_return", status="denied", detail={"loan_id": loan_id, "error": str(exc)})
-        return jsonify({"error": str(exc)}), 401
-    except RaspiServerClientError as exc:
-        message = str(exc)
-        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": message})
-        return jsonify({"error": message}), 502
+    raw_response, error_resp, status_code = _proxy_toolmgmt_request(
+        "POST",
+        f"/api/v1/loans/{loan_id}/manual_return",
+        json={},
+        allow_statuses=(404,),
+    )
+    if error_resp is not None:
+        return error_resp, status_code
 
     if raw_response.status_code == 404:
         try:
@@ -1219,22 +1318,13 @@ def manual_return_loan(loan_id):
 @app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
 @require_api_token("delete_open_loan")
 def delete_open_loan_api(loan_id):
-    client = _create_raspi_client()
-    if not client.is_configured():
-        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
-    try:
-        raw_response = client._request(  # noqa: SLF001
-            "DELETE",
-            f"/api/loans/{loan_id}",
-            allow_statuses=(404,),
-        )
-    except RaspiServerAuthError as exc:
-        log_api_action("delete_open_loan", status="denied", detail={"loan_id": loan_id, "error": str(exc)})
-        return jsonify({"error": str(exc)}), 401
-    except RaspiServerClientError as exc:
-        message = str(exc)
-        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": message})
-        return jsonify({"error": message}), 502
+    raw_response, error_resp, status_code = _proxy_toolmgmt_request(
+        "DELETE",
+        f"/api/v1/loans/{loan_id}",
+        allow_statuses=(404,),
+    )
+    if error_resp is not None:
+        return error_resp, status_code
 
     if raw_response.status_code == 404:
         log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": "not_found"})
