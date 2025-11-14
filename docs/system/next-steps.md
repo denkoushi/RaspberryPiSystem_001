@@ -11,7 +11,7 @@
 | コード実装 | 進行中 | Socket.IO 運用仕様（設定・ログ・再接続テスト）の確定 | server/src/raspberrypiserver/app.py, server/tests/test_api_scans.py, server/config/default.toml, docs/system/documentviewer-integration.md |
 | コード実装 | 停滞 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld/scripts/** |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
-| 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（Pi Zero シリアル復旧済み、Pi5 API 応答あり。旧キューに `scan_id=None` が残存） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
+| 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（2025-11-14 通常モード A/B スキャンで電子ペーパーと API 正常動作を確認。旧キューは drain-only で 0 件まで解消済み。残タスク: Window A/DocumentViewer 反映ログ採取） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md |
 | 体制整備 | 進行中 | すべてのデバイスで `~/RaspberryPiSystem_001` のワークツリーを使用する（tools01 側は移行済み。Pi5 = `/srv/RaspberryPiSystem_001` へ統一済み。Pi4/Zero は legacy ディレクトリが残り、systemd 側が旧パスのまま） | docs/system/repo-structure-plan.md:1-41, AGENTS.md:21-35 |
 | 実機検証 | 進行中 | DocumentViewer / Window A Socket.IO 実機テスト (Pi5 `send_scan.py` および Pi Zero `send_scan_headless.py` で e2e 確認済み。次は Pi Zero 実機 UI/GPIO 版で最終確認) | docs/test-notes/2025-11/window-a-socket-plan.md, docs/test-notes/2025-11/window-a-demo.md, window_a/** |
 | 体制整備 | 進行中 | Pi4 (Window A) を `~/RaspberryPiSystem_001` ベースに刷新し、旧 `~/tool-management-system02` は `*_legacy_` へ退避する（systemd 停止→clone→venv 再構築→toolmgmt.service 差し替え。USB/station_config/api_token_store/raspi_client のスタブと `config/window-a.env` を旧リポジトリから移管） | docs/system/repo-structure-plan.md:30-72, docs/test-notes/2025-11/window-a-demo.md |

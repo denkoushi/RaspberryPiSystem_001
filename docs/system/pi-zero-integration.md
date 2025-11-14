@@ -29,7 +29,7 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
    sudo -u tools01 -H /home/tools01/.venv-handheld/bin/pip install evdev pillow requests pyserial gpiozero lgpio
    ```
 4. Waveshare ドライバ（2.13" e-Paper HAT V4）  
-   - GitHub からの `git clone` は途中で `invalid index-pack output` になることがあるため、公式 Wiki が案内している ZIP を常用する。  
+   - `git clone https://github.com/waveshare/e-Paper.git` は通信エラーや Jetson.GPIO 依存で失敗しやすい。**公式配布 ZIP（`https://files.waveshare.com/upload/7/71/E-Paper_code.zip`）を展開してローカルの `lib/` を参照する方式を標準とする。** `setup.py install` を走らせないことで、Jetson.GPIO を誤ってインストールしたり `install_layout` エラーを踏むリスクをなくせる。  
    ```bash
    sudo -u tools01 -H bash -lc '
      set -euo pipefail
@@ -37,29 +37,23 @@ Pi Zero ハンディの本番切り替え前に「設定 → 疎通 → 反映�
      rm -rf e-Paper E-Paper_code.zip
      wget -O E-Paper_code.zip https://files.waveshare.com/upload/7/71/E-Paper_code.zip
      unzip -q E-Paper_code.zip -d e-Paper
-     source /home/tools01/.venv-handheld/bin/activate
-     cd /home/tools01/e-Paper/RaspberryPi_JetsonNano/python
-     python setup.py install
    '
    ```
-   - インストール直後に venv で import を確認する。  
-     ```bash
-     sudo -u tools01 -H bash -lc "source ~/.venv-handheld/bin/activate && python - <<'PY'
-import importlib
-import sys
-missing = []
-for name in ('waveshare_epd', 'waveshare_epaper'):
-    try:
-        importlib.import_module(name)
-    except ModuleNotFoundError:
-        missing.append(name)
-if missing:
-    sys.exit(f'Missing modules: {missing}')
-print('waveshare driver OK')
-PY"
-   ```
+   - `handheld/scripts/handheld_scan_display.py` は `/home/<user>/e-Paper/RaspberryPi_JetsonNano/python/lib` を自動で `sys.path` に追加するが、systemd で確実に参照させるため `PYTHONPATH` へも明示的に入れておく。  
+     - 利用者シェルでの確認例:  
+       ```bash
+       PYTHONPATH=$PYTHONPATH:$HOME/e-Paper/RaspberryPi_JetsonNano/python/lib \
+         python - <<'PY'
+from waveshare_epd import epd2in13_V4
+print('waveshare_epd import OK')
+PY
+       ```  
+     - systemd override 例:  
+       ```
+       [Service]
+       Environment="PYTHONPATH=/home/%i/e-Paper/RaspberryPi_JetsonNano/python/lib"
+       ```
    - 参照元: [Waveshare 2.13inch e-Paper HAT Wiki](https://www.waveshare.com/wiki/2.13inch_e-Paper_HAT)
-   - `.env` や systemd override で `/home/tools01/e-Paper/RaspberryPi_JetsonNano/python/lib` を `PYTHONPATH` に足しておくと import が安定する。
 5. スキャナ（CDC-ACM）環境  
 - 旧システムと同様に MINJCODE をシリアルモードで扱う。`scripts/setup_serial_env.sh` を root で実行すると udev ルール（`/dev/minjcode0`）と systemd の再起動まで自動化できる。  
      ```bash
@@ -133,6 +127,22 @@ sudo journalctl -fu handheld@tools01.service
       HANDHELD_HEADLESS=1 python /home/tools01/RaspberryPiSystem_001/handheld/scripts/handheld_scan_display.py --drain-only
     '
     ```
+- **GPIO busy / Jetson.GPIO 依存に伴う import 失敗**  
+  - 症状: `waveshare_epd` import 直後に `lgpio.error: 'GPIO busy'` や `No module named 'Jetson.GPIO'` が発生し、電子ペーパー初期化に進めない。Pi Zero の CLI でも、`sudo ... handheld_scan_display.py --drain-only` が即時に落ちる。  
+  - 原因:  
+    1. 旧ユーザー (`tools01`) の `handheld_scan_display.py` が常駐しており `/dev/gpiochip0` を掴んだまま。  
+    2. GitHub から `setup.py install` した際に Jetson.GPIO が依存として導入され、Bullseye ARM64 に未対応なバージョンで失敗。  
+  - 対策:  
+    1. GPIO の占有状況を最初に確認し、残骸があれば停止する。  
+       ```bash
+       sudo fuser /dev/gpiochip0          # PID が出たら ps で中身を確認
+       ps -p <PID> -o pid,cmd --cols 200
+       sudo kill <PID>                    # systemd 管理なら stop する
+       ```  
+       `sudo fuser` が空になった後で再度 `handheld_scan_display.py --drain-only` を sudo で実行すると解消する。  
+    2. Waveshare ライブラリは 0.1 節の通り ZIP 展開＋ `PYTHONPATH` 追加で使用し、`python setup.py install` は実行しない。どうしてもインストール済みの Jetson.GPIO をアンインストールしたい場合は `pip uninstall Jetson.GPIO` → `sudo reboot` を先に行う。  
+    3. CLI テスト時は `sudo -E PYTHONPATH=... HANDHELD_HEADLESS=1 /bin/bash -c 'source .venv/bin/activate && python handheld/scripts/handheld_scan_display.py --drain-only'` の形で仮想環境と環境変数を丸ごと引き継ぐ。  
+  - 参考: 2025-11-14 Pi Zero 実機ログでは、PID 960 (`/home/tools01/.venv-handheld/...handheld_scan_display.py`) が gpiomem を占有していた。kill 後に headless drain が成功し、再発防止のため systemd サービス停止→再起動フローをドキュメント化した。
 
 ### 0.4 ペイロード仕様と Pi5 側との整合
 - Pi5 `/api/v1/scans` は `order_code` / `location_code` を必須にしているため、A/B を送るハンディスクリプトは以下の JSON を POST する。  
