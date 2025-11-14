@@ -19,7 +19,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import requests
 from evdev import InputDevice, categorize, ecodes
@@ -85,6 +85,7 @@ PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_SIZE = 22
+MIRRORCTL_DISABLED = os.environ.get("HANDHELD_DISABLE_MIRRORCTL", "").lower() in {"1", "true", "yes", "on"}
 
 CONFIG_SEARCH_PATHS = [
     os.environ.get("ONSITE_CONFIG"),
@@ -302,7 +303,7 @@ def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
 
 
 class ScanTransmitter:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, mirrorctl_hook: Optional[Callable[[int, int], None]] = None):
         self.scan_api_url = config["api_url"]
         self.api_token = config["api_token"]
         self.device_id = config["device_id"]
@@ -311,6 +312,7 @@ class ScanTransmitter:
         self.logistics_default_from = config.get("logistics_default_from", "UNKNOWN")
         self.logistics_status = config.get("logistics_status", "completed")
         self.logistics_enabled = bool(self.logistics_api_url)
+        self.mirrorctl_hook = mirrorctl_hook
         queue_path = Path(config.get("queue_db_path", "~/.onsitelogistics/scan_queue.db")).expanduser()
         queue_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(queue_path)
@@ -380,9 +382,20 @@ class ScanTransmitter:
         )
         self.conn.commit()
 
-    def send_or_queue(self, target_url: str, payload: dict) -> None:
-        if not self._post(target_url, payload):
+    def _report_mirrorctl(self, success: int, failure: int) -> None:
+        if self.mirrorctl_hook and (success or failure):
+            try:
+                self.mirrorctl_hook(success, failure)
+            except Exception as exc:  # pragma: no cover - defensive log
+                logging.warning("mirrorctl hook failed: %s", exc)
+
+    def send_or_queue(self, target_url: str, payload: dict, *, count_for_mirror: bool = True) -> bool:
+        success = self._post(target_url, payload)
+        if not success:
             self.enqueue(target_url, payload, payload.get("retries", 0))
+        if count_for_mirror:
+            self._report_mirrorctl(1 if success else 0, 0 if success else 1)
+        return success
 
     def drain(self, limit: int = 20) -> bool:
         cursor = self.conn.execute(
@@ -391,6 +404,8 @@ class ScanTransmitter:
         )
         rows = cursor.fetchall()
         processed = False
+        success_seen = 0
+        failure_seen = 0
         for row_id, target_url, payload_json, retries in rows:
             payload = json.loads(payload_json)
             payload["retries"] = retries + 1
@@ -398,13 +413,17 @@ class ScanTransmitter:
                 self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
                 self.conn.commit()
                 processed = True
+                success_seen += 1
             else:
                 self.conn.execute(
                     "UPDATE scan_queue SET retries=? WHERE id=?",
                     (payload["retries"], row_id),
                 )
                 self.conn.commit()
+                failure_seen += 1
                 break
+        if success_seen or failure_seen:
+            self._report_mirrorctl(success_seen, failure_seen)
         return processed
 
     def queue_size(self) -> int:
@@ -426,7 +445,7 @@ class ScanTransmitter:
             "updated_at": timestamp,
             "retries": 0,
         }
-        self.send_or_queue(self.logistics_api_url, payload)
+        self.send_or_queue(self.logistics_api_url, payload, count_for_mirror=False)
 
 
 def iter_serial_candidates():
@@ -549,7 +568,18 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
     configure_logging(config)
-    transmitter = ScanTransmitter(config)
+    mirror_hook = None
+    if not MIRRORCTL_DISABLED:
+        try:
+            from handheld.src import mirrorctl_client
+
+            mirror_hook = mirrorctl_client.build_hook()
+        except Exception as exc:  # pragma: no cover - best effort log
+            logging.warning("mirrorctl hook unavailable: %s", exc)
+    else:
+        logging.info("mirrorctl hook disabled via HANDHELD_DISABLE_MIRRORCTL")
+
+    transmitter = ScanTransmitter(config, mirrorctl_hook=mirror_hook)
 
     if args.drain_only:
         logging.info("Drain-only mode: processing queued scans")

@@ -58,6 +58,10 @@
       - Pi Zero: Window A の Chromium を起動（Socket: LIVE）した状態で A/B (`6975337037026`, `6975337037026`) を再スキャン。CLI には `Server accepted payload` が表示。  
       - Pi5: `/srv/RaspberryPiSystem_001/server/logs/app.log` に `2025-11-14 10:25:39 INFO ... Received scan payload` → `Socket.IO emit succeeded` が追記。  
       - Pi4: `/var/log/document-viewer/client.log` に `2025-11-14 10:36:57,094 INFO Socket.IO event: scan.ingested payload=...` が出力され、ブラウザを常時起動していれば追加仕組みなしでログが得られることを確認した。今後は DocumentViewer ログ取得が必要なテスト前にブラウザを起動する手順を忘れないこと。
+    - 2025-11-14 10:36 実施メモ  
+      - Pi Zero: Window A の Chromium を起動（Socket: LIVE）した状態で A/B (`6975337037026`, `6975337037026`) を再スキャン。CLI には `Server accepted payload` が表示。  
+      - Pi5: `/srv/RaspberryPiSystem_001/server/logs/app.log` に `2025-11-14 10:25:39 INFO ... Received scan payload` → `Socket.IO emit succeeded` が追記。  
+      - Pi4: `/var/log/document-viewer/client.log` に `2025-11-14 10:36:57,094 INFO Socket.IO event: scan.ingested payload=...` が出力され、ブラウザを常時起動していれば追加仕組みなしでログが得られることを確認した。今後は DocumentViewer ログ取得が必要なテスト前にブラウザを起動する手順を忘れないこと。
 
 ## 3. 想定リスクと対処
 - **トークン不一致**: API 応答が 401/403 になる。`manage_api_token.py` で再発行して各端末へ再配布。
