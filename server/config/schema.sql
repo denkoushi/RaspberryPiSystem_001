@@ -17,6 +17,18 @@ CREATE TABLE IF NOT EXISTS part_locations (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS production_plan_entries (
+    id BIGSERIAL PRIMARY KEY,
+    payload JSONB NOT NULL,
+    inserted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS standard_time_entries (
+    id BIGSERIAL PRIMARY KEY,
+    payload JSONB NOT NULL,
+    inserted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 -- Stored procedure for draining backlog (placeholder logic)
 CREATE OR REPLACE FUNCTION drain_scan_backlog(limit_count INTEGER DEFAULT 100)
 RETURNS INTEGER

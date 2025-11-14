@@ -29,7 +29,11 @@ from raspberrypiserver.services import (
     SocketIOBroadcastService,
     BacklogDrainService,
 )
-from raspberrypiserver.providers import FileLogisticsProvider
+from raspberrypiserver.providers import (
+    FileLogisticsProvider,
+    FileJSONProvider,
+    DatabaseJSONProvider,
+)
 from raspberrypiserver.providers.plan import FileJSONProvider
 
 DEFAULT_CONFIG: Dict[str, Any] = {
@@ -175,9 +179,9 @@ def initialize_services(app: Flask) -> None:
     capacity = int(app.config.get("SCAN_REPOSITORY_CAPACITY", 250))
     backend = str(app.config.get("SCAN_REPOSITORY_BACKEND", "memory")).lower()
     app.config["SOCKETIO_INSTANCE"] = socketio
+    database_cfg = app.config.get("database") or {}
 
     if backend == "db":
-        database_cfg = app.config.get("database") or {}
         dsn = database_cfg.get("dsn", "")
         buffer_size = int(app.config.get("SCAN_REPOSITORY_BUFFER", 500))
         repo = DatabaseScanRepository(dsn=dsn, buffer_size=buffer_size)
@@ -215,14 +219,27 @@ def initialize_services(app: Flask) -> None:
         if jobs_file:
             app.config["LOGISTICS_PROVIDER"] = FileLogisticsProvider(jobs_file)
 
+    dsn_for_tables = database_cfg.get("dsn", "")
     if not app.config.get("PRODUCTION_PLAN_PROVIDER"):
+        plan_table = app.config.get("PRODUCTION_PLAN_TABLE")
         plan_file = app.config.get("PRODUCTION_PLAN_FILE")
-        if plan_file:
+        if plan_table and dsn_for_tables:
+            app.config["PRODUCTION_PLAN_PROVIDER"] = DatabaseJSONProvider(
+                dsn_for_tables,
+                plan_table,
+            )
+        elif plan_file:
             app.config["PRODUCTION_PLAN_PROVIDER"] = FileJSONProvider(plan_file)
 
     if not app.config.get("STANDARD_TIME_PROVIDER"):
+        standard_table = app.config.get("STANDARD_TIMES_TABLE")
         standard_file = app.config.get("STANDARD_TIMES_FILE")
-        if standard_file:
+        if standard_table and dsn_for_tables:
+            app.config["STANDARD_TIME_PROVIDER"] = DatabaseJSONProvider(
+                dsn_for_tables,
+                standard_table,
+            )
+        elif standard_file:
             app.config["STANDARD_TIME_PROVIDER"] = FileJSONProvider(standard_file)
 
 

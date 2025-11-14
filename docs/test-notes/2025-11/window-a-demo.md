@@ -546,3 +546,4 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-14 16:00 JST 生産計画/標準工数モック
 - `/api/v1/production-plan` / `/api/v1/standard-times` を追加し、`PRODUCTION_PLAN_FILE` / `STANDARD_TIMES_FILE` が指定されている場合は JSON ファイルから entries を返す。未設定時は空配列。
 - サンプルデータは `server/config/production-plan.sample.json` / `server/config/standard-times.sample.json`。Pi5 でファイルを書き換えればそのまま Dashboard に反映される。
+- PostgreSQL を利用する場合は `server/config/schema.sql` の `production_plan_entries` / `standard_time_entries` を追加（`./scripts/init_db.sh` 経由）し、`PRODUCTION_PLAN_TABLE` / `STANDARD_TIMES_TABLE` を `local.toml` に設定すると new DatabaseJSONProvider が参照する。JSON 形式で `payload` 列へ保管すれば UI 側もそのまま表示できる。
