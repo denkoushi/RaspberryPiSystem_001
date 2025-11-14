@@ -9,7 +9,7 @@ User=%i
 Group=%i
 WorkingDirectory=/home/%i/RaspberryPiSystem_001/handheld
 Environment=PYTHONPATH=/home/%i/RaspberryPiSystem_001
-ExecStart=/bin/bash -c 'source /home/%i/RaspberryPiSystem_001/handheld/.venv/bin/activate && PYTHONPATH=/home/%i/RaspberryPiSystem_001 python scripts/mirrorctl.py status'
+ExecStart=/bin/bash -c 'source /home/%i/.venv-handheld/bin/activate && PYTHONPATH=/home/%i/RaspberryPiSystem_001 python /home/%i/RaspberryPiSystem_001/handheld/scripts/mirrorctl.py status'
 Restart=on-failure
 RestartSec=900
 
