@@ -81,11 +81,17 @@ def create_app() -> Flask:
 
 def register_blueprints(app: Flask) -> None:
     """Register Flask blueprints for REST APIs."""
-    from raspberrypiserver.api import scans_bp, part_locations_bp, maintenance_bp
+    from raspberrypiserver.api import (
+        scans_bp,
+        part_locations_bp,
+        maintenance_bp,
+        logistics_bp,
+    )
 
     app.register_blueprint(scans_bp)
     app.register_blueprint(part_locations_bp)
     app.register_blueprint(maintenance_bp)
+    app.register_blueprint(logistics_bp)
 
 
 @socketio.on("connect")
