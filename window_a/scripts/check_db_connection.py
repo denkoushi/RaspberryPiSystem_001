@@ -11,6 +11,12 @@ from typing import Sequence
 
 import psycopg
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+import sys
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from db_config import apply_env_file, build_db_config
 
 
