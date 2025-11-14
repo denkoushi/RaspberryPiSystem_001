@@ -482,3 +482,19 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   ```
   が記録され、自動的に PDF がコピーされることを確認。
 - `/var/log/document-viewer/import.log` にも成功ログが追記され、Importer 手動実行時と同じログが残る。以降は sudoers 設定済みのため WARNING は解消。
+
+### 2025-11-14 13:40 JST Window A DB 接続調査
+- `toolmgmt.service` を RaspberryPiSystem_001 ベースのユニットへ切り替えたが、起動直後から `[DB] connect retry N/30: connection failed ... port 5432 refused` が継続。`/var/log/document-viewer/client.log` は Pi Zero からの `scan.ingested` を受信しているため、Socket.IO 連携は正常。
+- 原因切り分けのため、Pi4 側で DSN 可視化＋疎通確認スクリプト `window_a/scripts/check_db_connection.py` を追加。環境ファイルを引き渡した実行例:
+  ```bash
+  cd ~/RaspberryPiSystem_001
+  source window_a/.venv/bin/activate  # 既存 venv があれば
+  python window_a/scripts/check_db_connection.py \
+    --env-file window_a/config/window-a.env \
+    --timeout 3
+  deactivate
+  ```
+- 現時点では `raspi-server.local:15432` への接続で `status=error ... connection refused` となるため、Pi5 側 PostgreSQL (`sensordb`) を起動し、外部ホストからアクセス可能な状態にする必要あり。  
+  - Pi5 で `docker compose up -d postgres` または `sudo systemctl start postgresql@14-main` (採用方式に合わせて選択) を実施。
+  - `PGPASSWORD=app psql -h 0.0.0.0 -p 15432 -U app -d sensordb -c '\l'` が Pi5 で成功したら、Pi4 からも上記スクリプトで再チェックしてログを更新する。
+  - 成功後は `window_a/logs/api_actions.log` と `part_locations` テーブルを確認し、Window A UI で貸出ステータスが更新されるか追跡する。

@@ -219,6 +219,7 @@ sudo journalctl -fu handheld@tools01.service
 #### 0.7.2 新リポジトリ側での実装メモ
 - `handheld/src/retry_loop.py` の `mirrorctl_hook` に `Callable[[int, int], None]` を渡し、送信成功/失敗件数を mirrorctl 側へ反映させる。hook の実装は `handheld/src/mirrorctl_client.py` で `update_status(success, failure)` を提供しているので、Pi Zero の再送処理から直接呼び出す。  
 - CLI 操作用に `handheld/scripts/mirrorctl.py` を追加しており、`mirrorctl status/update/enable/disable/audit` を同等コマンドで利用できる。Pi Zero では旧 `mirrorctl` コマンドの代わりにこのスクリプトを `sudo` で呼び出し、`~/.onsitelogistics/mirrorctl_state.json` を更新する。
+- 2025-11-14 現地検証: `cd ~/RaspberryPiSystem_001/handheld && source .venv/bin/activate` 後に `PYTHONPATH=~/RaspberryPiSystem_001 python scripts/mirrorctl.py status` を実行し、`enabled=True`, `last_success_at=2025-11-14T03:06:21Z`, `pending_failures=1` が取得できることを確認。`handheld/src/mirrorctl_client.py` が旧 JSON をそのまま読み書きできているため、Phase-2 の systemd 連携ではこの CLI を `ExecStart` に据えるだけで従来の監査ログに接続できる。
 - `handheld/tests/test_retry_loop.py` には hook 呼び出しのテストがあるため、mirrorctl クライアントを差し替えるだけで回帰テストを追加できる。hook によるファイル書き込みや CLI 呼び出しは `pytest` から `tmp_path` を使って検証する。  
 - 監査ログ (`mirrorctl audit`) は `~/.onsitelogistics/mirrorctl_audit.log` を踏襲する。`scripts/pi_zero_pull_logs.sh` は既に `sudo mirrorctl status` の結果を `mirrorctl-status.txt` に保存しているので、Phase-2 で `audit` の結果も同時に取得する。
 - Phase-2 では `docs/system/pi-zero-integration.md` に mirrorctl の状態遷移図と JSON スキーマを追加し、Pi Zero で `mirrorctl enable/disable` を誰が実行したかを記録する欄を設ける。

@@ -58,6 +58,10 @@
       - Pi Zero: Window A の Chromium を起動（Socket: LIVE）した状態で A/B (`6975337037026`, `6975337037026`) を再スキャン。CLI には `Server accepted payload` が表示。  
       - Pi5: `/srv/RaspberryPiSystem_001/server/logs/app.log` に `2025-11-14 10:25:39 INFO ... Received scan payload` → `Socket.IO emit succeeded` が追記。  
       - Pi4: `/var/log/document-viewer/client.log` に `2025-11-14 10:36:57,094 INFO Socket.IO event: scan.ingested payload=...` が出力され、ブラウザを常時起動していれば追加仕組みなしでログが得られることを確認した。今後は DocumentViewer ログ取得が必要なテスト前にブラウザを起動する手順を忘れないこと。
+    - 2025-11-14 12:06 Mirrorctl hook テスト  
+      - `cd ~/RaspberryPiSystem_001/handheld && source .venv/bin/activate` 後に `PYTHONPATH=~/RaspberryPiSystem_001 python scripts/mirrorctl.py status` を実行。`mirrorctl enabled : True / last_success_at : 2025-11-14T03:06:21Z / pending_failures : 1` を確認。  
+      - `PYTHONPATH=~/RaspberryPiSystem_001 python handheld/scripts/mirrorctl.py status` と同値で、`handheld/src/mirrorctl_client.py` が実ファイル `~/.onsitelogistics/mirrorctl_state.json` を読み書きできていることを確認。  
+      - `PYTHONPATH=~/RaspberryPiSystem_001 python - <<'PY' ... retry_failed_sends(...)` により `mirrorctl_hook` が success/failure 件数を更新し、`state_as_dict()` の返却値に `last_success_at/last_failure_at/pending_failures` が同時刻で記録されることを確認。Phase-2 ではこの hook を systemd サービスに組み込んで 14 日監視へ繋げる。
     - 2025-11-14 10:36 実施メモ  
       - Pi Zero: Window A の Chromium を起動（Socket: LIVE）した状態で A/B (`6975337037026`, `6975337037026`) を再スキャン。CLI には `Server accepted payload` が表示。  
       - Pi5: `/srv/RaspberryPiSystem_001/server/logs/app.log` に `2025-11-14 10:25:39 INFO ... Received scan payload` → `Socket.IO emit succeeded` が追記。  
