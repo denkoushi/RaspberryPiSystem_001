@@ -14,7 +14,14 @@ VIEWER_SOCKET_CLIENT_SRC=https://cdn.socket.io/4.7.5/socket.io.min.js
 VIEWER_LOG_PATH=/var/log/document-viewer/client.log
 # VIEWER_SOCKET_EVENT=scan.ingested  # 旧システム互換の単一指定
 ```
-- `/var/log/document-viewer` が存在しない場合は `sudo mkdir -p /var/log/document-viewer && sudo chown tools02:tools02 /var/log/document-viewer` を実行してから起動する（権限不足だとログ出力が失敗する）。
+- `/var/log/document-viewer` が存在しない場合は `sudo mkdir -p /var/log/document-viewer && sudo chown tools02:tools02 /var/log/document-viewer` を実行してから起動する（権限不足だとログ出力が失敗する）。  
+  - もしくは `document_viewer/scripts/setup_docviewer_env.sh`（または `install_docviewer_env.sh`）を使うと、`/etc/default/docviewer` の展開とログディレクトリ作成をまとめて行える。例:  
+    ```bash
+    cd ~/RaspberryPiSystem_001/document_viewer
+    sudo ./scripts/setup_docviewer_env.sh \
+      --user tools02 \
+      --log-dir /var/log/document-viewer
+    ```
 - 旧リポジトリのハードコードを参照する場合でも、`VIEWER_SOCKET_EVENTS` を `scan.ingested` に必ず含め、Window A / Pi5 と同じイベント名で受信する。
 - systemd を経由する場合は `sudo systemctl daemon-reload && sudo systemctl restart document-viewer.service` で反映する。
 

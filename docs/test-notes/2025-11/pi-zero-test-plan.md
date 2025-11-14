@@ -38,9 +38,9 @@
    - テンプレートに従って判定・差異・フォローアップを記述。
    - 2025-11-10 実施メモ  
      - Pi Zero: `[SERIAL] forcing /dev/minjcode0 @ 115200bps` → `[SERIAL] scanner ready` → A/B (`4989999058963`, `https://e.bambulab.com/...`) で電子ペーパー更新完了。  
-     - Pi5: API 受信は成功。旧キューで `scan_id=None` だった行は削除済み。`sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT COUNT(*) FROM scan_queue;'` の結果は 0。  
-     - drain-only を headless で実行する場合は `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` を使用し、GPIO 初期化エラーを避ける。  
-     - 今後は PR 用に上記ログを添付し、Phase-1 ブランチへまとめる。
+    - Pi5: API 受信は成功。旧キューで `scan_id=None` だった行は削除済み。`sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT COUNT(*) FROM scan_queue;'` の結果は 0。  
+    - drain-only を headless で実行する場合は `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` を使用し、GPIO 初期化エラーを避ける。  
+    - 今後は PR 用に上記ログを添付し、Phase-1 ブランチへまとめる。
     - 2025-11-14 実施メモ  
       - Pi Zero: `sudo -E PYTHONPATH=... handheld_scan_display.py` を通常モードで実行し、A/B (`4989999058963`, `https://e.bambulab.com/t/?c=ga8XCc2Q6l1idFKP`) をスキャン。電子ペーパーは A/B 表示ともに `[OK]` となり `Status: DONE` を表示。  
       - CLI ログ抜粋:  
@@ -54,6 +54,10 @@
         ```
       - Pi5: `Server accepted payload` が確認でき、scan_queue は drain-only 後に Pending 0。GPIO Busy は `/dev/gpiochip0` を占有していた旧 `tools01` プロセス (PID 960) を停止することで解消できることを再確認。  
       - 次回以降は headless drain と通常モードテストの双方を記録し、`docs/system/pi-zero-integration.md` のトラブルシュート節を参照すること。
+    - 2025-11-14 10:36 実施メモ  
+      - Pi Zero: Window A の Chromium を起動（Socket: LIVE）した状態で A/B (`6975337037026`, `6975337037026`) を再スキャン。CLI には `Server accepted payload` が表示。  
+      - Pi5: `/srv/RaspberryPiSystem_001/server/logs/app.log` に `2025-11-14 10:25:39 INFO ... Received scan payload` → `Socket.IO emit succeeded` が追記。  
+      - Pi4: `/var/log/document-viewer/client.log` に `2025-11-14 10:36:57,094 INFO Socket.IO event: scan.ingested payload=...` が出力され、ブラウザを常時起動していれば追加仕組みなしでログが得られることを確認した。今後は DocumentViewer ログ取得が必要なテスト前にブラウザを起動する手順を忘れないこと。
 
 ## 3. 想定リスクと対処
 - **トークン不一致**: API 応答が 401/403 になる。`manage_api_token.py` で再発行して各端末へ再配布。
