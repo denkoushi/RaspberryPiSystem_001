@@ -217,7 +217,8 @@ sudo journalctl -fu handheld@tools01.service
 - `mirror_compare.py`（Window D の手動比較スクリプト）: 14 日無通信時に Pi5 のバックログを照合するための補助スクリプト。Phase-2 では `handheld/scripts/mirror_compare.py` へ移植し、`retry_loop` の `mirrorctl_hook` から再利用できるようにする。
 
 #### 0.7.2 新リポジトリ側での実装メモ
-- `handheld/src/retry_loop.py` の `mirrorctl_hook` に `Callable[[int, int], None]` を渡し、送信成功/失敗件数を mirrorctl 側へ反映させる。hook の実装は `handheld/src/mirrorctl_client.py`（新規）で `update_status(success, failure)` を提供する想定。  
+- `handheld/src/retry_loop.py` の `mirrorctl_hook` に `Callable[[int, int], None]` を渡し、送信成功/失敗件数を mirrorctl 側へ反映させる。hook の実装は `handheld/src/mirrorctl_client.py` で `update_status(success, failure)` を提供しているので、Pi Zero の再送処理から直接呼び出す。  
+- CLI 操作用に `handheld/scripts/mirrorctl.py` を追加しており、`mirrorctl status/update/enable/disable/audit` を同等コマンドで利用できる。Pi Zero では旧 `mirrorctl` コマンドの代わりにこのスクリプトを `sudo` で呼び出し、`~/.onsitelogistics/mirrorctl_state.json` を更新する。
 - `handheld/tests/test_retry_loop.py` には hook 呼び出しのテストがあるため、mirrorctl クライアントを差し替えるだけで回帰テストを追加できる。hook によるファイル書き込みや CLI 呼び出しは `pytest` から `tmp_path` を使って検証する。  
 - 監査ログ (`mirrorctl audit`) は `~/.onsitelogistics/mirrorctl_audit.log` を踏襲する。`scripts/pi_zero_pull_logs.sh` は既に `sudo mirrorctl status` の結果を `mirrorctl-status.txt` に保存しているので、Phase-2 で `audit` の結果も同時に取得する。
 - Phase-2 では `docs/system/pi-zero-integration.md` に mirrorctl の状態遷移図と JSON スキーマを追加し、Pi Zero で `mirrorctl enable/disable` を誰が実行したかを記録する欄を設ける。
