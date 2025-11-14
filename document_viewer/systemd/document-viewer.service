@@ -10,6 +10,8 @@ Group={{USER}}
 WorkingDirectory=/home/{{USER}}/RaspberryPiSystem_001/document_viewer/app
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/default/docviewer
+Environment=VIEWER_DEBUG=0
+Environment=VIEWER_SOCKET_LISTENER=1
 ExecStart=/home/{{USER}}/RaspberryPiSystem_001/document_viewer/.venv/bin/python /home/{{USER}}/RaspberryPiSystem_001/document_viewer/app/viewer.py
 Restart=always
 RestartSec=5

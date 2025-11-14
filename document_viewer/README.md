@@ -26,6 +26,7 @@ docs/test-notes/ 実機検証ログ・チェックリスト
 - Raspberry Pi 上で常時運用する場合は、`docs/setup-raspberrypi.md` の手順に従って systemd サービス登録と kiosk 起動を設定してください。
 - `VIEWER_API_BASE` / `VIEWER_SOCKET_BASE` などの環境変数で RaspberryPiServer 連携先を切り替えられます（下表参照）。
 - `VIEWER_LOCAL_DOCS_DIR` を指定すると PDF の配置ディレクトリを任意パスへ変更できます。未指定時は `DOCVIEWER_HOME/documents/` を自動作成します（USB 取り込みを使う場合は `imports/failed/` も合わせて作成しておきます）。
+- `VIEWER_SOCKET_LISTENER=1` を設定すると、Flask アプリ起動時にバックグラウンドの Socket.IO リスナーが常駐し、ブラウザを開いていない状態でも `VIEWER_LOG_PATH` へイベントログを残せます。systemd サービスでは既定で有効化しています（無効化したい場合は `0`/`false` を指定）。
 - `raspi-server.local` が解決できない場合は、Pi5 側のホスト名が `raspi-server` になっているか、クライアント側の Avahi (mDNS) が起動しているかを確認してください。
 - `VIEWER_LOG_PATH` を指定するとドキュメント検索・配信イベントがローテーション付きログ（最大 3 MB × 3 世代）として出力されます。未指定時は標準ログのみ利用します。
 - 実機設定・検証ログは `docs/test-notes/` 配下（例: `2025-10-26-docviewer-env.md`）に記録しています。
@@ -57,6 +58,9 @@ docs/test-notes/ 実機検証ログ・チェックリスト
 | `VIEWER_LOCAL_DOCS_DIR` | PDF を格納するディレクトリ | `$DOCVIEWER_HOME/documents` |
 | `VIEWER_IMPORT_FAILED_DIR` | 取り込み失敗時に退避するフォルダ | `$DOCVIEWER_HOME/imports/failed` |
 | `VIEWER_LOG_PATH` | ローテーション付きログの出力先 | 未出力 |
+| `VIEWER_SOCKET_LISTENER` | バックグラウンド Socket.IO リスナーの有無 (`0`/`1`) | `0`（systemd では `1` に設定） |
+| `VIEWER_DEBUG` | Flask デバッグ実行 (`0`/`1`) | `0` |
+| `VIEWER_HOST` / `VIEWER_PORT` | Flask サーバーのバインド先 | `0.0.0.0` / `5000` |
 
 Pi5・Window A と同じ Bearer トークンを利用するため、ローテーション時は RaspberryPiServer RUNBOOK（4章）に従って `VIEWER_API_TOKEN` と Pi5 側の `API_TOKEN` / `VIEWER_API_TOKEN`、Window A 側 `RASPI_SERVER_API_TOKEN` を同時に更新してください。
 

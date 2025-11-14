@@ -1,1 +1,2 @@
 Flask>=2.3,<3.0
+python-socketio[client]>=5.11,<6.0

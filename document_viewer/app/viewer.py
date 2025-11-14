@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -11,6 +13,7 @@ from flask import (
     Flask,
     abort,
     current_app,
+    has_app_context,
     jsonify,
     render_template,
     request,
@@ -46,6 +49,16 @@ SOCKET_CLIENT_SRC = os.getenv(
 )
 LOG_PATH_RAW = os.getenv("VIEWER_LOG_PATH", "").strip()
 LOG_PATH = Path(LOG_PATH_RAW).expanduser().resolve() if LOG_PATH_RAW else None
+VIEWER_DEBUG = os.getenv("VIEWER_DEBUG", "0").lower() in {"1", "true", "yes", "on"}
+VIEWER_HOST = os.getenv("VIEWER_HOST", "0.0.0.0")
+VIEWER_PORT = int(os.getenv("VIEWER_PORT", "5000"))
+VIEWER_SOCKET_LISTENER_ENABLED = os.getenv("VIEWER_SOCKET_LISTENER", "0").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+SOCKET_NAMESPACE = os.getenv("VIEWER_SOCKET_NAMESPACE", "/").strip() or "/"
 
 
 def _parse_csv_env(name: str) -> list[str]:
@@ -153,12 +166,85 @@ LOGGER = _configure_logger()
 
 def _log_info(message: str, *args) -> None:
     LOGGER.info(message, *args)
-    current_app.logger.info(message, *args)
+    if has_app_context():
+        current_app.logger.info(message, *args)
 
 
 def _log_warning(message: str, *args) -> None:
     LOGGER.warning(message, *args)
-    current_app.logger.warning(message, *args)
+    if has_app_context():
+        current_app.logger.warning(message, *args)
+
+
+_socket_listener_thread: Optional[threading.Thread] = None
+
+
+def _build_socket_url() -> Optional[str]:
+    base = SOCKET_BASE.strip()
+    if not base:
+        return None
+    namespace = SOCKET_NAMESPACE if SOCKET_NAMESPACE.startswith("/") else f"/{SOCKET_NAMESPACE}"
+    cleaned_base = base[:-1] if base.endswith("/") else base
+    return f"{cleaned_base}{namespace}"
+
+
+def _start_socket_listener() -> None:
+    global _socket_listener_thread  # noqa: PLW0603
+    if not VIEWER_SOCKET_LISTENER_ENABLED or _socket_listener_thread:
+        return
+
+    if not SOCKET_BASE:
+        return
+
+    try:
+        import socketio  # type: ignore
+    except ImportError:
+        return
+
+    socket_url = _build_socket_url()
+    if not socket_url:
+        return
+
+    socket_path = SOCKET_PATH.strip() or "/socket.io"
+    socketio_path = socket_path.lstrip("/") or "socket.io"
+    auth_payload = {"token": API_TOKEN} if API_TOKEN else None
+    event_names = SOCKET_EVENTS or ["scan.ingested"]
+
+    client = socketio.Client(reconnection=True, logger=False, engineio_logger=False)
+    for event_name in event_names:
+        def _handler(data, name=event_name):  # type: ignore
+            _log_info("Socket.IO event: %s payload=%s", name, data)
+
+        client.on(event_name, _handler)
+
+    def _runner() -> None:
+        backoff = 1.0
+        while True:
+            try:
+                client.connect(
+                    socket_url,
+                    socketio_path=socketio_path,
+                    namespaces=None if SOCKET_NAMESPACE == "/" else [SOCKET_NAMESPACE],
+                    auth=auth_payload,
+                    transports=["websocket", "polling"],
+                )
+                client.wait()
+                backoff = 1.0
+            except Exception as exc:  # noqa: BLE001
+                _log_warning("Socket listener reconnect scheduled in %.1fs: %s", backoff, exc)
+                try:
+                    client.disconnect()
+                except Exception:  # noqa: BLE001
+                    pass
+                time.sleep(min(backoff, 60))
+                backoff = min(backoff * 2, 60)
+
+    _socket_listener_thread = threading.Thread(
+        target=_runner,
+        name="docviewer-socket-listener",
+        daemon=True,
+    )
+    _socket_listener_thread.start()
 
 
 @app.after_request
@@ -236,4 +322,7 @@ def api_log_socket_event():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    _start_socket_listener()
+    app.run(host=VIEWER_HOST, port=VIEWER_PORT, debug=VIEWER_DEBUG, use_reloader=False)
+else:
+    _start_socket_listener()
