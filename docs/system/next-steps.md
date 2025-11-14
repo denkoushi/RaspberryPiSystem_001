@@ -9,7 +9,7 @@
 | コード実装 | 完了 | `/api/v1/scans` の DB upsert（`scan_ingest_backlog`→`part_locations`）の実装とテスト拡充 | server/src/raspberrypiserver/services/backlog.py, tests/test_backlog_service.py, tests/test_repositories.py（pytest + 実DB検証済み） |
 | コード実装 | 完了 | BacklogDrainService のロギング強化・異常系テスト整備 | server/src/raspberrypiserver/services/backlog.py, tests/test_backlog_service.py |
 | コード実装 | 進行中 | Socket.IO 運用仕様（設定・ログ・再接続テスト）の確定 | server/src/raspberrypiserver/app.py, server/tests/test_api_scans.py, server/config/default.toml, docs/system/documentviewer-integration.md |
-| コード実装 | 停滞 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視） | docs/system/pi-zero-integration.md, handheld/scripts/** |
+| コード実装 | 進行中 | Pi Zero mirrorctl 連携スクリプト移行（再送キュー、14 日監視）。2025-11-14 に `handheld/scripts/mirrorctl.py status` が実機 JSON を更新できることを確認済み。次は Phase-2 で systemd 連携と監査ログを移植する。 | docs/system/pi-zero-integration.md, handheld/scripts/** |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（2025-11-14 10:36 Pi Zero 実機＋Window A ブラウザ常時起動で `client.log` に Socket.IO イベントが記録されることを確認。今後はブラウザ起動手順を忘れず実施） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 停滞 | Window A の PostgreSQL 接続 (`raspi-server.local:15432/sensordb`) が拒否されており貸出 UI が動作できない。Pi5 側 DB を起動し、`window_a/scripts/check_db_connection.py --env-file config/window-a.env` で疎通確認→ `/var/log/toolmgmt.log` へ成功ログを残す。 | docs/test-notes/2025-11/window-a-demo.md, window_a/scripts/check_db_connection.py, docs/system/postgresql-setup.md |

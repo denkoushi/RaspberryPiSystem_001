@@ -498,3 +498,24 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   - Pi5 で `docker compose up -d postgres` または `sudo systemctl start postgresql@14-main` (採用方式に合わせて選択) を実施。
   - `PGPASSWORD=app psql -h 0.0.0.0 -p 15432 -U app -d sensordb -c '\l'` が Pi5 で成功したら、Pi4 からも上記スクリプトで再チェックしてログを更新する。
   - 成功後は `window_a/logs/api_actions.log` と `part_locations` テーブルを確認し、Window A UI で貸出ステータスが更新されるか追跡する。
+
+### 2025-11-14 14:02 JST Pi Zero 実機スキャン & DocumentViewer ログ
+- Pi5 で Docker Postgres (`server/docker-compose.yaml`) を起動後、Pi4 `window_a/scripts/check_db_connection.py --env-file config/window-a.env` が `status=ok target=raspi-server.local:15432` を返すことを確認。
+- Pi Zero (`denkonzero`) で `sudo systemctl stop handheld@tools01.service` → `HANDHELD_HEADLESS=1 python handheld/scripts/handheld_scan_display.py --drain-only` でキュー空を確認後、通常モードで A/B (`4989999058963`, `https://e.bambulab.com/t/?c=ga8XCc2Q6l1idFKP`) をスキャン。CLI には `Server accepted payload` が表示。
+- Pi5 `/srv/RaspberryPiSystem_001/server/logs/app.log` 抜粋:
+  ```
+  2025-11-14 14:01:59,939 INFO [raspberrypiserver.api.scans] Received scan payload: {...}
+  2025-11-14 14:01:59,941 WARNING [raspberrypiserver.repositories.scans] Scan payload persistence failed: connection failed: connection to server at "127.0.0.1", port 5432 failed: Connection refused
+  2025-11-14 14:01:59,941 WARNING [app] Socket.IO emit succeeded: event=scan.ingested ...
+  ```
+- Pi4 `/var/log/document-viewer/client.log` 抜粋:
+  ```
+  2025-11-14 14:01:59,938 INFO Socket.IO event: scan.ingested payload={'order_code': '4989999058963', 'location_code': 'https://e.bambulab.com/t/?c=ga8XCc2Q6l1idFKP', ...}
+  ```
+- 判定: Socket.IO 連携は Pi Zero → Pi5 → Pi4 まで動作。DB 永続化はまだ無効（Pi5 の `SCAN_REPOSITORY_BACKEND` が memory のため）だが、Window A / DocumentViewer の再接続検証は完了。
+
+### 2025-11-14 14:15 JST Window A UI 500 対応
+- Chromium で `http://192.168.10.223:8501` 表示時に `500 Internal Server Error` が発生し、`journalctl -u toolmgmt.service` には `jinja2.exceptions.TemplateNotFound: index.html` が記録されていた。
+- 原因: 新リポジトリへ移植した際に Flask テンプレート (`window_a/templates/index.html`) が未配置だった。
+- 対応: `window_a/templates/index.html` を追加し、DocumentViewer iframe / part_locations / logistics_jobs / production plan / station_config をシンプルなテーブルで表示するダッシュボードを実装。`socket_client_config` もブラウザ側で確認できる。
+- 以後 `git pull` → `sudo systemctl restart toolmgmt.service` 後に再読み込みすれば 500 は解消される。DocumentViewer 側の `/api/documents/...` が 404 の場合でも UI 自体は表示できる。
