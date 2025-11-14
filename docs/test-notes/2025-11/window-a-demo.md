@@ -519,3 +519,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - 原因: 新リポジトリへ移植した際に Flask テンプレート (`window_a/templates/index.html`) が未配置だった。
 - 対応: `window_a/templates/index.html` を追加し、DocumentViewer iframe / part_locations / logistics_jobs / production plan / station_config をシンプルなテーブルで表示するダッシュボードを実装。`socket_client_config` もブラウザ側で確認できる。
 - 以後 `git pull` → `sudo systemctl restart toolmgmt.service` 後に再読み込みすれば 500 は解消される。DocumentViewer 側の `/api/documents/...` が 404 の場合でも UI 自体は表示できる。
+
+### 2025-11-14 14:25 JST DocumentViewer ステータス更新
+- `window_a/config/window-a.env` の `DOCUMENT_VIEWER_URL` を `http://127.0.0.1:5000` に設定し、`sudo systemctl restart toolmgmt.service` を実行。Dashboard のヘッダーが `DocumentViewer: ONLINE`（緑）になり、iframe 内にローカル 130.0.0.1 の DocumentViewer が表示されるようになった。
+- Dashboard の運用手順: Pi4 ブラウザで `http://192.168.10.223:8501` を開いたら、ヘッダーの DocumentViewer/Socket ステータスが `ONLINE/LIVE` になっていることを確認。DocumentViewer タブ（`http://127.0.0.1:5000`）も並行で開いておく。
