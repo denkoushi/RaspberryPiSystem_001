@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -24,6 +25,12 @@ import requests
 from evdev import InputDevice, categorize, ecodes
 from PIL import Image, ImageDraw, ImageFont
 from logging.handlers import RotatingFileHandler
+
+EPAPER_LIB_DEFAULT = Path.home() / "e-Paper/RaspberryPi_JetsonNano/python/lib"
+if EPAPER_LIB_DEFAULT.exists():
+    sys_path_entry = str(EPAPER_LIB_DEFAULT)
+    if sys_path_entry not in sys.path:
+        sys.path.append(sys_path_entry)
 
 try:
     from waveshare_epd import epd2in13_V4  # legacy module name
