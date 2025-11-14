@@ -229,6 +229,7 @@ sudo journalctl -fu handheld@tools01.service
   3. `sudo systemctl daemon-reload`  
   4. `sudo systemctl enable --now mirrorctl@tools01.service`  
   5. `sudo journalctl -u mirrorctl@tools01.service -n 20 --no-pager` で `mirrorctl.py status` が実行されているか確認。  
+  - `ExecStart` は `/home/%i/.venv-handheld/bin/python` を前提にしているため、`tools01` ユーザー配下に `.venv-handheld` を必ず用意しておく。`pip install -r handheld/requirements.txt` も tools01 の venv で実施する。  
   - 既定では 900 秒（15 分）毎に JSON を更新する。追加の監査コマンドを入れたい場合は `systemctl edit mirrorctl@tools01.service` で override を作成し `ExecStart` を差し替える。
 - 新テンプレート `handheld/systemd/mirrorctl@.service` は以下の流れで利用する。  
   1. `sudo cp ~/RaspberryPiSystem_001/handheld/systemd/mirrorctl@.service /etc/systemd/system/`  
