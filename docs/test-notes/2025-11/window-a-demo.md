@@ -529,6 +529,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   2. Window A Dashboard (`http://192.168.10.223:8501`) を開き、ヘッダーの `DocumentViewer: ONLINE` と `Socket: LIVE` を確認。  
   3. Pi Zero からスキャンすると `/var/log/document-viewer/client.log` に `scan.ingested` が追記されることを確認。  
   4. Pi5 の PostgreSQL を `docker compose up -d postgres` で起動している場合、`window_a/scripts/check_db_connection.py --env-file config/window-a.env` で疎通を確認。  
+- 2025-11-14 16:56 JST: Pi Zero 実機で `4909411096557` → `4969887821220` をスキャン。Pi5 `/srv/RaspberryPiSystem_001/server/logs/app.log` には `Received scan payload` → `Backlog drain succeeded: processed=1` が出力され、`part_locations` に `order_code=4909411096557 / location_code=4969887821220` が記録された。Window A Dashboard の “最新の所在情報” も即座に更新されたためスクリーンショットで保存。
 
 ### 2025-11-14 14:40 JST Logistics API プレースホルダー
 - Pi5 サーバーに `/api/logistics/jobs` を追加し、未実装時でも 404 ではなく `{"items": []}` を返すようにした（`server/src/raspberrypiserver/api/logistics.py`）。Dashboard は空リストをそのまま表示する。
@@ -542,9 +543,11 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   STANDARD_TIMES_FILE = "/srv/RaspberryPiSystem_001/server/config/standard-times.sample.json"
   ```
   `RPI_SERVER_CONFIG=/srv/RaspberryPiSystem_001/server/config/local.toml` を指定し `sudo systemctl restart raspberrypiserver` すれば適用される。Window A Dashboard の “物流依頼” や “生産計画 / 標準工数” セクションでサンプルが表示されることを確認する。
+- 工具管理カード: Dashboard に「工具管理 (Tool Management)」セクションを追加し、現在は再構築中である旨をユーザーに明示。`window_a/app_flask.py` の `TOOLMGMT_STATUS_MESSAGE` で文言を変更できる。旧 UI の貸出/返却ロジックを移植するまでは、ここに進捗や注意事項だけを掲載する運用とする。
 
 ### 2025-11-14 16:00 JST 生産計画/標準工数モック
 - `/api/v1/production-plan` / `/api/v1/standard-times` を追加し、`PRODUCTION_PLAN_FILE` / `STANDARD_TIMES_FILE` が指定されている場合は JSON ファイルから entries を返す。未設定時は空配列。
 - サンプルデータは `server/config/production-plan.sample.json` / `server/config/standard-times.sample.json`。Pi5 でファイルを書き換えればそのまま Dashboard に反映される。
 - PostgreSQL を利用する場合は `server/config/schema.sql` の `production_plan_entries` / `standard_time_entries` を追加（`./scripts/init_db.sh` 経由）し、`PRODUCTION_PLAN_TABLE` / `STANDARD_TIMES_TABLE` を `local.toml` に設定すると new DatabaseJSONProvider が参照する。JSON 形式で `payload` 列へ保管すれば UI 側もそのまま表示できる。
 - DB へサンプルを投入するには `server/scripts/seed_plan_tables.py --dsn postgresql://app:app@localhost:15432/sensordb --truncate` を実行すると `production_plan_entries` / `standard_time_entries` に JSON をまとめて挿入できる。
+- Pi4 Dashboard では「品名／担当／数量／納期／製番」が列として表示される。より詳細な表示を行う場合は JSON のキーを増やしてもそのまま table に出力される。

@@ -890,6 +890,10 @@ def index():
     part_locations = fetch_part_locations()
     logistics_jobs = fetch_logistics_jobs()
     token_info = get_token_info()
+    toolmgmt_status = app.config.get(
+        "TOOLMGMT_STATUS_MESSAGE",
+        "工具管理ペインは再構築中です。旧 Window A の貸出 UI を統合するまで、このセクションは情報表示のみとなります。",
+    )
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
@@ -903,6 +907,7 @@ def index():
         part_locations=part_locations,
         logistics_jobs=logistics_jobs,
         socket_client_config=SOCKET_CLIENT_CONFIG,
+        toolmgmt_status=toolmgmt_status,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
