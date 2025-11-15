@@ -1301,7 +1301,7 @@ def manual_return_loan(loan_id):
         "POST",
         f"/api/v1/loans/{loan_id}/manual_return",
         json={},
-        allow_statuses=(404,),
+        allow_statuses=(200, 404),
     )
     if error_resp is not None:
         return error_resp, status_code
@@ -1337,7 +1337,7 @@ def delete_open_loan_api(loan_id):
     raw_response, error_resp, status_code = _proxy_toolmgmt_request(
         "DELETE",
         f"/api/v1/loans/{loan_id}",
-        allow_statuses=(404,),
+        allow_statuses=(200, 404),
     )
     if error_resp is not None:
         return error_resp, status_code

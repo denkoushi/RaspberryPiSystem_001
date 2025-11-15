@@ -258,3 +258,6 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
 4. **Pi5 API 連携**  
    - `raspi-server.local` の `/api/v1/loans` などが応答するか `curl -H "Authorization: Bearer $RASPI_SERVER_API_TOKEN" http://raspi-server.local:8501/api/v1/loans` で確認する。  
    - `docs/system/next-steps.md` と `docs/test-notes/2025-11/window-a-demo.md` に結果と時刻を追記し、次回以降の参照に備える。
+5. **貸出操作のスポット確認**  
+   - Pi5 DB へテスト貸出（例: `INSERT INTO loans (tool_uid, borrower_uid, loaned_at) VALUES ('t001','u001',now());`）を投入し、Pi4 Dashboard の「手動返却」/「削除」を実行する。  
+   - `sudo journalctl -u raspi-server.service -n 20 --no-pager | grep loans` で REST が HTTP 200 を返していることを確認し、`docs/test-notes/2025-11/window-a-demo.md` に操作ログを残す。

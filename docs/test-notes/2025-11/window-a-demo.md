@@ -574,3 +574,17 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - Pi4 (`tools02`) で `git pull` → `window_a/scripts/manage_api_tokens.py issue window-a-01 --note "initial"` を実行し、`/home/tools02/RaspberryPiSystem_001/window_a/config/api_tokens.json` にトークン `2z-R9t11hIB1in7XtkiI7kDpEmiHAB3s1oWN58gdjSw` を発行。`PYTHONPATH=.` を指定してスクリプトを呼び出した（`api_token_store` を正しく import するため）。  
 - `sudo systemctl restart toolmgmt.service` 後、Dashboard (`http://192.168.128.102:8501`) の工具管理カードに `APIトークン: 2z-R***Sw (Station: window-a-01)` と表示され、同期ファイル欄も `[users/tool_master/tools = 2件]` を維持していることを確認。`tool_management_unavailable` は Pi5 REST が未接続のため赤字で残っており、次の作業は Pi5 `/api/v1/loans` を実データ化して UI 操作を有効化すること。
 
+### 2025-11-15 15:41 JST Pi5 Loan API 確認
+- Pi5 で `docker compose exec -T postgres psql -U app -d sensordb` を開き、`INSERT INTO loans (tool_uid, borrower_uid, loaned_at) VALUES ('t001','u001', now());` を実行しテスト貸出レコードを投入。
+- Pi4 から `curl -H "Authorization: Bearer 2z-R9t11hIB1in7XtkiI7kDpEmiHAB3s1oWN58gdjSw" http://raspi-server.local:8501/api/v1/loans` を呼び出したところ、`open_loans` / `history` に `tool_name: "ドライバーA" / borrower: "山田太郎"` が表示され 200 応答となった。
+- Dashboard の工具管理カードでも貸出中 1 件・履歴 1 件が表示され、`tool_management_unavailable` が解消。
+
+### 2025-11-15 16:02 JST 手動返却ボタン確認
+- Dashboard から貸出 ID=1 の「手動返却」を押下すると Pi5 `/api/v1/loans/1/manual_return` が 200 を返し、`return_user_uid` が `u001` で記録された。Pi5 ログにも `POST ... manual_return HTTP/1.1" 200` が出力された。
+- UI の操作ログには REST 応答をそのまま表示しているため文言が "エラー" になっているが、レスポンス内容は `{"status":"ok" ...}` であり処理は成功。今後は表示文言を調整予定。
+
+
+### 2025-11-15 16:08 JST 削除ボタン確認
+- 新たに挿入した貸出 ID=2 (`t002`/`u002`) を Dashboard の「削除」から操作すると、Pi5 `/api/v1/loans/2` DELETE が 200 を返し、ログには `{"loan_id":2,"status":"deleted","tool_name":"ドライバーB"...}` が記録された。
+- UI の操作ログは成功時も "エラー:" 表記だが、レスポンス内容は 200 のため表示文言を後日調整する予定。
+
