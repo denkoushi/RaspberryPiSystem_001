@@ -630,9 +630,7 @@
           const nfcStatus = nfcPanel.querySelector('[data-nfc-status]');
           const nfcButton = nfcPanel.querySelector('[data-nfc-scan]');
           const nfcLog = nfcPanel.querySelector('[data-nfc-log]');
-          const nfcState = {
-            borrower: null,
-          };
+          const nfcState = { borrower: null };
 
           const appendNfcLog = (message, success = true) => {
             if (!nfcLog) return;
@@ -653,52 +651,51 @@
             nfcStatus.classList.toggle('status-ok', !isError);
           };
 
-          const triggerNfcScan = async () => {
-            const performLoanCreate = async (borrowerUid, toolUid) => {
-              try {
-                const response = await fetch('/api/loans', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    [headerName]: token,
-                  },
-                  body: JSON.stringify({
-                    borrower_uid: borrowerUid,
-                    tool_uid: toolUid,
-                  }),
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                  const err = (data && data.error) || response.statusText || 'unknown';
-                  throw new Error(err);
-                }
-                appendNfcLog(`貸出登録: ${borrowerUid} -> ${toolUid} (loan_id=${data.loan_id})`, true);
-                updateNfcStatus('貸出登録に成功しました', false);
-                setResult('NFC から貸出を登録しました。', false);
-                refreshOverview();
-              } catch (error) {
-                appendNfcLog(`貸出登録エラー: ${error.message || error}`, false);
-                updateNfcStatus('貸出登録に失敗しました', true);
-                setResult(`エラー: ${error.message || error}`, true);
+          const performLoanCreate = async (borrowerUid, toolUid) => {
+            try {
+              const response = await fetch('/api/loans', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  [headerName]: token,
+                },
+                body: JSON.stringify({
+                  borrower_uid: borrowerUid,
+                  tool_uid: toolUid,
+                }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                const err = (data && data.error) || response.statusText || 'unknown';
+                throw new Error(err);
               }
-            };
+              appendNfcLog(`貸出登録: ${borrowerUid} -> ${toolUid} (loan_id=${data.loan_id})`, true);
+              updateNfcStatus('貸出登録に成功しました', false);
+              setResult('NFC から貸出を登録しました。', false);
+              refreshOverview();
+            } catch (error) {
+              appendNfcLog(`貸出登録エラー: ${error.message || error}`, false);
+              updateNfcStatus('貸出登録に失敗しました', true);
+              setResult(`エラー: ${error.message || error}`, true);
+            }
+          };
 
-            const handleScan = async () => {
-              try {
-                updateNfcStatus('スキャン待機中...', false);
-                nfcButton.disabled = true;
-                const response = await fetch('/api/scan_tag', {
-                  method: 'POST',
-                  headers: {
+          const handleScan = async () => {
+            try {
+              updateNfcStatus('スキャン待機中...', false);
+              nfcButton.disabled = true;
+              const response = await fetch('/api/scan_tag', {
+                method: 'POST',
+                headers: {
                   'Content-Type': 'application/json',
                   [headerName]: token,
                 },
               });
               const data = await response.json().catch(() => ({}));
-                if (!response.ok || (data && data.status !== 'success')) {
-                  const err = (data && data.status) || response.statusText || 'unknown';
-                  throw new Error(err);
-                }
+              if (!response.ok || (data && data.status !== 'success')) {
+                const err = (data && data.status) || response.statusText || 'unknown';
+                throw new Error(err);
+              }
               if (!nfcState.borrower) {
                 nfcState.borrower = data.uid;
                 appendNfcLog(`利用者 UID: ${data.uid}`, true);
