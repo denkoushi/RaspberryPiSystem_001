@@ -11,6 +11,7 @@ SOCKET_BROADCAST_EVENT = "scan.ingested"
 BACKLOG_DRAIN_LIMIT = 200
 BACKLOG_TABLE = "scan_ingest_backlog"
 TARGET_TABLE = "part_locations"
+LOGISTICS_JOBS_FILE = "config/logistics-jobs.sample.json"
 
 # Database connection placeholder (to be replaced with actual settings)
 [database]

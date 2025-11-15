@@ -33,3 +33,14 @@ class FileLogisticsProvider:
         else:
             items = data
         return items[: max(1, limit)]
+
+
+class JSONLogisticsProvider:
+    """Return logistics jobs from an in-memory JSON payload."""
+
+    def __init__(self, payload: dict | None = None):
+        self._payload = payload or {}
+
+    def list_jobs(self, limit: int = 100) -> Iterable[dict]:
+        items = self._payload.get("items") or []
+        return items[: max(1, limit)]

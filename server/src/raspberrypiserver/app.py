@@ -32,11 +32,10 @@ from raspberrypiserver.services import (
 )
 from raspberrypiserver.providers import (
     FileLogisticsProvider,
+    JSONLogisticsProvider,
     FileJSONProvider,
     DatabaseJSONProvider,
 )
-from raspberrypiserver.providers.plan import FileJSONProvider
-
 DEFAULT_CONFIG: Dict[str, Any] = {
     "APP_NAME": "RaspberryPiServer",
     "REST_API_PREFIX": "/api/v1",
@@ -232,7 +231,16 @@ def initialize_services(app: Flask) -> None:
     if not app.config.get("LOGISTICS_PROVIDER"):
         jobs_file = app.config.get("LOGISTICS_JOBS_FILE")
         if jobs_file:
-            app.config["LOGISTICS_PROVIDER"] = FileLogisticsProvider(jobs_file)
+            jobs_path = Path(jobs_file)
+            if not jobs_path.is_absolute():
+                jobs_path = REPO_ROOT / jobs_path
+            app.config["LOGISTICS_PROVIDER"] = FileLogisticsProvider(jobs_path)
+        elif app.config.get("LOGISTICS_JOBS"):
+            payload = app.config.get("LOGISTICS_JOBS")
+            normalized = payload
+            if isinstance(payload, list):
+                normalized = {"items": payload}
+            app.config["LOGISTICS_PROVIDER"] = JSONLogisticsProvider(normalized)
 
     dsn_for_tables = database_cfg.get("dsn", "")
     if not app.config.get("PRODUCTION_PLAN_PROVIDER"):

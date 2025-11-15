@@ -191,3 +191,38 @@ docker compose up -d
   ```
 
 > Pi Zero 連携や DocumentViewer 連携の手順・チェックリストは `docs/system/pi-zero-integration.md` と `docs/system/documentviewer-integration.md` に整理している。
+
+## 物流ジョブ API
+- `GET /api/logistics/jobs` は Pi5 側の `LOGISTICS_PROVIDER` から物流依頼一覧を返す。既定では `config/logistics-jobs.sample.json` を `FileLogisticsProvider` で読み込み、ダッシュボードの「物流依頼」カードへ表示する。
+- 実データに差し替える場合は `config/local.toml` に `LOGISTICS_JOBS_FILE="/srv/RaspberryPiSystem_001/server/config/logistics-jobs.json"` のように記載するか、`LOGISTICS_JOBS=[{...}]` を直接渡すと `JSONLogisticsProvider` が利用される。
+- レスポンス例:
+  ```json
+  {
+    "items": [
+      {
+        "job_id": "JOB-1001",
+        "part_code": "ABC-123",
+        "from_location": "STAGING-A",
+        "to_location": "LINE-1",
+        "status": "pending",
+        "requested_at": "2025-11-14T02:00:00Z",
+        "updated_at": "2025-11-14T02:00:00Z"
+      }
+    ]
+  }
+  ```
+
+## 生産計画 / 標準工数 API
+- `GET /api/v1/production-plan` と `GET /api/v1/standard-times` は以下の 2 通りのデータソースに対応している。
+  1. **JSON ファイル**: `config/local.toml` に `PRODUCTION_PLAN_FILE="/srv/.../production-plan.json"`、`STANDARD_TIMES_FILE="/srv/.../standard-times.json"` を指定すると、ファイル内容をそのまま返す。
+  2. **PostgreSQL テーブル**: `PRODUCTION_PLAN_TABLE="production_plan_entries"`、`STANDARD_TIMES_TABLE="standard_time_entries"` といったテーブル名を指定し、`[database].dsn` の DB から `payload JSONB` カラムを読み出す。
+- DB へ初期データを投入する場合は `scripts/seed_plan_tables.py` を利用する。
+  ```bash
+  cd /srv/RaspberryPiSystem_001/server
+  source .venv/bin/activate
+  python scripts/seed_plan_tables.py \
+    --dsn postgresql://app:app@localhost:15432/sensordb \
+    --truncate
+  deactivate
+  ```
+  `config/production-plan.sample.json` / `standard-times.sample.json` を編集してから実行すると、`production_plan_entries` / `standard_time_entries` テーブルへ JSON が格納される。

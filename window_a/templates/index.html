@@ -74,6 +74,26 @@
         border-radius: 6px;
         overflow-x: auto;
       }
+      .toolmgmt-log {
+        background: #f8fafc;
+        border: 1px solid #d0d7e3;
+        border-radius: 6px;
+        padding: 0.75rem;
+        max-height: 220px;
+        overflow-y: auto;
+        font-size: 0.85rem;
+      }
+      .toolmgmt-log ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .toolmgmt-log li {
+        margin-bottom: 0.35rem;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -112,6 +132,10 @@
             <span class="status-fail">未設定です。`window_a/config/window-a.env` の `WINDOW_A_API_TOKEN_HEADER` と token 発行を確認してください。</span>
           {% endif %}
         </p>
+        <p class="status-fail hidden" data-token-warning>APIトークンが未設定です。</p>
+        <p class="helper-text" data-overview-updated>
+          最終更新: {{ toolmgmt_view.fetched_at or "未取得" }}
+        </p>
         {% if toolmgmt_view.error %}
           <p class="status-fail">{{ toolmgmt_view.error }}</p>
         {% endif %}
@@ -120,6 +144,7 @@
           data-toolmgmt-actions
           data-api-token="{{ api_token_value }}"
           data-api-header="{{ api_token_header }}"
+          data-overview-url="{{ url_for('api_toolmgmt_overview') }}"
         >
           <h3>同期ファイル</h3>
           <table>
@@ -131,7 +156,7 @@
                 <th>更新日時</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody data-master-files-body>
               {% for file in toolmgmt_view.master_files %}
                 <tr>
                   <td>{{ file.filename }}</td>
@@ -150,79 +175,95 @@
           </table>
 
           <h3>貸出中リスト</h3>
-          {% if toolmgmt_view.open_loans %}
-            <table>
-              <thead>
+          <table
+            data-open-loans-table
+            class="{% if not toolmgmt_view.open_loans %}hidden{% endif %}"
+          >
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>工具名</th>
+                <th>借用者</th>
+                <th>貸出日時</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody data-open-loans-body>
+              {% for loan in toolmgmt_view.open_loans %}
                 <tr>
-                  <th>ID</th>
-                  <th>工具名</th>
-                  <th>借用者</th>
-                  <th>貸出日時</th>
-                  <th>操作</th>
+                  <td>{{ loan.id }}</td>
+                  <td>{{ loan.tool_name }}</td>
+                  <td>{{ loan.borrower_name }}</td>
+                  <td>{{ loan.loaned_at }}</td>
+                  <td>
+                    <button
+                      type="button"
+                      data-action="manual-return"
+                      data-loan-id="{{ loan.id }}"
+                    >
+                      手動返却
+                    </button>
+                    <button
+                      type="button"
+                      data-action="delete-loan"
+                      data-loan-id="{{ loan.id }}"
+                    >
+                      削除
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {% for loan in toolmgmt_view.open_loans %}
-                  <tr>
-                    <td>{{ loan.id }}</td>
-                    <td>{{ loan.tool_name }}</td>
-                    <td>{{ loan.borrower_name }}</td>
-                    <td>{{ loan.loaned_at }}</td>
-                    <td>
-                      <button
-                        type="button"
-                        data-action="manual-return"
-                        data-loan-id="{{ loan.id }}"
-                      >
-                        手動返却
-                      </button>
-                      <button
-                        type="button"
-                        data-action="delete-loan"
-                        data-loan-id="{{ loan.id }}"
-                      >
-                        削除
-                      </button>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% else %}
-            <p class="helper-text">貸出中の工具はありません。</p>
-          {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+          <p
+            data-open-loans-empty
+            class="helper-text"
+            {% if toolmgmt_view.open_loans %}style="display:none;"{% endif %}
+          >
+            貸出中の工具はありません。
+          </p>
 
           <h3>直近の貸出 / 返却履歴</h3>
-          {% if toolmgmt_view.history %}
-            <table>
-              <thead>
+          <table
+            data-history-table
+            class="{% if not toolmgmt_view.history %}hidden{% endif %}"
+          >
+            <thead>
+              <tr>
+                <th>区分</th>
+                <th>工具</th>
+                <th>利用者</th>
+                <th>貸出</th>
+                <th>返却</th>
+              </tr>
+            </thead>
+            <tbody data-history-body>
+              {% for item in toolmgmt_view.history %}
                 <tr>
-                  <th>区分</th>
-                  <th>工具</th>
-                  <th>利用者</th>
-                  <th>貸出</th>
-                  <th>返却</th>
+                  <td>{{ item.action }}</td>
+                  <td>{{ item.tool_name }}</td>
+                  <td>{{ item.borrower_name }}</td>
+                  <td>{{ item.loaned_at }}</td>
+                  <td>{{ item.returned_at or "-" }}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {% for item in toolmgmt_view.history %}
-                  <tr>
-                    <td>{{ item.action }}</td>
-                    <td>{{ item.tool_name }}</td>
-                    <td>{{ item.borrower_name }}</td>
-                    <td>{{ item.loaned_at }}</td>
-                    <td>{{ item.returned_at or "-" }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% else %}
-            <p class="helper-text">最近の履歴データはありません。</p>
-          {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+          <p
+            data-history-empty
+            class="helper-text"
+            {% if toolmgmt_view.history %}style="display:none;"{% endif %}
+          >
+            最近の履歴データはありません。
+          </p>
 
           <p data-toolmgmt-result class="helper-text">
-            操作結果はここに表示されます。リスト更新にはページ再読込が必要です。
+            操作結果はここに表示され、自動でリストが更新されます。
           </p>
+          <div class="toolmgmt-log" data-toolmgmt-log>
+            <strong>操作ログ</strong>
+            <ul></ul>
+          </div>
         </div>
       </section>
 
@@ -330,72 +371,241 @@
         if (!panel) return;
         const token = panel.dataset.apiToken;
         const headerName = panel.dataset.apiHeader || 'X-API-Token';
+        const overviewUrl = panel.dataset.overviewUrl || '';
         const statusEl = panel.querySelector('[data-toolmgmt-result]');
-        const buttons = panel.querySelectorAll('button[data-loan-id][data-action]');
+        const tokenWarning = panel.querySelector('[data-token-warning]');
+        const logList = panel.querySelector('[data-toolmgmt-log] ul');
+        const refreshDelayMs = 2000;
+        let refreshTimer = null;
 
-        const setResult = (message, isError = false) => {
-          if (!statusEl) return;
-          statusEl.textContent = message;
-          statusEl.classList.toggle('status-fail', isError);
-          statusEl.classList.toggle('status-ok', !isError);
+        const masterBody = panel.querySelector('[data-master-files-body]');
+        const openTable = panel.querySelector('[data-open-loans-table]');
+        const openBody = panel.querySelector('[data-open-loans-body]');
+        const openEmpty = panel.querySelector('[data-open-loans-empty]');
+        const historyTable = panel.querySelector('[data-history-table]');
+        const historyBody = panel.querySelector('[data-history-body]');
+        const historyEmpty = panel.querySelector('[data-history-empty]');
+        const overviewUpdated = panel.querySelector('[data-overview-updated]');
+
+        const logMessage = (message) => {
+          if (!logList) return;
+          const li = document.createElement('li');
+          const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+          li.textContent = `[${time}] ${message}`;
+          logList.prepend(li);
+          while (logList.children.length > 20) {
+            logList.removeChild(logList.lastChild);
+          }
         };
 
-        if (!buttons.length) {
-          return;
-        }
+        const toggleTokenWarning = (message, show) => {
+          if (!tokenWarning) return;
+          if (show) {
+            tokenWarning.textContent = message;
+            tokenWarning.classList.remove('hidden');
+          } else {
+            tokenWarning.classList.add('hidden');
+          }
+        };
 
-        if (!token) {
-          buttons.forEach((btn) => {
-            btn.disabled = true;
-          });
-          setResult('APIトークンが未設定のため、貸出操作は無効化されています。', true);
-          return;
-        }
+        const getActionButtons = () => panel.querySelectorAll('button[data-loan-id][data-action]');
+
+        const setResult = (message, isError = false) => {
+          if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.classList.toggle('status-fail', isError);
+            statusEl.classList.toggle('status-ok', !isError);
+          }
+          logMessage(message);
+        };
+
+        const formatDate = (value) => {
+          if (!value) {
+            return '-';
+          }
+          return value;
+        };
+
+        const formatTimestamp = (value) => {
+          if (!value) {
+            return '未取得';
+          }
+          const asDate = new Date(value);
+          if (Number.isNaN(asDate.getTime())) {
+            return value;
+          }
+          return asDate.toLocaleString('ja-JP');
+        };
+
+        const renderMasterFiles = (entries = []) => {
+          if (!masterBody) return;
+          masterBody.innerHTML = entries
+            .map(
+              (entry) => `
+                <tr>
+                  <td>${entry.filename || ''}</td>
+                  <td>${entry.label || ''}</td>
+                  <td>${entry.exists ? entry.row_count ?? '' : '<span class="status-fail">未同期</span>'}</td>
+                  <td>${entry.updated_at || '-'}</td>
+                </tr>
+              `,
+            )
+            .join('');
+        };
+
+        const renderOpenLoans = (loans = []) => {
+          if (openBody) {
+            openBody.innerHTML = loans
+              .map(
+                (loan) => `
+                  <tr>
+                    <td>${loan.id ?? ''}</td>
+                    <td>${loan.tool_name ?? ''}</td>
+                    <td>${loan.borrower_name ?? ''}</td>
+                    <td>${formatDate(loan.loaned_at)}</td>
+                    <td>
+                      <button type="button" data-action="manual-return" data-loan-id="${loan.id ?? ''}">手動返却</button>
+                      <button type="button" data-action="delete-loan" data-loan-id="${loan.id ?? ''}">削除</button>
+                    </td>
+                  </tr>
+                `,
+              )
+              .join('');
+          }
+          if (openTable) {
+            openTable.classList.toggle('hidden', loans.length === 0);
+          }
+          if (openEmpty) {
+            openEmpty.style.display = loans.length === 0 ? 'block' : 'none';
+          }
+        };
+
+        const renderHistory = (history = []) => {
+          if (historyBody) {
+            historyBody.innerHTML = history
+              .map(
+                (item) => `
+                  <tr>
+                    <td>${item.action ?? ''}</td>
+                    <td>${item.tool_name ?? ''}</td>
+                    <td>${item.borrower_name ?? ''}</td>
+                    <td>${formatDate(item.loaned_at)}</td>
+                    <td>${formatDate(item.returned_at)}</td>
+                  </tr>
+                `,
+              )
+              .join('');
+          }
+          if (historyTable) {
+            historyTable.classList.toggle('hidden', history.length === 0);
+          }
+          if (historyEmpty) {
+            historyEmpty.style.display = history.length === 0 ? 'block' : 'none';
+          }
+        };
+
+        const refreshOverview = async () => {
+          if (!overviewUrl) {
+            setResult('工具管理の更新エンドポイントが未設定です。', true);
+            return;
+          }
+          try {
+            const response = await fetch(overviewUrl);
+            const data = await response.json();
+            if (!response.ok) {
+              throw new Error((data && data.error) || response.statusText || 'unknown error');
+            }
+            renderMasterFiles(data.master_files || []);
+            renderOpenLoans(data.open_loans || []);
+            renderHistory(data.history || []);
+            if (overviewUpdated) {
+              overviewUpdated.textContent = `最終更新: ${formatTimestamp(data.fetched_at)}`;
+            }
+            bindActionButtons();
+            setResult('工具管理データを更新しました。', false);
+          } catch (error) {
+            setResult(`概要更新に失敗しました: ${error.message || error}`, true);
+          }
+        };
 
         const actionLabels = {
           'manual-return': '手動返却',
           'delete-loan': '貸出削除',
         };
 
-        buttons.forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const loanId = btn.dataset.loanId;
-            const action = btn.dataset.action;
-            if (!loanId || !action) {
-              return;
+        const handleLoanAction = async (event) => {
+          const btn = event.currentTarget;
+          const loanId = btn.dataset.loanId;
+          const action = btn.dataset.action;
+          if (!loanId || !action) {
+            return;
+          }
+
+          const endpoint =
+            action === 'manual-return'
+              ? `/api/loans/${loanId}/manual_return`
+              : `/api/loans/${loanId}`;
+          const method = action === 'manual-return' ? 'POST' : 'DELETE';
+          const label = actionLabels[action] || '操作';
+
+          btn.disabled = true;
+          setResult(`${label}を実行中...`, false);
+
+          try {
+            const response = await fetch(endpoint, {
+              method,
+              headers: {
+                'Content-Type': 'application/json',
+                [headerName]: token,
+              },
+              body: method === 'POST' ? '{}' : undefined,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              const err = (data && data.error) || response.statusText || 'unknown error';
+              throw new Error(err);
             }
-
-            const endpoint =
-              action === 'manual-return'
-                ? `/api/loans/${loanId}/manual_return`
-                : `/api/loans/${loanId}`;
-            const method = action === 'manual-return' ? 'POST' : 'DELETE';
-            const label = actionLabels[action] || '操作';
-
-            btn.disabled = true;
-            setResult(`${label}を実行中...`, false);
-
-            try {
-              const response = await fetch(endpoint, {
-                method,
-                headers: {
-                  'Content-Type': 'application/json',
-                  [headerName]: token,
-                },
-                body: method === 'POST' ? '{}' : undefined,
-              });
-              const data = await response.json().catch(() => ({}));
-              if (!response.ok) {
-                throw new Error((data && data.error) || response.statusText || 'unknown error');
-              }
-              setResult(`${label}に成功しました (loan_id=${loanId})。再読み込みで一覧を更新してください。`, false);
-            } catch (error) {
-              setResult(`エラー: ${error.message || error}`, true);
-            } finally {
-              btn.disabled = false;
+            setResult(`${label}に成功しました (loan_id=${loanId})。まもなく一覧を更新します。`, false);
+            if (refreshTimer) {
+              clearTimeout(refreshTimer);
             }
+            refreshTimer = setTimeout(() => {
+              refreshOverview();
+            }, refreshDelayMs);
+          } catch (error) {
+            setResult(`エラー: ${error.message || error}`, true);
+          } finally {
+            btn.disabled = false;
+          }
+        };
+
+        const bindActionButtons = () => {
+          const buttons = getActionButtons();
+          buttons.forEach((btn) => {
+            btn.removeEventListener('click', handleLoanAction);
+            btn.addEventListener('click', handleLoanAction);
           });
-        });
+          return buttons;
+        };
+
+        const initialButtons = bindActionButtons();
+
+        if (!token) {
+          initialButtons.forEach((btn) => {
+            btn.disabled = true;
+          });
+          toggleTokenWarning('APIトークンが未設定のため、貸出操作は無効です。', true);
+          setResult('APIトークンが未設定のため、貸出操作は無効化されています。', true);
+          return;
+        }
+
+        toggleTokenWarning('', false);
+
+        if (overviewUrl) {
+          refreshOverview();
+        } else {
+          setResult('工具管理の更新エンドポイントが未設定です。', true);
+        }
       });
     </script>
   </body>

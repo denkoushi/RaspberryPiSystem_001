@@ -117,3 +117,34 @@ def test_proxy_toolmgmt_calls_client(monkeypatch):
     assert status_code is None
     assert response.status_code == 200
     assert dummy_client.last_path == "/api/v1/loans/123"
+
+
+def test_api_toolmgmt_overview_returns_ok(monkeypatch):
+    app_flask = _get_app_module()
+    sample = {
+        "master_files": [],
+        "open_loans": [],
+        "history": [],
+        "error": None,
+        "fetched_at": "2025-11-14T00:00:00Z",
+    }
+    monkeypatch.setattr(app_flask, "build_toolmgmt_overview", lambda: sample)
+    with app_flask.app.test_client() as client:
+        resp = client.get("/api/toolmgmt/overview")
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["fetched_at"] == sample["fetched_at"]
+    assert payload["master_files"] == []
+
+
+def test_api_toolmgmt_overview_returns_503_on_error(monkeypatch):
+    app_flask = _get_app_module()
+
+    def fake_overview():
+        return {"error": "raspi_offline"}
+
+    monkeypatch.setattr(app_flask, "build_toolmgmt_overview", fake_overview)
+    with app_flask.app.test_client() as client:
+        resp = client.get("/api/toolmgmt/overview")
+    assert resp.status_code == 503
+    assert resp.get_json()["error"] == "raspi_offline"

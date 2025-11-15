@@ -256,6 +256,7 @@ def build_toolmgmt_overview(limit_open: int = 20, limit_history: int = 20):
         "open_loans": [],
         "history": [],
         "error": None,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
     client = _create_raspi_client()
     if not client.is_configured():
@@ -1314,6 +1315,14 @@ def manual_return_loan(loan_id):
 
     log_api_action("manual_return", detail={"loan_id": loan_id})
     return jsonify(response)
+
+
+@app.route('/api/toolmgmt/overview', methods=['GET'])
+def api_toolmgmt_overview():
+    """Return the latest tool management overview for AJAX refresh."""
+    overview = build_toolmgmt_overview()
+    status = 503 if overview.get("error") else 200
+    return jsonify(overview), status
 
 @app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
 @require_api_token("delete_open_loan")
