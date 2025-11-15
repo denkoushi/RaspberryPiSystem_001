@@ -570,4 +570,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - `window_a/config/window-a.env` に `WINDOW_A_API_TOKEN_HEADER` / `WINDOW_A_API_TOKEN_FILE` / `API_TOKEN_ENFORCE=1` を追記し、`toolmgmt.service` 再起動後に Dashboard の工具管理カードで API トークンがマスク表示され、貸出操作が有効化された。
 - `docs/system/window-a-toolmgmt.md` へ日次運用チェックリスト（TM-DIST 同期→ importer → Dashboard 確認 → トークン管理）を追加して手順化。
 
+### 2025-11-15 14:45 JST Pi4 でのトークン発行・サービス再起動
+- Pi4 (`tools02`) で `git pull` → `window_a/scripts/manage_api_tokens.py issue window-a-01 --note "initial"` を実行し、`/home/tools02/RaspberryPiSystem_001/window_a/config/api_tokens.json` にトークン `2z-R9t11hIB1in7XtkiI7kDpEmiHAB3s1oWN58gdjSw` を発行。`PYTHONPATH=.` を指定してスクリプトを呼び出した（`api_token_store` を正しく import するため）。  
+- `sudo systemctl restart toolmgmt.service` 後、Dashboard (`http://192.168.128.102:8501`) の工具管理カードに `APIトークン: 2z-R***Sw (Station: window-a-01)` と表示され、同期ファイル欄も `[users/tool_master/tools = 2件]` を維持していることを確認。`tool_management_unavailable` は Pi5 REST が未接続のため赤字で残っており、次の作業は Pi5 `/api/v1/loans` を実データ化して UI 操作を有効化すること。
 

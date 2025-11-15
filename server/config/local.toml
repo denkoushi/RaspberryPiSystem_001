@@ -8,3 +8,16 @@ STANDARD_TIMES_FILE = "/srv/RaspberryPiSystem_001/server/config/standard-times.s
 
 [database]
 dsn = "postgresql://app:app@localhost:15432/sensordb"
+
+[api]
+token = "raspi-token-20251027"
+
+[documentviewer]
+docs_dir = "/srv/rpi-server_legacy_20251110/documents"
+api_token = "raspi-token-20251027"
+cors_origins = ["http://raspi-server.local:8501"]
+socketio_cors_origins = ["http://raspi-server.local:8501"]
+
+[tool_management]
+enabled = true
+dsn = "postgresql://app:app@localhost:15432/sensordb"
