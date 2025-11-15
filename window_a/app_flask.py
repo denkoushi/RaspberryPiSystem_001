@@ -43,8 +43,11 @@ from db_config import build_db_config, apply_env_file
 # 基本設定
 # =========================
 ENV_FILE = (Path(__file__).resolve().parent / "config" / "window-a.env").resolve()
-if ENV_FILE.exists():
-    apply_env_file(str(ENV_FILE))
+if ENV_FILE.exists() and not os.getenv("PYTEST_CURRENT_TEST"):
+    from os import environ
+
+    applied = apply_env_file(str(ENV_FILE), environ)
+    environ.update(applied)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
