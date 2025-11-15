@@ -15,6 +15,16 @@ from flask import Flask, render_template, request, jsonify, has_request_context
 from flask_socketio import SocketIO, emit
 import psycopg
 from smartcard.CardRequest import CardRequest
+try:
+    from smartcard.CardType import AnyCardType
+except Exception:  # pragma: no cover - tests provide stub without CardType
+    AnyCardType = None
+try:
+    from smartcard.Exceptions import NoCardException
+except Exception:  # pragma: no cover - fallback when smartcard not installed
+    class NoCardException(Exception):
+        """Stub exception used when pyscard is not installed."""
+
 from smartcard.util import toHexString
 import os
 import subprocess
@@ -881,20 +891,37 @@ def delete_open_loan(conn, loan_id):
 # NFCスキャン機能
 # =========================
 def read_one_uid(timeout=3):
-    """NFCタグを読み取り"""
-    try:
-        cs = CardRequest(timeout=timeout, newcardonly=True).waitforcard()
-        if cs is None:
+    """NFCタグを読み取り（新規カード優先、検出済みカードにもフォールバック）"""
+
+    def _build_request(newcardonly: bool):
+        kwargs = {
+            "timeout": timeout,
+            "newcardonly": newcardonly,
+        }
+        if AnyCardType:
+            try:
+                kwargs["cardType"] = AnyCardType()
+            except Exception as exc:  # pylint: disable=broad-except
+                print(f"[NFC] AnyCardType 初期化に失敗: {exc}")
+        return CardRequest(**kwargs)
+
+    for newcardonly in (True, False):
+        try:
+            cs = _build_request(newcardonly).waitforcard()
+            if cs is None:
+                continue
+            cs.connection.connect()
+            data, sw1, sw2 = cs.connection.transmit(GET_UID)
+            cs.connection.disconnect()
+            if ((sw1 << 8) | sw2) == 0x9000 and data:
+                return toHexString(data).replace(" ", "")
+        except NoCardException:
             return None
-        cs.connection.connect()
-        data, sw1, sw2 = cs.connection.transmit(GET_UID)
-        cs.connection.disconnect()
-        if ((sw1 << 8) | sw2) == 0x9000 and data:
-            return toHexString(data).replace(" ", "")
-    except Exception as e:
-        # タイムアウトエラーは表示しない（正常動作）
-        if "Time-out" not in str(e) and "Command timeout" not in str(e):
-            print(f"スキャンエラー: {e}")
+        except Exception as exc:  # pylint: disable=broad-except
+            # タイムアウトは正常動作なので黙殺、その他はログに出す
+            if "Time-out" in str(exc) or "Command timeout" in str(exc):
+                continue
+            print(f"[NFC] スキャンエラー (newcardonly={newcardonly}): {exc}")
     return None
 
 def scan_monitor():

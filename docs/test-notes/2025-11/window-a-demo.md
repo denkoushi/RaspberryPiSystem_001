@@ -604,3 +604,28 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-15 16:45 JST Pi Zero ハンディ再確認
 - tools01 のハンディ端末で A/B バーコードをスキャンし、電子ペーパーが DONE 表示＋ Pi5 `/api/v1/scans` / `/api/v1/part-locations` に反映されることを確認。Pi Zero の `handheld@tools01.service` ログに `[SERIAL] scanner ready` → `Posting payload` → `HTTP 202` が出ること、Window A Dashboard の所在一覧が Socket.IO で更新されたことを記録。
 
+### 2025-11-15 18:35 JST Pi4 NFC スキャン再調査
+- Pi4 (tools02) で NFC リーダー（SONY FeliCa RC-S300/S）が無反応だったため、`pcsc-tools` を導入し `pcsc_scan` でタグの挿抜イベントと ATR を取得できることを確認。  
+  ```bash
+  sudo apt install -y pcsc-tools pcscd
+  sudo systemctl enable --now pcscd
+  pcsc_scan   # Reader 0 にカード挿入で ATR が 3B 8F ... と表示される
+  ```
+- `window_a/.venv` で `pyscard` が利用できることを確認した上で、以下のワンライナーを実行すると UID (`04 C3 62 E1 ...`) が取得でき、ハードウェア/pcscd は正常に動作していると判定。
+  ```bash
+  cd ~/RaspberryPiSystem_001/window_a
+  source .venv/bin/activate
+  python - <<'PY'
+  from smartcard.CardRequest import CardRequest
+  from smartcard.CardType import AnyCardType
+  from smartcard.util import toHexString
+  svc = CardRequest(timeout=10, cardType=AnyCardType()).waitforcard()
+  svc.connection.connect()
+  data, sw1, sw2 = svc.connection.transmit([0xFF, 0xCA, 0x00, 0x00, 0x00])
+  print("UID:", toHexString(data), "SW:", hex((sw1 << 8) | sw2))
+  svc.connection.disconnect()
+  PY
+  deactivate
+  ```
+- Dashboard の「NFC でスキャン」は `/api/scan_tag` → `read_one_uid(timeout=5)` を呼ぶが、従来コードは `newcardonly=True` の単発待機だったため、ボタンを押す前からリーダーにタグを置いていると常に `status=timeout` になっていた。`window_a/app_flask.py` の `read_one_uid()` を修正し、`AnyCardType()` でのカード種別明示と `newcardonly=True/False` の二段階待機（既に載っているカードも拾うフォールバック）を実装。
+- `docs/system/window-a-toolmgmt.md` 14章「Pi4 NFC リーダー運用チェック」に pcscd/pcsc-tools の導入手順と上記ワンライナーを追記。今後は Dashboard 操作前に `pcsc_scan` が停止していること、`journalctl -u toolmgmt.service -n 40 | grep -E "scan_tag|NFC"` と `window_a/logs/api_actions.log` で `status=success` が並ぶことを運用チェックへ追加する。

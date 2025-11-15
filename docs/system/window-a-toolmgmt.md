@@ -282,10 +282,26 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
    - 旧システムで提供していた機能（所在一覧、物流依頼、標準工数、DocumentViewer 連携、TM-DIST 配布）はすべて `docs/system/next-steps.md` にタスクとして残っているか確認し、欠落している場合は追記する。
 
 ### 14.1 Pi4 NFC リーダー運用チェック
-1. `sudo systemctl status pcscd` で PC/SC サービスが起動しているかを確認。停止している場合は `sudo systemctl enable --now pcscd`。
+1. `sudo systemctl status pcscd` で PC/SC サービスが起動しているかを確認。停止している場合は `sudo systemctl enable --now pcscd`。初回セットアップ時は `sudo apt install pcsc-tools` を入れて `pcsc_scan` でリーダー/タグ検出を可視化しておく。
 2. `window_a/config/window-a.env` の `ENABLE_LOCAL_SCAN=1` を維持し、`toolmgmt.service` を再起動する。  
-3. Dashboard の工具管理セクションにある「カードをかざす」ボタンを押すと `/api/scan_tag`→`read_one_uid()` が実行される。利用者タグ→工具タグの順でスキャンし、Pi5 `/api/v1/loans` に貸出を送るフローを旧 RUNBOOK と同じ手順で確認する。  
-4. `journalctl -u toolmgmt.service -n 40 | grep NFC` や `window_a/api_actions.log` で UID が記録されていることを確認する。
+3. Dashboard の工具管理セクションにある「カードをかざす」ボタンを押すと `/api/scan_tag`→`read_one_uid()` が実行される。`read_one_uid()` は `AnyCardType()` で PC/SC リーダーを掴み、まず新規カード（`newcardonly=True`）を待機し、タイムアウト後は既にリーダー上に置かれているカードも読み取るフォールバックを行う。利用者タグ→工具タグの順でスキャンし、Pi5 `/api/v1/loans` に貸出を送るフローを旧 RUNBOOK と同じ手順で確認する。  
+4. スキャンに反応しない場合は `pcsc_scan` や下記 Python ワンライナーで UID が取得できるか確認し、`journalctl -u toolmgmt.service -n 40 | grep -E "scan_tag|NFC"` と `window_a/logs/api_actions.log` で `status=success` が並ぶかを必ずチェックする。
+   ```bash
+   cd ~/RaspberryPiSystem_001/window_a
+   source .venv/bin/activate
+   python - <<'PY'
+   from smartcard.CardRequest import CardRequest
+   from smartcard.CardType import AnyCardType
+   from smartcard.util import toHexString
+   req = CardRequest(timeout=10, cardType=AnyCardType())
+   svc = req.waitforcard()
+   svc.connection.connect()
+   data, sw1, sw2 = svc.connection.transmit([0xFF, 0xCA, 0x00, 0x00, 0x00])
+   print("UID:", toHexString(data), hex((sw1 << 8) | sw2))
+   svc.connection.disconnect()
+   PY
+   deactivate
+   ```
 
 ### 14.2 DocumentViewer + USB バーコード
 1. Pi4 には USB バーコードリーダーを常時接続し、DocumentViewer (`document_viewer/app/viewer.py`) がフォーカスを保持していることを確認する。  
