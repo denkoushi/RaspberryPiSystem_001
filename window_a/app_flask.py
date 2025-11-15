@@ -36,12 +36,16 @@ from raspi_client import (
     RaspiServerClientError,
     RaspiServerConfigError,
 )
-from db_config import build_db_config
+from db_config import build_db_config, apply_env_file
 
 
 # =========================
 # 基本設定
 # =========================
+ENV_FILE = (Path(__file__).resolve().parent / "config" / "window-a.env").resolve()
+if ENV_FILE.exists():
+    apply_env_file(str(ENV_FILE))
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 def _resolve_doc_viewer_url() -> str:
