@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 
-from raspberrypiserver.services import LoanNotFoundError, ToolManagementService
+from raspberrypiserver.services import (
+    LoanNotFoundError,
+    ToolManagementError,
+    ToolManagementService,
+)
 
 toolmgmt_bp = Blueprint("tool_management", __name__)
 
@@ -43,6 +47,28 @@ def _loans_response():
 @toolmgmt_bp.get("/api/v1/loans")
 def api_loans_list():
     return _loans_response()
+
+
+@toolmgmt_bp.post("/api/loans")
+@toolmgmt_bp.post("/api/v1/loans")
+def api_loans_create():
+    service = _get_service()
+    if not service:
+        return jsonify({"error": "tool_management_unavailable"}), 503
+    payload = request.get_json(silent=True) or {}
+    borrower_uid = str(payload.get("borrower_uid") or "").strip()
+    tool_uid = str(payload.get("tool_uid") or "").strip()
+    if not borrower_uid or not tool_uid:
+        return jsonify({"error": "borrower_uid and tool_uid are required"}), 400
+    try:
+        result = service.create_loan(borrower_uid=borrower_uid, tool_uid=tool_uid)
+    except ToolManagementError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
+    return jsonify(result), 201
 
 
 def _manual_return_response(loan_id: int):

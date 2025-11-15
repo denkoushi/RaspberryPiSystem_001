@@ -95,6 +95,38 @@ class ToolManagementService:
             for row in rows
         ]
 
+    def create_loan(self, borrower_uid: str, tool_uid: str) -> dict:
+        """Create a new open loan record."""
+        self._ensure_dsn()
+        borrower = (borrower_uid or "").strip()
+        tool = (tool_uid or "").strip()
+        if not borrower or not tool:
+            raise ValueError("borrower_uid and tool_uid are required")
+
+        check_query = sql.SQL(
+            "SELECT id FROM loans WHERE tool_uid=%s AND returned_at IS NULL"
+        )
+        insert_query = sql.SQL(
+            """
+            INSERT INTO loans (tool_uid, borrower_uid, loaned_at)
+            VALUES (%s, %s, NOW())
+            RETURNING id, loaned_at
+            """
+        )
+        with self.connect(self.dsn) as conn, conn.cursor() as cur:
+            cur.execute(check_query, (tool,))
+            if cur.fetchone():
+                raise ToolManagementError("loan_already_open")
+            cur.execute(insert_query, (tool, borrower))
+            row = cur.fetchone()
+        return {
+            "loan_id": row[0],
+            "tool_uid": tool,
+            "borrower_uid": borrower,
+            "loaned_at": _format_dt(row[1]),
+            "status": "open",
+        }
+
     def manual_return(self, loan_id: int) -> dict:
         self._ensure_dsn()
         if loan_id is None:

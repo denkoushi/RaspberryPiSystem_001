@@ -1324,6 +1324,29 @@ def manual_return_loan(loan_id):
     return jsonify(response)
 
 
+@app.route('/api/loans', methods=['POST'])
+@require_api_token("create_loan")
+def api_create_loan():
+    payload = request.get_json(silent=True) or {}
+    raw_response, error_resp, status_code = _proxy_toolmgmt_request(
+        "POST",
+        "/api/v1/loans",
+        json=payload,
+        allow_statuses=(400,),
+    )
+    if error_resp is not None:
+        return error_resp, status_code
+
+    try:
+        body = raw_response.json()
+    except ValueError:
+        log_api_action("create_loan", status="error", detail={"error": "invalid_response"})
+        return jsonify({"error": "invalid_response"}), 502
+
+    log_api_action("create_loan", detail={"tool_uid": body.get("tool_uid"), "loan_id": body.get("loan_id")})
+    return jsonify(body), raw_response.status_code
+
+
 @app.route('/api/toolmgmt/overview', methods=['GET'])
 def api_toolmgmt_overview():
     """Return the latest tool management overview for AJAX refresh."""

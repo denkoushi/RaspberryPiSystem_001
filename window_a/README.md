@@ -93,6 +93,18 @@ Pi4（Window A）で稼働する Flask ベースのダッシュボードと補�
   `list --reveal` を指定すると完全なトークン値を表示できる。既存トークンを残したまま新規発行したい場合は `--keep-existing` を付与する。
   `toolmgmt.service` を再起動すると Dashboard にトークンのマスク値・ステーション ID が表示され、貸出操作ボタンが有効になる。
 
+### NFC スキャン（Pi4）
+- Dashboard の「NFC でスキャン」ボタンを押すと `scan_tag()` が PC/SC リーダーから UID を取得し、利用者タグ→工具タグの順で読み取った後に Pi5 `/api/v1/loans` へ貸出登録を行う。  
+- 前提: `sudo systemctl enable --now pcscd` で PC/SC サービスを有効化し、`config/window-a.env` で `ENABLE_LOCAL_SCAN=1` に設定。  
+- テスト方法: Pi4 で `pcsc_scan` を実行してタグを読み取れることを確認 → Dashboard を開き、利用者タグ・工具タグの順でスキャン。Pi5 `/api/v1/loans` に貸出が追加される。  
+- ログ確認: `journalctl -u toolmgmt.service -n 40 | grep NFC` や `window_a/api_actions.log` で UID と操作結果を確認する。
+
+### DocumentViewer + USB バーコード
+- DocumentViewer (`document_viewer/README.md`) に USB 接続のバーコードリーダーを常時挿し、右ペイン iframe の入力欄へフォーカスを固定する。  
+- TM-DIST から配布された PDF は `document-importer.sh`（`/usr/local/bin`）経由で `/srv/RaspberryPiSystem_001/document_viewer/docviewer/` に配置される。  
+- バーコード読み取り → DocumentViewer が該当 PDF を全画面表示 → Dashboard の DocumentViewer パネルで `ONLINE` が表示されることを確認。  
+- ログ: `/var/log/document-viewer/importer.log` や `docs/test-handbook.md` の手順に従って定期的に記録する。
+
 ## Pi5 連携（工具管理 API）
 - Pi5 側で `server/config/local.toml` の `[tool_management] enabled = true` に設定し、Pi4 と同じ PostgreSQL を参照させる。  
 - Window A は `RASPI_SERVER_BASE`／`RASPI_SERVER_API_TOKEN` を用いて `/api/v1/loans`（互換 `/api/loans`）および手動返却・削除 API を呼び出す。`manual_return`／`delete_open_loan` エンドポイントはすべて Pi5 REST を経由し、ローカル DB には直接触れない。  

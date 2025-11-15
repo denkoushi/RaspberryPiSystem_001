@@ -90,3 +90,43 @@ def test_tool_loans_delete_route() -> None:
 
     assert resp.status_code == 200
     assert resp.get_json()["status"] == "deleted"
+
+
+def test_tool_loans_create_route() -> None:
+    app = create_app()
+
+    class FakeService:
+        def __init__(self):
+            self.last_args = None
+
+        def create_loan(self, borrower_uid, tool_uid):
+            self.last_args = (borrower_uid, tool_uid)
+            return {"loan_id": 10, "status": "open"}
+
+    app.config["TOOLMGMT_SERVICE"] = FakeService()
+    client: FlaskClient = app.test_client()
+
+    resp = client.post(
+        "/api/v1/loans",
+        json={"borrower_uid": "u001", "tool_uid": "t001"},
+    )
+
+    assert resp.status_code == 201
+    data = resp.get_json()
+    assert data["loan_id"] == 10
+    assert app.config["TOOLMGMT_SERVICE"].last_args == ("u001", "t001")
+
+
+def test_tool_loans_create_requires_fields() -> None:
+    app = create_app()
+
+    class FakeService:
+        def create_loan(self, borrower_uid, tool_uid):  # noqa: ARG002
+            raise AssertionError("should not be called")
+
+    app.config["TOOLMGMT_SERVICE"] = FakeService()
+    client: FlaskClient = app.test_client()
+
+    resp = client.post("/api/loans", json={})
+
+    assert resp.status_code == 400

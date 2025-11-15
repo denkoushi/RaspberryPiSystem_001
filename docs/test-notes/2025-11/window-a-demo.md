@@ -574,6 +574,10 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - Pi4 (`tools02`) で `git pull` → `window_a/scripts/manage_api_tokens.py issue window-a-01 --note "initial"` を実行し、`/home/tools02/RaspberryPiSystem_001/window_a/config/api_tokens.json` にトークン `2z-R9t11hIB1in7XtkiI7kDpEmiHAB3s1oWN58gdjSw` を発行。`PYTHONPATH=.` を指定してスクリプトを呼び出した（`api_token_store` を正しく import するため）。  
 - `sudo systemctl restart toolmgmt.service` 後、Dashboard (`http://192.168.128.102:8501`) の工具管理カードに `APIトークン: 2z-R***Sw (Station: window-a-01)` と表示され、同期ファイル欄も `[users/tool_master/tools = 2件]` を維持していることを確認。`tool_management_unavailable` は Pi5 REST が未接続のため赤字で残っており、次の作業は Pi5 `/api/v1/loans` を実データ化して UI 操作を有効化すること。
 
+
+### 2025-11-15 16:35 JST Pi4 NFC スキャン試験
+- Pi4 Window A で `pcscd` 起動状態を確認し、Dashboard の「NFC でスキャン」ボタンから利用者タグ/工具タグを読み取れることを確認。`journalctl -u toolmgmt.service | grep NFC` に `📡 NFCスキャン監視スレッド開始` と UID を記録。Pi5 `/api/v1/loans` に貸出が追加されることを再確認した。
+
 ### 2025-11-15 15:41 JST Pi5 Loan API 確認
 - Pi5 で `docker compose exec -T postgres psql -U app -d sensordb` を開き、`INSERT INTO loans (tool_uid, borrower_uid, loaned_at) VALUES ('t001','u001', now());` を実行しテスト貸出レコードを投入。
 - Pi4 から `curl -H "Authorization: Bearer 2z-R9t11hIB1in7XtkiI7kDpEmiHAB3s1oWN58gdjSw" http://raspi-server.local:8501/api/v1/loans` を呼び出したところ、`open_loans` / `history` に `tool_name: "ドライバーA" / borrower: "山田太郎"` が表示され 200 応答となった。
@@ -587,4 +591,16 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-15 16:08 JST 削除ボタン確認
 - 新たに挿入した貸出 ID=2 (`t002`/`u002`) を Dashboard の「削除」から操作すると、Pi5 `/api/v1/loans/2` DELETE が 200 を返し、ログには `{"loan_id":2,"status":"deleted","tool_name":"ドライバーB"...}` が記録された。
 - UI の操作ログは成功時も "エラー:" 表記だが、レスポンス内容は 200 のため表示文言を後日調整する予定。
+
+
+### 2025-11-15 16:40 JST DocumentViewer + バーコード確認
+- TM-DIST で配布した PDF を `document-importer.sh` で `/srv/RaspberryPiSystem_001/document_viewer/docviewer/` へ展開し、Pi4 DocumentViewer のバーコード入力欄をフォーカスさせた状態で移動票バーコードを読み取り。対応する PDF が即時表示され、Dashboard の DocumentViewer パネルが `ONLINE` / `Socket: LIVE` になっていることを確認した。
+
+
+
+### 2025-11-15 16:55 JST NFC から貸出登録
+- Pi4 Dashboard の「NFC でスキャン」ボタンから利用者タグ（u003）→工具タグ（t003）を順に読み取り、Window A が Pi5 `/api/v1/loans` へ `POST` して貸出 ID=11 を作成できることを確認。操作ログ・Pi5 `journalctl -u raspi-server.service | grep "/api/v1/loans"` で 201 応答を記録。
+
+### 2025-11-15 16:45 JST Pi Zero ハンディ再確認
+- tools01 のハンディ端末で A/B バーコードをスキャンし、電子ペーパーが DONE 表示＋ Pi5 `/api/v1/scans` / `/api/v1/part-locations` に反映されることを確認。Pi Zero の `handheld@tools01.service` ログに `[SERIAL] scanner ready` → `Posting payload` → `HTTP 202` が出ること、Window A Dashboard の所在一覧が Socket.IO で更新されたことを記録。
 

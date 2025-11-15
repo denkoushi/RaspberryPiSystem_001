@@ -82,6 +82,7 @@
 - Pi4 (tools02) では `tool-dist-sync.sh`・`document-importer.sh` が `/usr/local/bin` にあり、`document-importer.service`・`document-viewer.service` が `~/RaspberryPiSystem_001` を WorkingDirectory として起動中。
 - Pi5 側の Pi5→USB 出力は §2 で検証済み（`scripts/server/toolmaster/install_usb_services.sh` を適用済み）。
 - Window A/DocumentViewer の `.env` が最新 (`document_viewer/config/docviewer.env`)。
+- USB バーコードリーダーで移動票を読み取り、DocumentViewer が該当 PDF を即時表示することを確認し、ログを docs/test-notes に記録する。
 
 ### 手順
 1. **Pi5 で TM-DIST を作成（再実行）**

@@ -261,3 +261,39 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
 5. **貸出操作のスポット確認**  
    - Pi5 DB へテスト貸出（例: `INSERT INTO loans (tool_uid, borrower_uid, loaned_at) VALUES ('t001','u001',now());`）を投入し、Pi4 Dashboard の「手動返却」/「削除」を実行する。  
    - `sudo journalctl -u raspi-server.service -n 20 --no-pager | grep loans` で REST が HTTP 200 を返していることを確認し、`docs/test-notes/2025-11/window-a-demo.md` に操作ログを残す。
+
+## 14. 旧 Window A / ハンディの要件整理
+旧 `tool-management-system02` で実装されていた入出力デバイスとフローを再確認し、新構成で見落としがないよう要件を明文化する。
+
+1. **Pi4 (Window A) NFC リーダー**  
+   - `window_a/app_flask.py` の `scan_tag()` / `read_one_uid()` で PC/SC リーダーから UID を取得し、利用者タグ・工具タグを順番に読み取る設計になっている。  
+   - Dashboard からの貸出 UI では「ユーザー → 工具」の順に NFC を読ませ、Pi5 `/api/v1/loans` へ貸出レコードを送ることが旧システムの要件。新構成でも NFC リーダーを Pi4 に直結して運用できるよう、UI から `scan_tag` API を呼び出す経路を残す。
+
+2. **Pi4 DocumentViewer + USB バーコードリーダー**  
+   - `document_viewer/README.md` で定義されている通り、DocumentViewer は USB バーコードスキャナから移動票バーコードを受信すると対応する PDF を全画面表示する。Pi4 Window A は右ペインで DocumentViewer を iframe 表示し、バーコード入力欄が常にフォーカスされた状態を保つ。  
+   - TM-DIST の PDF を `document-importer.sh` → `/srv/RaspberryPiSystem_001/document_viewer/docviewer/` へ配布し、Window A ユーザーがバーコードをスキャンするだけで作業要領書が切り替わるという前提を必ず維持する。
+
+3. **Pi Zero 2 W（tools01）電子ペーパー ハンディ**  
+   - `docs/system/pi-zero-integration.md` や `docs/test-notes/2025-11/pi-zero-test-plan.md` に記録されている通り、Pi Zero はバーコード A（注文）→B（棚）の順でスキャンし、電子ペーパーへ結果を表示した上で Pi5 `/api/v1/scans` に送信する。  
+   - ハンディではシリアルスキャナ/電子ペーパー制御、キューイング（`scan_queue.db`）、drain-only モードなど旧ロジックが多数存在するため、Window A 側の貸出 UI だけでなく Pi Zero とのエンドツーエンド動作を要件に含める。
+
+4. **共通要件**  
+   - README.md および `docs/architecture.md` の通り、Window A は DocViewer/NFC/USB など現場端末の集約点であり、Pi5 は API/Socket/DB の単一ハブ、Pi Zero はハンディ送信専用という役割分担を崩さない。  
+   - 旧システムで提供していた機能（所在一覧、物流依頼、標準工数、DocumentViewer 連携、TM-DIST 配布）はすべて `docs/system/next-steps.md` にタスクとして残っているか確認し、欠落している場合は追記する。
+
+### 14.1 Pi4 NFC リーダー運用チェック
+1. `sudo systemctl status pcscd` で PC/SC サービスが起動しているかを確認。停止している場合は `sudo systemctl enable --now pcscd`。
+2. `window_a/config/window-a.env` の `ENABLE_LOCAL_SCAN=1` を維持し、`toolmgmt.service` を再起動する。  
+3. Dashboard の工具管理セクションにある「カードをかざす」ボタンを押すと `/api/scan_tag`→`read_one_uid()` が実行される。利用者タグ→工具タグの順でスキャンし、Pi5 `/api/v1/loans` に貸出を送るフローを旧 RUNBOOK と同じ手順で確認する。  
+4. `journalctl -u toolmgmt.service -n 40 | grep NFC` や `window_a/api_actions.log` で UID が記録されていることを確認する。
+
+### 14.2 DocumentViewer + USB バーコード
+1. Pi4 には USB バーコードリーダーを常時接続し、DocumentViewer (`document_viewer/app/viewer.py`) がフォーカスを保持していることを確認する。  
+2. TM-DIST で配布された PDF は `document-importer.sh` により `/srv/RaspberryPiSystem_001/document_viewer/docviewer/` へ配置される。`document_viewer/README.md` のコマンドを参考に importer ログ (`/var/log/document-viewer/importer.log`) を確認。  
+3. バーコードを読み取ると右ペインの iframe で該当 PDF が表示され、Window A ダッシュボードの DocumentViewer パネルにステータス `ONLINE` が表示されることをチェック。  
+4. このフローを `docs/test-handbook.md` の USB セクションに沿って定期的にテストし、`docs/test-notes/2025-11/window-a-demo.md` に結果を残す。
+
+### 14.3 Pi Zero ハンディ／電子ペーパー
+1. Pi Zero (tools01) では `handheld/` モジュールを `~/RaspberryPiSystem_001` に配置し、`handheld@tools01.service` が正常にシリアルスキャナを制御することを `docs/system/pi-zero-integration.md` の手順で確認する。  
+2. バーコード A/B スキャンで電子ペーパーが `[OK]` 表示になり、Pi5 `/api/v1/scans` にデータが届くか `curl` や `server/logs/app.log` をチェック。  
+3. Window A Dashboard / DocumentViewer / part_locations がこのスキャン結果で更新されることを e2e で検証し、`docs/system/next-steps.md` にタスクとして残しておく。
