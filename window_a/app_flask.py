@@ -1359,7 +1359,7 @@ def api_create_loan():
         "POST",
         "/api/v1/loans",
         json=payload,
-        allow_statuses=(400,),
+        allow_statuses=(201, 400),
     )
     if error_resp is not None:
         return error_resp, status_code
