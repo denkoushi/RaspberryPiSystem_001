@@ -59,13 +59,13 @@ Pi4（Window A）で稼働する Flask ベースのダッシュボードと補�
   3. 取り込み件数が `users/tool_master/tools` それぞれで表示される。必要に応じて `--truncate` で既存テーブルをクリアしてから再取り込みできる。
   4. 取り込み結果は Dashboard の「工具管理」カードに表示する予定のため、同期日時や件数は `docs/test-notes/2025-11/window-a-demo.md` に記録しておく。
 - **設定ファイル**
-  - `window_a/config/window-a.env` の主要項目（`window_a/config/window-a.env.sample` をコピーして作成）:  
-    ```
-    RASPI_SERVER_BASE=http://raspi-server.local:8501
-    RASPI_SERVER_API_TOKEN=raspi-token-XXXX
-    DOCUMENT_VIEWER_URL=http://127.0.0.1:5000
-    DATABASE_URL=postgresql://app:app@raspi-server.local:15432/sensordb
-    ```
+- `window_a/config/window-a.env` の主要項目（`window_a/config/window-a.env.sample` をコピーして作成）:  
+  ```
+  RASPI_SERVER_BASE=http://raspi-server.local:8501
+  RASPI_SERVER_API_TOKEN=raspi-token-XXXX
+  DOCUMENT_VIEWER_URL=http://127.0.0.1:5000
+  DATABASE_URL=postgresql://app:app@raspi-server.local:15432/sensordb
+  ```
   - systemd の override (`/etc/systemd/system/toolmgmt.service.d/window-a.conf`) で  
     `EnvironmentFile=/home/tools02/RaspberryPiSystem_001/window_a/config/window-a.env` を読み込む。
 - **systemd サービス例**
@@ -79,6 +79,19 @@ Pi4（Window A）で稼働する Flask ベースのダッシュボードと補�
   Restart=on-failure
   ```
   - 変更後は `sudo systemctl daemon-reload && sudo systemctl restart toolmgmt.service` を忘れずに実行する。
+
+### API トークン管理
+- 工具管理カードや REST API（`/api/tokens`, `/api/plan/refresh` など）は `X-API-Token` ヘッダーによる簡易認証を利用する。Pi4 では `window_a/config/api_tokens.json` にトークンを保存し、`window_a/config/window-a.env` から `WINDOW_A_API_TOKEN_HEADER` / `WINDOW_A_API_TOKEN_FILE` を参照する。
+- CLI で発行・一覧を行う場合は次のスクリプトを使用する。  
+  ```bash
+  cd ~/RaspberryPiSystem_001/window_a
+  source .venv/bin/activate
+  python scripts/manage_api_tokens.py issue window-a-01 --note "初期発行"
+  python scripts/manage_api_tokens.py list
+  deactivate
+  ```
+  `list --reveal` を指定すると完全なトークン値を表示できる。既存トークンを残したまま新規発行したい場合は `--keep-existing` を付与する。
+  `toolmgmt.service` を再起動すると Dashboard にトークンのマスク値・ステーション ID が表示され、貸出操作ボタンが有効になる。
 
 ## Pi5 連携（工具管理 API）
 - Pi5 側で `server/config/local.toml` の `[tool_management] enabled = true` に設定し、Pi4 と同じ PostgreSQL を参照させる。  

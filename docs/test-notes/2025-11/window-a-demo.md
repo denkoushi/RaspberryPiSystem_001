@@ -559,3 +559,15 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   - 併せて `/etc/hosts` を新 LAN の IP に更新し、以後も IP が変わるたびに更新する運用をチェックリスト化。
 - Dashboard は `http://192.168.128.102:8501` で再表示され、DocumentViewer/物流/生産計画カードも正常。Tool Management カードは CSV が空のため件数 0 表示だが、API トークン未設定で意図どおりの文言になっている。
 - 上記の切り分け手順と再発防止策を `docs/system/window-a-toolmgmt.md` の「12. Pi4 ↔ Pi5 ネットワーク / DB チェックリスト」に反映済み。LAN 切替え時は必ず同節の手順に従うこと。
+
+### 2025-11-15 13:30 JST Tool Master サンプル CSV インポート
+- Pi5 `/srv/RaspberryPiSystem_001/TOOLMASTER/master/` にテスト用 CSV（users/tool_master/tools 各 2 行）を配置し、TM-DIST USB（`/dev/sdb1`）へ `rsync -a …/master/ /mnt/tm_dist/master/` でコピー → Pi4 へ持参。
+- Pi4 で `sudo ./tool-dist-sync.sh --device /dev/sda1` を実行して `window_a/master/` に展開。
+- `python scripts/import_tool_master.py --env-file config/window-a.env --master-dir master --truncate` を再実行したところ `[DONE] users=2 tool_master=2 tools=2` で完了し、Dashboard の工具管理カードに同期日時と件数が表示された。
+
+### 2025-11-15 13:45 JST API トークン CLI 追加
+- `window_a/scripts/manage_api_tokens.py` を追加し、`issue/list/revoke` サブコマンドで `config/api_tokens.json` を直接操作できるようにした。`python scripts/manage_api_tokens.py issue window-a-01 --note "初期発行"` → `list --reveal` で実値確認。
+- `window_a/config/window-a.env` に `WINDOW_A_API_TOKEN_HEADER` / `WINDOW_A_API_TOKEN_FILE` / `API_TOKEN_ENFORCE=1` を追記し、`toolmgmt.service` 再起動後に Dashboard の工具管理カードで API トークンがマスク表示され、貸出操作が有効化された。
+- `docs/system/window-a-toolmgmt.md` へ日次運用チェックリスト（TM-DIST 同期→ importer → Dashboard 確認 → トークン管理）を追加して手順化。
+
+

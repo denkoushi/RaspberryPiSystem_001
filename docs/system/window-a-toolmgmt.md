@@ -224,3 +224,37 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
    - Pi5 の IP が変わる運用が続く場合は、Pi4 の `/etc/hosts` を更新する手順または上記 `DATABASE_URL` の書き換え手順を `docs/test-notes/2025-11/window-a-demo.md` に都度記録し、LAN 切替え後は必ず実施するようチェックリスト化する。
 
 このチェックリストに従うことで、今回発生したような「Pi4 から psql は通るのに systemd 経由では接続できない」トラブルを短時間で再現・修正できる。
+
+## 13. 日次運用チェックリスト（TM-DIST ↔ Dashboard）
+1. **Pi5: TM-DIST USB へ最新 CSV を配置**  
+   ```bash
+   cd /srv/RaspberryPiSystem_001
+   sudo mkdir -p TOOLMASTER/master
+   # 例: サンプルを投入
+   sudo tee TOOLMASTER/master/users.csv >/dev/null <<'EOF'
+   uid,full_name
+   EOF
+   # ...tool_master.csv / tools.csv も同様に作成
+   sudo mount /dev/sdb1 /mnt/tm_dist
+   sudo rsync -a TOOLMASTER/master/ /mnt/tm_dist/master/
+   sudo umount /mnt/tm_dist
+   ```
+2. **Pi4: USB 同期と importer**  
+   ```bash
+   cd /usr/local/bin
+   sudo ./tool-dist-sync.sh --device /dev/sda1
+   cd ~/RaspberryPiSystem_001/window_a
+   source .venv/bin/activate
+   python scripts/import_tool_master.py \
+     --env-file config/window-a.env \
+     --master-dir master \
+     --truncate
+   deactivate
+   ```
+   importer が `[DONE] users=... tool_master=... tools=...` と表示されれば成功。エラー時は `docs/test-notes/2025-11/window-a-demo.md` にログを残し、再実行する。
+3. **Dashboard 確認と API トークンの有効化**  
+   - `http://<Pi4 IP>:8501` を開き「同期ファイル」の件数と更新日時が最新になっているか確認する。  
+   - 貸出操作を有効化するには `window_a/scripts/manage_api_tokens.py` でトークンを発行し、`toolmgmt.service` を再起動する。新しいトークンは `window_a/config/api_tokens.json` に保存され、Dashboard 上部にマスク表示される。
+4. **Pi5 API 連携**  
+   - `raspi-server.local` の `/api/v1/loans` などが応答するか `curl -H "Authorization: Bearer $RASPI_SERVER_API_TOKEN" http://raspi-server.local:8501/api/v1/loans` で確認する。  
+   - `docs/system/next-steps.md` と `docs/test-notes/2025-11/window-a-demo.md` に結果と時刻を追記し、次回以降の参照に備える。
