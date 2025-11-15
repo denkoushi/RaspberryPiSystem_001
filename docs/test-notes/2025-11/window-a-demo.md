@@ -629,3 +629,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
   ```
 - Dashboard の「NFC でスキャン」は `/api/scan_tag` → `read_one_uid(timeout=5)` を呼ぶが、従来コードは `newcardonly=True` の単発待機だったため、ボタンを押す前からリーダーにタグを置いていると常に `status=timeout` になっていた。`window_a/app_flask.py` の `read_one_uid()` を修正し、`AnyCardType()` でのカード種別明示と `newcardonly=True/False` の二段階待機（既に載っているカードも拾うフォールバック）を実装。
 - `docs/system/window-a-toolmgmt.md` 14章「Pi4 NFC リーダー運用チェック」に pcscd/pcsc-tools の導入手順と上記ワンライナーを追記。今後は Dashboard 操作前に `pcsc_scan` が停止していること、`journalctl -u toolmgmt.service -n 40 | grep -E "scan_tag|NFC"` と `window_a/logs/api_actions.log` で `status=success` が並ぶことを運用チェックへ追加する。
+
+### 2025-11-15 22:35 JST 2連続スキャンの UI 調整
+- Dashboard の「NFC でスキャン」ボタンを 1 度押すと、利用者タグ → 工具タグの 2 回を連続でポーリングするように JavaScript を更新。利用者タグを読み取ると自動的に次の `/api/scan_tag` を発行し、そのまま工具タグを読み取ってから Pi5 `/api/v1/loans` へ登録するため、旧システムと同じ操作感になった。
+- ステータス表示と読み取りログも連続スキャンに合わせて整理。成功時は `貸出登録に成功しました` を表示し、Pi5 REST から 201 応答を受けた場合でもエラーメッセージにならないようにした。

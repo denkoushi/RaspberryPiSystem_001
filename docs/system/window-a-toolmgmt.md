@@ -284,7 +284,7 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
 ### 14.1 Pi4 NFC リーダー運用チェック
 1. `sudo systemctl status pcscd` で PC/SC サービスが起動しているかを確認。停止している場合は `sudo systemctl enable --now pcscd`。初回セットアップ時は `sudo apt install pcsc-tools` を入れて `pcsc_scan` でリーダー/タグ検出を可視化しておく。
 2. `window_a/config/window-a.env` の `ENABLE_LOCAL_SCAN=1` を維持し、`toolmgmt.service` を再起動する。  
-3. Dashboard の工具管理セクションにある「カードをかざす」ボタンを押すと `/api/scan_tag`→`read_one_uid()` が実行される。`read_one_uid()` は `AnyCardType()` で PC/SC リーダーを掴み、まず新規カード（`newcardonly=True`）を待機し、タイムアウト後は既にリーダー上に置かれているカードも読み取るフォールバックを行う。利用者タグ→工具タグの順でスキャンし、Pi5 `/api/v1/loans` に貸出を送るフローを旧 RUNBOOK と同じ手順で確認する。  
+3. Dashboard の工具管理セクションで「NFC でスキャン」ボタンを押すと `/api/scan_tag` を2回自動で呼び出し、利用者タグ→工具タグの順に読み取る。Pi4 側では利用者タグをかざすと次のリクエストが自動で発行されるため、旧システムと同じように「ボタン1回＋タグ2枚」で貸出登録まで完結する。Pi5 `/api/v1/loans` が 201 を返せば UI に成功ログが残り、貸出一覧も自動更新される。  
 4. スキャンに反応しない場合は `pcsc_scan` や下記 Python ワンライナーで UID が取得できるか確認し、`journalctl -u toolmgmt.service -n 40 | grep -E "scan_tag|NFC"` と `window_a/logs/api_actions.log` で `status=success` が並ぶかを必ずチェックする。
    ```bash
    cd ~/RaspberryPiSystem_001/window_a
