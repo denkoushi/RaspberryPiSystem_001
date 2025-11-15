@@ -551,3 +551,11 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 - PostgreSQL を利用する場合は `server/config/schema.sql` の `production_plan_entries` / `standard_time_entries` を追加（`./scripts/init_db.sh` 経由）し、`PRODUCTION_PLAN_TABLE` / `STANDARD_TIMES_TABLE` を `local.toml` に設定すると new DatabaseJSONProvider が参照する。JSON 形式で `payload` 列へ保管すれば UI 側もそのまま表示できる。
 - DB へサンプルを投入するには `server/scripts/seed_plan_tables.py --dsn postgresql://app:app@localhost:15432/sensordb --truncate` を実行すると `production_plan_entries` / `standard_time_entries` に JSON をまとめて挿入できる。
 - Pi4 Dashboard では「品名／担当／数量／納期／製番」が列として表示される。より詳細な表示を行う場合は JSON のキーを増やしてもそのまま table に出力される。
+
+### 2025-11-15 13:20 JST Pi4 Dashboard 復旧とネットワーク手順整理
+- 会社 ⇔ 自宅間で LAN が切り替わった際に `raspi-server.local` の IP が変わり、Pi4 systemd サービスだけが古い IP を参照していたため、`toolmgmt.service` が PostgreSQL へ接続できなくなった（`OperationalError: server closed the connection unexpectedly`）。コンソールから `psql -h 192.168.128.128` を実行すると成功するのに、サービスは失敗する状態だった。
+- Pi5 で `docker compose up -d postgres` → `PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb -c '\dt'` を実施し、DB が正常稼働していることを確認。合わせて `server/scripts/init_db.sh postgresql://app:app@localhost:15432/sensordb` を流して `users/tool_master/tools/...` テーブルを作成。
+- Pi4 では `ping -c3 192.168.128.128` → `PGPASSWORD=app psql -h 192.168.128.128 ... '\dt'` の順で疎通を確認し、ネットワークと認証に問題が無いことを確認。原因を `window_a/config/window-a.env` の `DATABASE_URL` が `raspi-server.local` 参照のままだった点と特定し、IP ベース (`postgresql://app:app@192.168.128.128:15432/sensordb`) へ書き換えて `sudo systemctl restart toolmgmt.service` → `sudo journalctl -u toolmgmt.service -n 40 --no-pager` でエラーが消えたことを確認。  
+  - 併せて `/etc/hosts` を新 LAN の IP に更新し、以後も IP が変わるたびに更新する運用をチェックリスト化。
+- Dashboard は `http://192.168.128.102:8501` で再表示され、DocumentViewer/物流/生産計画カードも正常。Tool Management カードは CSV が空のため件数 0 表示だが、API トークン未設定で意図どおりの文言になっている。
+- 上記の切り分け手順と再発防止策を `docs/system/window-a-toolmgmt.md` の「12. Pi4 ↔ Pi5 ネットワーク / DB チェックリスト」に反映済み。LAN 切替え時は必ず同節の手順に従うこと。

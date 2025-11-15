@@ -129,21 +129,23 @@ def ensure_tables(conn: psycopg.Connection) -> None:
         )
         """,
     )
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         for sql in statements:
             cur.execute(sql)
+    conn.commit()
 
 
 def truncate_tables(conn: psycopg.Connection) -> None:
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         cur.execute("TRUNCATE loans, tools, tool_master, users RESTART IDENTITY CASCADE")
+    conn.commit()
 
 
 def import_users(conn: psycopg.Connection, rows: list[dict[str, str]]) -> int:
     if not rows:
         return 0
     count = 0
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         for row in rows:
             if not row["uid"] or not row["full_name"]:
                 continue
@@ -156,6 +158,7 @@ def import_users(conn: psycopg.Connection, rows: list[dict[str, str]]) -> int:
                 (row["uid"], row["full_name"]),
             )
             count += 1
+    conn.commit()
     return count
 
 
@@ -163,7 +166,7 @@ def import_tool_master(conn: psycopg.Connection, rows: list[str]) -> int:
     if not rows:
         return 0
     count = 0
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         for name in rows:
             if not name:
                 continue
@@ -176,6 +179,7 @@ def import_tool_master(conn: psycopg.Connection, rows: list[str]) -> int:
                 (name,),
             )
             count += 1
+    conn.commit()
     return count
 
 
@@ -183,7 +187,7 @@ def import_tools(conn: psycopg.Connection, rows: list[dict[str, str]]) -> int:
     if not rows:
         return 0
     count = 0
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         for row in rows:
             if not row["uid"] or not row["name"]:
                 continue
@@ -196,6 +200,7 @@ def import_tools(conn: psycopg.Connection, rows: list[dict[str, str]]) -> int:
                 (row["uid"], row["name"]),
             )
             count += 1
+    conn.commit()
     return count
 
 

@@ -139,7 +139,43 @@ Window A の「物流依頼」カードは Pi5 `/api/logistics/jobs` の結果�
 3. 設定変更後は従来どおり `git pull` → `python -m pytest` → `sudo systemctl restart raspi-server.service` を実行して反映する。
 4. Pi4 側 Dashboard の「物流依頼」カードに新しいジョブが表示されることを確認し、`docs/test-notes/2025-11/window-a-demo.md` にスクリーンショットと確認手順を記録する。
 
-## 10. Pi5 生産計画 / 標準工数データの準備
+## 10. TM-DIST USB を新規整備する手順
+まっさらな USB メモリを TM-DIST 用に整備するときは以下を実施する。
+
+1. Pi4 に USB を挿し、デバイス名を確認する。  
+   ```bash
+   lsblk -o NAME,FSTYPE,SIZE,LABEL,MOUNTPOINT
+   ```
+2. ext4 フォーマットとラベル設定（例: デバイスが `/dev/sda1` の場合）。  
+   ```bash
+   sudo mkfs.ext4 -F -L TM-DIST /dev/sda1
+   sudo tune2fs -m 0 /dev/sda1          # 予約領域をゼロに（任意）
+   ```
+3. `.toolmaster/role` を作成し、役割を `DIST` に固定する。  
+   ```bash
+   sudo mkdir -p /mnt/tm_dist
+   sudo mount /dev/sda1 /mnt/tm_dist
+   sudo mkdir -p /mnt/tm_dist/.toolmaster
+   echo "DIST" | sudo tee /mnt/tm_dist/.toolmaster/role
+   ```
+4. `master/`・`docviewer/` ディレクトリを作成し、必要な CSV や文書を入れる。最低限の空ファイルでも可。  
+   ```bash
+   sudo mkdir -p /mnt/tm_dist/master
+   sudo tee /mnt/tm_dist/master/users.csv >/dev/null <<'EOF'
+   uid,full_name
+   EOF
+   sudo tee /mnt/tm_dist/master/tool_master.csv >/dev/null <<'EOF'
+   name
+   EOF
+   sudo tee /mnt/tm_dist/master/tools.csv >/dev/null <<'EOF'
+   uid,name
+   EOF
+   sudo mkdir -p /mnt/tm_dist/docviewer
+   sudo umount /mnt/tm_dist
+   ```
+5. これ以降は `tool-dist-sync.sh --device /dev/sda1` で同期・インポートできる。ログは `/srv/RaspberryPiSystem_001/server/logs/usb_dist_sync.log` に出力される。
+
+## 11. Pi5 生産計画 / 標準工数データの準備
 「生産計画 / 標準工数」カードは `/api/v1/production-plan` / `/api/v1/standard-times` のレスポンスを表示している。Pi5 では JSON ファイルまたは PostgreSQL テーブルをデータソースとして選べる。
 
 1. **JSON ファイル運用**  
@@ -159,5 +195,32 @@ Window A の「物流依頼」カードは Pi5 `/api/logistics/jobs` の結果�
        --dsn postgresql://app:app@localhost:15432/sensordb \
        --truncate
      deactivate
-     ```
+   ```
 3. 設定変更後は `git pull` → `python -m pytest` → `sudo systemctl restart raspi-server.service` の順で Pi5 を再起動し、Window A のカードで最新データが表示されることを確認する。
+
+## 12. Pi4 ↔ Pi5 ネットワーク / DB チェックリスト
+LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続できない場合は次の順に切り分ける。
+
+1. **Pi5 側の PostgreSQL コンテナを確認**  
+   ```bash
+   cd /srv/RaspberryPiSystem_001/server
+   docker compose up -d postgres
+   docker compose ps postgres
+   PGPASSWORD=app psql -h 127.0.0.1 -p 15432 -U app -d sensordb -c '\dt'
+   ```
+   テーブル一覧が表示されれば DB 自体は稼働している。
+2. **Pi4 から Pi5 への疎通確認**  
+   ```bash
+   ping -c 3 192.168.xxx.xxx            # Pi5 の現在の IP
+   PGPASSWORD=app psql -h 192.168.xxx.xxx -p 15432 -U app -d sensordb -c '\dt'
+   ```
+   ここで成功すればネットワークと認証は問題ない。
+3. **ホスト名解決と `DATABASE_URL` の整合性**  
+   - `/etc/hosts` で `raspi-server.local` を Pi5 の現行 IP に向ける。  
+     LAN が変わると IP も変わるため、更新を忘れると Pi4 だけ古い IP を参照し続ける。  
+   - もしくは `window_a/config/window-a.env` の `DATABASE_URL` を直接 IP ベースに書き換える（例: `postgresql://app:app@192.168.128.128:15432/sensordb`）。  
+     編集後は `sudo systemctl restart toolmgmt.service` を実行し `sudo journalctl -u toolmgmt.service -n 40 --no-pager` でエラーが出ていないかを確認する。
+4. **再発防止**  
+   - Pi5 の IP が変わる運用が続く場合は、Pi4 の `/etc/hosts` を更新する手順または上記 `DATABASE_URL` の書き換え手順を `docs/test-notes/2025-11/window-a-demo.md` に都度記録し、LAN 切替え後は必ず実施するようチェックリスト化する。
+
+このチェックリストに従うことで、今回発生したような「Pi4 から psql は通るのに systemd 経由では接続できない」トラブルを短時間で再現・修正できる。
