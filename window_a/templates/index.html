@@ -391,6 +391,12 @@
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" crossorigin="anonymous"></script>
     <script>
       const socketClientConfig = {{ socket_client_config | tojson }};
+      if (!socketClientConfig.base) {
+        socketClientConfig.base = window.location.origin;
+      }
+      if (!socketClientConfig.path) {
+        socketClientConfig.path = '/socket.io';
+      }
       console.log("Socket client config:", socketClientConfig);
     </script>
     <script>
@@ -673,6 +679,33 @@
             }
           };
 
+          const statusLabels = {
+            idle: '● 停止中',
+            stopped: '● 停止中',
+            waiting_user: '● ユーザータグ待機中',
+            waiting_tool: '● 工具タグ待機中',
+            tool_scanned: '● 工具タグ検出済み',
+            loan_registered: '● 貸出処理中',
+            error: '● エラー',
+            reset: '● リセット済み',
+          };
+          const statusVariants = {
+            idle: 'fail',
+            stopped: 'fail',
+            waiting_user: 'ok',
+            waiting_tool: 'ok',
+            tool_scanned: 'ok',
+            loan_registered: 'ok',
+            error: 'fail',
+            reset: 'ok',
+          };
+          const applyStatus = (state, fallbackText) => {
+            if (!state) return;
+            const text = statusLabels[state] || fallbackText || `● ${state}`;
+            const variant = statusVariants[state] || (state.includes('error') ? 'fail' : 'ok');
+            setStatus(text, variant);
+          };
+
           const setMessage = (text, isError = false) => {
             if (!messageEl) return;
             messageEl.textContent = text;
@@ -712,7 +745,7 @@
               await callNfcEndpoint('/api/start_scan');
               scanActive = true;
               updateButtons();
-              setStatus('● スキャン待機中', 'ok');
+              applyStatus('waiting_user');
               setMessage('利用者タグをかざしてください', false);
               appendNfcLog('スキャンを開始しました');
               initNfcSocket();
@@ -730,7 +763,7 @@
             } finally {
               scanActive = false;
               updateButtons();
-              setStatus('● 停止中', 'fail');
+              applyStatus('stopped');
               setMessage('スキャンを停止しました', true);
             }
           };
@@ -740,6 +773,7 @@
               await callNfcEndpoint('/api/reset');
               setDisplays('', '');
               setMessage('リセットしました', false);
+              applyStatus('waiting_user');
               appendNfcLog('状態をリセットしました');
             } catch (error) {
               setMessage(error.message || 'リセットに失敗しました', true);
@@ -748,12 +782,16 @@
           };
 
           const handleSocketScanUpdate = (payload = {}) => {
+            if (payload.status) {
+              applyStatus(payload.status, payload.message);
+            }
             if (payload.user_uid || payload.tool_uid) {
               setDisplays(payload.user_uid || userEl.textContent, payload.tool_uid || toolEl.textContent);
             }
             if (payload.message) {
-              setMessage(payload.message, false);
-              appendNfcLog(payload.message);
+              const isError = payload.status === 'error';
+              setMessage(payload.message, isError);
+              appendNfcLog(payload.message, !isError);
             }
           };
 
@@ -764,6 +802,7 @@
             if (payload.user_uid || payload.tool_uid) {
               setDisplays(payload.user_uid || '', payload.tool_uid || '');
             }
+            applyStatus(payload.status || 'loan_registered', msg);
             if (typeof refreshOverview === 'function') {
               refreshOverview();
             }
@@ -775,20 +814,23 @@
               setMessage(payload.message, false);
               appendNfcLog(payload.message);
             }
+            applyStatus(payload.status || 'waiting_user', payload.message);
           };
 
           const handleSocketError = (payload) => {
             let msg =
               (payload && typeof payload === 'object' && payload.message) ||
               (typeof payload === 'string' ? payload : 'NFC エラー');
+            let errorCode;
             if (payload && typeof payload === 'object') {
-              const detailError = payload.detail && (payload.detail.error || payload.detail.message);
-              if (detailError === 'loan_already_open') {
+              errorCode = payload.error_code || (payload.detail && (payload.detail.error || payload.detail.message));
+              if (errorCode === 'loan_already_open') {
                 msg = 'この工具は既に貸出中です。手動返却後に再スキャンしてください。';
               }
             }
             setMessage(msg, true);
             appendNfcLog(msg, false);
+            applyStatus('error', msg);
           };
 
           const initNfcSocket = () => {

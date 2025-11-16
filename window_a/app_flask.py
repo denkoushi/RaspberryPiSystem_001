@@ -643,8 +643,60 @@ scan_state = {
     "tool_uid": "",
     "last_scanned_uid": "",
     "last_scan_time": 0,
-    "message": ""
+    "message": "",
+    "status": "idle",
 }
+
+
+def _emit_scan_update(status: str, message: Optional[str] = None, conn=None, extra: Optional[dict] = None) -> None:
+    """Emit a normalized scan_update payload for the dashboard."""
+    payload = {
+        "status": status,
+        "message": message or scan_state.get("message") or "",
+        "user_uid": scan_state.get("user_uid") or "",
+        "tool_uid": scan_state.get("tool_uid") or "",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if conn:
+        try:
+            if scan_state.get("user_uid"):
+                payload["user_name"] = name_of_user(conn, scan_state["user_uid"])
+            if scan_state.get("tool_uid"):
+                payload["tool_name"] = name_of_tool(conn, scan_state["tool_uid"])
+        except Exception as exc:  # pylint: disable=broad-except
+            print(f"[scan_update] failed to resolve names: {exc}")
+    if extra:
+        payload.update({k: v for k, v in extra.items() if v is not None})
+    try:
+        socketio.emit("scan_update", payload)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[scan_update] emit failed: {exc}")
+
+
+def _emit_scan_error(message: str, detail: Optional[dict] = None, conn=None, error_code: Optional[str] = None) -> None:
+    """Emit an error payload + scan_update so UI can reflect failures."""
+    payload = {
+        "message": message,
+        "detail": detail or {},
+        "error_code": error_code,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "user_uid": scan_state.get("user_uid") or "",
+        "tool_uid": scan_state.get("tool_uid") or "",
+        "source": "scan_monitor",
+    }
+    if conn:
+        try:
+            if scan_state.get("user_uid"):
+                payload["user_name"] = name_of_user(conn, scan_state["user_uid"])
+            if scan_state.get("tool_uid"):
+                payload["tool_name"] = name_of_tool(conn, scan_state["tool_uid"])
+        except Exception as exc:  # pylint: disable=broad-except
+            print(f"[scan_error] failed to resolve names: {exc}")
+    try:
+        socketio.emit("error", payload)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[scan_error] emit failed: {exc}")
+    _emit_scan_update("error", message, conn, extra={"error_code": error_code})
 
 
 def emit_station_config_update(config: dict) -> None:
@@ -960,9 +1012,13 @@ def scan_monitor():
     
     while True:
         if not scan_state["active"]:
+            if scan_state.get("status") != "idle":
+                scan_state["status"] = "idle"
+                scan_state["message"] = "⏹️ スキャン停止中"
+                _emit_scan_update("idle", scan_state["message"])
             time.sleep(0.5)
             continue
-            
+
         try:
             uid = read_one_uid(timeout=1)
             if uid:
@@ -979,22 +1035,31 @@ def scan_monitor():
                     # ユーザーがまだ設定されていない場合
                     if not scan_state["user_uid"]:
                         scan_state["user_uid"] = uid
-                        scan_state["message"] = f"👤 ユーザー読取: {name_of_user(conn, uid)} ({uid})"
+                        user_name = name_of_user(conn, uid)
+                        scan_state["message"] = f"👤 ユーザー読取: {user_name} ({uid})"
+                        scan_state["status"] = "waiting_tool"
                         insert_scan(conn, uid, "user")
-                        
-                        socketio.emit('scan_update', {
-                            'user_uid': scan_state["user_uid"],
-                            'user_name': name_of_user(conn, uid),
-                            'tool_uid': scan_state["tool_uid"],
-                            'tool_name': "",
-                            'message': scan_state["message"]
-                        })
-                        
+
+                        _emit_scan_update(
+                            "waiting_tool",
+                            scan_state["message"],
+                            conn,
+                            extra={"phase": "user"},
+                        )
+
                     # ユーザーが設定済みで工具がまだの場合
                     elif not scan_state["tool_uid"]:
                         scan_state["tool_uid"] = uid
-                        scan_state["message"] = f"🛠️ 工具読取: {name_of_tool(conn, uid)} ({uid})"
+                        tool_name = name_of_tool(conn, uid)
+                        scan_state["message"] = f"🛠️ 工具読取: {tool_name} ({uid})"
+                        scan_state["status"] = "tool_scanned"
                         insert_scan(conn, uid, "tool")
+                        _emit_scan_update(
+                            "tool_scanned",
+                            scan_state["message"],
+                            conn,
+                            extra={"phase": "tool"},
+                        )
                         try:
                             remote_result = perform_remote_loan(scan_state["user_uid"], scan_state["tool_uid"])
                             loan_id = remote_result.get("loan_id")
@@ -1003,6 +1068,7 @@ def scan_monitor():
                             message = f"✅ 貸出登録: {tool_name} → {user_name}"
                             if loan_id:
                                 message += f" (loan_id={loan_id})"
+                            scan_state["status"] = "loan_registered"
                             socketio.emit(
                                 'transaction_complete',
                                 {
@@ -1013,7 +1079,14 @@ def scan_monitor():
                                     'message': message,
                                     'action': 'borrow',
                                     'loan_id': loan_id,
+                                    'status': 'loan_registered',
                                 },
+                            )
+                            _emit_scan_update(
+                                "loan_registered",
+                                message,
+                                conn,
+                                extra={"loan_id": loan_id, "phase": "complete"},
                             )
                             log_api_action(
                                 "scan_auto_loan",
@@ -1030,27 +1103,37 @@ def scan_monitor():
                                 scan_state["user_uid"] = ""
                                 scan_state["tool_uid"] = ""
                                 scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
-                                socketio.emit('state_reset', {'message': scan_state["message"]})
+                                scan_state["status"] = "waiting_user"
+                                socketio.emit('state_reset', {'message': scan_state["message"], 'status': 'waiting_user'})
+                                _emit_scan_update("waiting_user", scan_state["message"])
                                 print("🔄 次の処理待ち")
 
                             threading.Thread(target=reset_state, daemon=True).start()
 
                         except RemoteLoanError as exc:
                             error_msg = f"❌ 貸出登録エラー: {exc}"
+                            error_code = exc.payload.get("error") if isinstance(exc.payload, dict) else None
                             log_api_action(
                                 "scan_auto_loan",
                                 status="error",
                                 detail={
                                     "user_uid": scan_state["user_uid"],
                                     "tool_uid": scan_state["tool_uid"],
-                                    "error": exc.payload.get("error") if isinstance(exc.payload, dict) else str(exc),
+                                    "error": error_code or str(exc),
                                 },
                             )
                             print(error_msg)
-                            socketio.emit('error', {'message': error_msg, 'detail': exc.payload})
+                            scan_state["message"] = error_msg
+                            scan_state["status"] = "error"
+                            _emit_scan_error(
+                                error_msg,
+                                detail=exc.payload,
+                                conn=conn,
+                                error_code=error_code,
+                            )
                             # allow re-scan of tool after error
                             scan_state["tool_uid"] = ""
-                            
+
                 finally:
                     conn.close()
                     
@@ -1109,8 +1192,10 @@ def start_scan():
     scan_state["user_uid"] = ""
     scan_state["tool_uid"] = ""
     scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
+    scan_state["status"] = "waiting_user"
     print("🟢 自動スキャン開始")
     log_api_action("start_scan", detail={"message": scan_state["message"]})
+    _emit_scan_update("waiting_user", scan_state["message"])
     return jsonify({"status": "started", "message": scan_state["message"]})
 
 @app.route('/api/stop_scan', methods=['POST'])
@@ -1119,8 +1204,10 @@ def stop_scan():
     global scan_state
     scan_state["active"] = False
     scan_state["message"] = "⏹️ スキャン停止"
+    scan_state["status"] = "stopped"
     print("🔴 自動スキャン停止")
     log_api_action("stop_scan", detail={"message": scan_state["message"]})
+    _emit_scan_update("stopped", scan_state["message"])
     return jsonify({"status": "stopped", "message": scan_state["message"]})
 
 @app.route('/api/reset', methods=['POST'])
@@ -1130,8 +1217,10 @@ def reset_state():
     scan_state["user_uid"] = ""
     scan_state["tool_uid"] = ""
     scan_state["message"] = "🔄 リセット完了"
+    scan_state["status"] = "waiting_user"
     print("🧹 状態リセット")
     log_api_action("reset_state")
+    _emit_scan_update("waiting_user", scan_state["message"])
     return jsonify({"status": "reset"})
 
 @app.route('/api/loans')
