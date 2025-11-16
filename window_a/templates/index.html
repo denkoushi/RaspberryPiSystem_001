@@ -411,7 +411,9 @@
         const logList = panel.querySelector('[data-toolmgmt-log] ul');
         const refreshDelayMs = 2000;
         let refreshTimer = null;
-        let overviewRetryTimer = null;
+        let refreshInFlight = false;
+        let refreshRetryTimer = null;
+        let pendingOverviewRefresh = false;
 
         const masterBody = panel.querySelector('[data-master-files-body]');
         const openTable = panel.querySelector('[data-open-loans-table]');
@@ -539,13 +541,17 @@
           }
         };
 
-        const refreshOverview = async () => {
+        const refreshOverview = async (options = {}) => {
+          const { silent = false } = options;
           if (!overviewUrl) {
-            setResult('工具管理の更新エンドポイントが未設定です。', true);
-            return;
+            const err = new Error('工具管理の更新エンドポイントが未設定です。');
+            if (!silent) {
+              setResult(err.message, true);
+            }
+            throw err;
           }
           try {
-            const response = await fetch(overviewUrl);
+            const response = await fetch(overviewUrl, { cache: 'no-store' });
             const data = await response.json();
             if (!response.ok) {
               throw new Error((data && data.error) || response.statusText || 'unknown error');
@@ -557,21 +563,49 @@
               overviewUpdated.textContent = `最終更新: ${formatTimestamp(data.fetched_at)}`;
             }
             bindActionButtons();
-            setResult('工具管理データを更新しました。', false);
+            if (!silent) {
+              setResult('工具管理データを更新しました。', false);
+            }
+            return data;
           } catch (error) {
-            setResult(`概要更新に失敗しました: ${error.message || error}`, true);
+            if (!silent) {
+              setResult(`概要更新に失敗しました: ${error.message || error}`, true);
+            }
+            throw error;
+          }
+        };
+
+        const runOverviewRefresh = async () => {
+          if (!overviewUrl) return;
+          if (refreshInFlight) {
+            pendingOverviewRefresh = true;
+            return;
+          }
+          refreshInFlight = true;
+          try {
+            await refreshOverview({ silent: true });
+            refreshInFlight = false;
+            if (refreshRetryTimer) {
+              clearTimeout(refreshRetryTimer);
+              refreshRetryTimer = null;
+            }
+            if (pendingOverviewRefresh) {
+              pendingOverviewRefresh = false;
+              runOverviewRefresh();
+            }
+          } catch (error) {
+            refreshInFlight = false;
+            if (!refreshRetryTimer) {
+              refreshRetryTimer = setTimeout(() => {
+                refreshRetryTimer = null;
+                runOverviewRefresh();
+              }, 1500);
+            }
           }
         };
 
         const triggerOverviewRefresh = () => {
-          if (typeof refreshOverview !== 'function') return;
-          refreshOverview();
-          if (overviewRetryTimer) {
-            clearTimeout(overviewRetryTimer);
-          }
-          overviewRetryTimer = setTimeout(() => {
-            refreshOverview();
-          }, 1500);
+          runOverviewRefresh();
         };
 
         const actionLabels = {
@@ -616,7 +650,7 @@
               clearTimeout(refreshTimer);
             }
             refreshTimer = setTimeout(() => {
-              refreshOverview();
+              refreshOverview().catch(() => {});
             }, refreshDelayMs);
           } catch (error) {
             setResult(`エラー: ${error.message || error}`, true);
@@ -648,7 +682,7 @@
         toggleTokenWarning('', false);
 
         if (overviewUrl) {
-          refreshOverview();
+          refreshOverview().catch(() => {});
         } else {
           setResult('工具管理の更新エンドポイントが未設定です。', true);
         }
@@ -669,7 +703,7 @@
           let scanActive = false;
           const scanStatusUrl = '/api/scan_status';
           let scanStatusTimer = null;
-          let lastScanEventId = null;
+          let lastSeenEventId = null;
 
           const appendNfcLog = (message, success = true) => {
             if (!logEl) return;
@@ -740,8 +774,18 @@
           };
 
           const processScanEvent = (event = {}) => {
-            const eventType = event.event || 'scan_update';
-            const eventStatus = event.status || (eventType === 'scan_error' ? 'error' : undefined);
+            if (!event || typeof event !== 'object') {
+              return;
+            }
+            const seq = Number(event.event_id ?? event.seq);
+            if (Number.isFinite(seq)) {
+              if (lastSeenEventId && seq <= lastSeenEventId) {
+                return;
+              }
+              lastSeenEventId = seq;
+            }
+            const eventType = event.type || event.event || 'scan_update';
+            const eventStatus = event.status || (eventType.includes('error') ? 'error' : undefined);
             const message = event.message || '';
             if (eventStatus) {
               applyStatus(eventStatus, message || undefined);
@@ -749,29 +793,40 @@
             if (event.user_uid || event.tool_uid) {
               setDisplays(event.user_uid || userEl.textContent, event.tool_uid || toolEl.textContent);
             }
-            if (eventType === 'transaction_complete') {
-              if (message) {
-                setMessage(message, false);
-                appendNfcLog(message);
+            switch (eventType) {
+              case 'transaction_complete': {
+                if (message) {
+                  setMessage(message, false);
+                  appendNfcLog(message);
+                }
+                triggerOverviewRefresh();
+                break;
               }
-              triggerOverviewRefresh();
-            } else if (eventType === 'scan_error') {
-              if (message) {
-                setMessage(message, true);
-                appendNfcLog(message, false);
+              case 'transaction_error':
+              case 'scan_error': {
+                let msg = message || 'NFC エラー';
+                const code = event.error_code || (event.detail && (event.detail.error || event.detail.message));
+                if (code === 'loan_already_open') {
+                  msg = 'この工具は既に貸出中です。手動返却後に再スキャンしてください。';
+                }
+                setMessage(msg, true);
+                appendNfcLog(msg, false);
+                break;
               }
-            } else if (eventType === 'state_reset') {
-              setDisplays('', '');
-              if (message) {
-                setMessage(message, false);
-                appendNfcLog(message);
+              case 'state_reset': {
+                setDisplays('', '');
+                if (message) {
+                  setMessage(message, false);
+                  appendNfcLog(message);
+                }
+                break;
               }
-            } else if (message) {
-              setMessage(message, false);
-              appendNfcLog(message);
-            }
-            if (event.event_id) {
-              lastScanEventId = event.event_id;
+              default: {
+                if (message) {
+                  setMessage(message, false);
+                  appendNfcLog(message);
+                }
+              }
             }
           };
 
@@ -785,7 +840,9 @@
               if (!response.ok) {
                 return;
               }
-              if (data.state) {
+              if (data.event) {
+                processScanEvent(data.event);
+              } else if (data.state) {
                 if (data.state.status) {
                   applyStatus(data.state.status, data.state.message);
                 }
@@ -793,11 +850,8 @@
                   setDisplays(data.state.user_uid || userEl.textContent, data.state.tool_uid || toolEl.textContent);
                 }
               }
-              if (data.event && data.event.event_id && data.event.event_id !== lastScanEventId) {
-                processScanEvent(data.event);
-              }
             } catch (error) {
-              console.warn('scan_status fetch error', error);
+              console.debug('scan_status fetch error', error);
             }
           };
 
@@ -834,7 +888,7 @@
             try {
               await callNfcEndpoint('/api/start_scan');
               scanActive = true;
-              lastScanEventId = null;
+              lastSeenEventId = null;
               updateButtons();
               applyStatus('waiting_user');
               setMessage('利用者タグをかざしてください', false);
@@ -858,7 +912,7 @@
               applyStatus('stopped');
               setMessage('スキャンを停止しました', true);
               stopScanStatusPolling();
-              lastScanEventId = null;
+              lastSeenEventId = null;
             }
           };
 
@@ -869,55 +923,28 @@
               setMessage('リセットしました', false);
               applyStatus('waiting_user');
               appendNfcLog('状態をリセットしました');
-            fetchScanStatus();
+              fetchScanStatus();
             } catch (error) {
               setMessage(error.message || 'リセットに失敗しました', true);
               appendNfcLog(`リセットエラー: ${error.message || error}`, false);
             }
           };
 
-          const handleSocketScanUpdate = (payload = {}) => {
-            if (payload.event_id && payload.event_id === lastScanEventId) {
-              return;
-            }
-            processScanEvent({
-              ...payload,
-              event: payload.event || 'scan_update',
-            });
-          };
-
-          const handleSocketTransaction = (payload = {}) => {
-            processScanEvent({
-              ...payload,
-              event: payload.event || 'transaction_complete',
-              status: payload.status || 'loan_registered',
-            });
-          };
-
-          const handleSocketReset = (payload = {}) => {
-            processScanEvent({
-              ...payload,
-              event: payload.event || 'state_reset',
-            });
+          const handleSocketEvent = (payload = {}) => {
+            processScanEvent(payload);
           };
 
           const handleSocketError = (payload) => {
-            let msg =
-              (payload && typeof payload === 'object' && payload.message) ||
-              (typeof payload === 'string' ? payload : 'NFC エラー');
-            let errorCode;
             if (payload && typeof payload === 'object') {
-              errorCode = payload.error_code || (payload.detail && (payload.detail.error || payload.detail.message));
-              if (errorCode === 'loan_already_open') {
-                msg = 'この工具は既に貸出中です。手動返却後に再スキャンしてください。';
-              }
+              processScanEvent({
+                ...payload,
+                type: payload.type || payload.event || 'scan_error',
+              });
+              return;
             }
-            processScanEvent({
-              ...(payload && typeof payload === 'object' ? payload : {}),
-              message: msg,
-              event: 'scan_error',
-              status: 'error',
-            });
+            const msg = typeof payload === 'string' ? payload : 'NFC エラー';
+            setMessage(msg, true);
+            appendNfcLog(msg, false);
           };
 
           const initNfcSocket = () => {
@@ -931,9 +958,12 @@
               });
               socketInstance.on('connect', () => appendNfcLog('Socket接続', true));
               socketInstance.on('disconnect', () => appendNfcLog('Socket切断', false));
-              socketInstance.on('scan_update', handleSocketScanUpdate);
-              socketInstance.on('transaction_complete', handleSocketTransaction);
-              socketInstance.on('state_reset', handleSocketReset);
+              socketInstance.on('scan_event', handleSocketEvent);
+              socketInstance.on('scan_update', handleSocketEvent);
+              socketInstance.on('transaction_complete', handleSocketEvent);
+              socketInstance.on('transaction_error', handleSocketEvent);
+              socketInstance.on('state_reset', handleSocketEvent);
+              socketInstance.on('scan_error', handleSocketEvent);
               socketInstance.on('error', handleSocketError);
             } catch (error) {
               appendNfcLog(`Socket接続エラー: ${error.message || error}`, false);
