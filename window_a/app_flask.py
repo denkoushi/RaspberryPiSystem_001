@@ -645,7 +645,20 @@ scan_state = {
     "last_scan_time": 0,
     "message": "",
     "status": "idle",
+    "event_seq": 0,
+    "last_event": None,
 }
+
+
+def _record_scan_event(payload: dict) -> dict:
+    """Store the latest scan-related event for polling clients."""
+    seq = int(scan_state.get("event_seq", 0)) + 1
+    scan_state["event_seq"] = seq
+    enriched = dict(payload or {})
+    enriched.setdefault("event_id", seq)
+    enriched.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+    scan_state["last_event"] = enriched
+    return enriched
 
 
 def _emit_scan_update(status: str, message: Optional[str] = None, conn=None, extra: Optional[dict] = None) -> None:
@@ -665,8 +678,21 @@ def _emit_scan_update(status: str, message: Optional[str] = None, conn=None, ext
                 payload["tool_name"] = name_of_tool(conn, scan_state["tool_uid"])
         except Exception as exc:  # pylint: disable=broad-except
             print(f"[scan_update] failed to resolve names: {exc}")
+    record_event = True
+    event_hint = "scan_update"
     if extra:
         payload.update({k: v for k, v in extra.items() if v is not None})
+        if extra.get("record_event") is False:
+            record_event = False
+        if extra.get("event"):
+            event_hint = extra["event"]
+    payload.pop("record_event", None)
+    payload.setdefault("event", event_hint)
+    if record_event:
+        payload = _record_scan_event(payload)
+    else:
+        payload.setdefault("event_id", scan_state.get("event_seq"))
+        payload.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
     try:
         socketio.emit("scan_update", payload)
     except Exception as exc:  # pylint: disable=broad-except
@@ -692,11 +718,13 @@ def _emit_scan_error(message: str, detail: Optional[dict] = None, conn=None, err
                 payload["tool_name"] = name_of_tool(conn, scan_state["tool_uid"])
         except Exception as exc:  # pylint: disable=broad-except
             print(f"[scan_error] failed to resolve names: {exc}")
+    payload["event"] = "scan_error"
+    payload = _record_scan_event(payload)
     try:
         socketio.emit("error", payload)
     except Exception as exc:  # pylint: disable=broad-except
         print(f"[scan_error] emit failed: {exc}")
-    _emit_scan_update("error", message, conn, extra={"error_code": error_code})
+    _emit_scan_update("error", message, conn, extra={"error_code": error_code, "record_event": False})
 
 
 def emit_station_config_update(config: dict) -> None:
@@ -1086,7 +1114,7 @@ def scan_monitor():
                                 "loan_registered",
                                 message,
                                 conn,
-                                extra={"loan_id": loan_id, "phase": "complete"},
+                                extra={"loan_id": loan_id, "phase": "complete", "event": "transaction_complete"},
                             )
                             log_api_action(
                                 "scan_auto_loan",
@@ -1105,7 +1133,7 @@ def scan_monitor():
                                 scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
                                 scan_state["status"] = "waiting_user"
                                 socketio.emit('state_reset', {'message': scan_state["message"], 'status': 'waiting_user'})
-                                _emit_scan_update("waiting_user", scan_state["message"])
+                                _emit_scan_update("waiting_user", scan_state["message"], extra={"event": "state_reset"})
                                 print("🔄 次の処理待ち")
 
                             threading.Thread(target=reset_state, daemon=True).start()
@@ -1195,7 +1223,7 @@ def start_scan():
     scan_state["status"] = "waiting_user"
     print("🟢 自動スキャン開始")
     log_api_action("start_scan", detail={"message": scan_state["message"]})
-    _emit_scan_update("waiting_user", scan_state["message"])
+    _emit_scan_update("waiting_user", scan_state["message"], extra={"event": "start_scan"})
     return jsonify({"status": "started", "message": scan_state["message"]})
 
 @app.route('/api/stop_scan', methods=['POST'])
@@ -1207,7 +1235,7 @@ def stop_scan():
     scan_state["status"] = "stopped"
     print("🔴 自動スキャン停止")
     log_api_action("stop_scan", detail={"message": scan_state["message"]})
-    _emit_scan_update("stopped", scan_state["message"])
+    _emit_scan_update("stopped", scan_state["message"], extra={"event": "stop_scan"})
     return jsonify({"status": "stopped", "message": scan_state["message"]})
 
 @app.route('/api/reset', methods=['POST'])
@@ -1220,8 +1248,23 @@ def reset_state():
     scan_state["status"] = "waiting_user"
     print("🧹 状態リセット")
     log_api_action("reset_state")
-    _emit_scan_update("waiting_user", scan_state["message"])
+    _emit_scan_update("waiting_user", scan_state["message"], extra={"event": "reset_scan"})
     return jsonify({"status": "reset"})
+
+
+@app.route('/api/scan_status', methods=['GET'])
+def api_scan_status():
+    """Return the latest scan state/event for polling clients."""
+    state_snapshot = {
+        "active": scan_state.get("active"),
+        "user_uid": scan_state.get("user_uid"),
+        "tool_uid": scan_state.get("tool_uid"),
+        "message": scan_state.get("message"),
+        "status": scan_state.get("status"),
+        "event_seq": scan_state.get("event_seq"),
+    }
+    event = scan_state.get("last_event")
+    return jsonify({"state": state_snapshot, "event": event})
 
 @app.route('/api/loans')
 def get_loans():
