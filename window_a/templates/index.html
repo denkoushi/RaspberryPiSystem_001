@@ -748,11 +748,8 @@
           };
 
           const handleSocketScanUpdate = (payload = {}) => {
-            if (payload.user_uid) {
-              userEl.textContent = payload.user_uid;
-            }
-            if (payload.tool_uid) {
-              toolEl.textContent = payload.tool_uid;
+            if (payload.user_uid || payload.tool_uid) {
+              setDisplays(payload.user_uid || userEl.textContent, payload.tool_uid || toolEl.textContent);
             }
             if (payload.message) {
               setMessage(payload.message, false);
@@ -764,6 +761,9 @@
             const msg = payload.message || '貸出登録が完了しました';
             setMessage(msg, false);
             appendNfcLog(msg);
+            if (payload.user_uid || payload.tool_uid) {
+              setDisplays(payload.user_uid || '', payload.tool_uid || '');
+            }
             if (typeof refreshOverview === 'function') {
               refreshOverview();
             }
@@ -778,9 +778,15 @@
           };
 
           const handleSocketError = (payload) => {
-            const msg =
+            let msg =
               (payload && typeof payload === 'object' && payload.message) ||
               (typeof payload === 'string' ? payload : 'NFC エラー');
+            if (payload && typeof payload === 'object') {
+              const detailError = payload.detail && (payload.detail.error || payload.detail.message);
+              if (detailError === 'loan_already_open') {
+                msg = 'この工具は既に貸出中です。手動返却後に再スキャンしてください。';
+              }
+            }
             setMessage(msg, true);
             appendNfcLog(msg, false);
           };
