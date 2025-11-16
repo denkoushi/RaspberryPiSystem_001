@@ -657,6 +657,7 @@ scan_state = {
     "status": "idle",
     "event_seq": 0,
     "last_event": None,
+    "last_tx_event": None,
 }
 
 
@@ -678,6 +679,8 @@ def _publish_scan_event(payload: dict, extra_channels: Optional[Iterable[str]] =
     event = dict(payload)
     event.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
     event = _record_scan_event(event)
+    if event.get("type") in {"transaction_complete", "transaction_error"}:
+        scan_state["last_tx_event"] = event
     channels = ["scan_event"]
     if extra_channels:
         channels.extend(extra_channels)
@@ -1313,7 +1316,7 @@ def api_scan_status():
         "status": scan_state.get("status"),
         "event_seq": scan_state.get("event_seq"),
     }
-    event = scan_state.get("last_event")
+    event = scan_state.get("last_tx_event") or scan_state.get("last_event")
     return jsonify({"state": state_snapshot, "event": event})
 
 @app.route('/api/loans')
