@@ -309,7 +309,7 @@ def broadcast_toolmgmt_overview(limit_open: int = 20, limit_history: int = 20) -
     """Fetch and broadcast the latest overview so clients can update without polling."""
     overview = build_toolmgmt_overview(limit_open=limit_open, limit_history=limit_history)
     try:
-        socketio.emit("toolmgmt_overview", overview, broadcast=True)
+        socketio.emit("toolmgmt_overview", overview)
     except Exception as exc:  # pylint: disable=broad-except
         print(f"[toolmgmt_overview] broadcast failed: {exc}")
     return overview
@@ -687,7 +687,8 @@ def _publish_scan_event(payload: dict, extra_channels: Optional[Iterable[str]] =
             continue
         seen.add(channel)
         try:
-            socketio.emit(channel, event)
+            # Flask-SocketIO broadcast はデフォルトで全接続へ送るので追加引数は不要
+            socketio.emit(channel, event, namespace="/")
         except Exception as exc:  # pylint: disable=broad-except
             print(f"[scan_event] emit {channel} failed: {exc}")
     return event
