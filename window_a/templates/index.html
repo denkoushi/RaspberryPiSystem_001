@@ -411,6 +411,7 @@
         const logList = panel.querySelector('[data-toolmgmt-log] ul');
         const refreshDelayMs = 2000;
         let refreshTimer = null;
+        let overviewRetryTimer = null;
 
         const masterBody = panel.querySelector('[data-master-files-body]');
         const openTable = panel.querySelector('[data-open-loans-table]');
@@ -560,6 +561,17 @@
           } catch (error) {
             setResult(`概要更新に失敗しました: ${error.message || error}`, true);
           }
+        };
+
+        const triggerOverviewRefresh = () => {
+          if (typeof refreshOverview !== 'function') return;
+          refreshOverview();
+          if (overviewRetryTimer) {
+            clearTimeout(overviewRetryTimer);
+          }
+          overviewRetryTimer = setTimeout(() => {
+            refreshOverview();
+          }, 1500);
         };
 
         const actionLabels = {
@@ -742,9 +754,7 @@
                 setMessage(message, false);
                 appendNfcLog(message);
               }
-              if (typeof refreshOverview === 'function') {
-                refreshOverview();
-              }
+              triggerOverviewRefresh();
             } else if (eventType === 'scan_error') {
               if (message) {
                 setMessage(message, true);
@@ -794,7 +804,7 @@
           const startScanStatusPolling = () => {
             if (scanStatusTimer) return;
             fetchScanStatus();
-            scanStatusTimer = setInterval(fetchScanStatus, 2000);
+            scanStatusTimer = setInterval(fetchScanStatus, 1000);
           };
 
           const stopScanStatusPolling = () => {
@@ -859,7 +869,7 @@
               setMessage('リセットしました', false);
               applyStatus('waiting_user');
               appendNfcLog('状態をリセットしました');
-              fetchScanStatus();
+            fetchScanStatus();
             } catch (error) {
               setMessage(error.message || 'リセットに失敗しました', true);
               appendNfcLog(`リセットエラー: ${error.message || error}`, false);
