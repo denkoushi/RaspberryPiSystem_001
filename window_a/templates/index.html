@@ -541,6 +541,21 @@
           }
         };
 
+        const applyOverviewPayload = (payload, options = {}) => {
+          if (!payload || typeof payload !== 'object') return;
+          const { silent = false } = options;
+          renderMasterFiles(payload.master_files || []);
+          renderOpenLoans(payload.open_loans || []);
+          renderHistory(payload.history || []);
+          if (overviewUpdated) {
+            overviewUpdated.textContent = `最終更新: ${formatTimestamp(payload.fetched_at)}`;
+          }
+          bindActionButtons();
+          if (!silent) {
+            setResult('工具管理データを更新しました。', false);
+          }
+        };
+
         const refreshOverview = async (options = {}) => {
           const { silent = false } = options;
           if (!overviewUrl) {
@@ -550,29 +565,17 @@
             }
             throw err;
           }
-          try {
-            const response = await fetch(overviewUrl, { cache: 'no-store' });
-            const data = await response.json();
-            if (!response.ok) {
-              throw new Error((data && data.error) || response.statusText || 'unknown error');
-            }
-            renderMasterFiles(data.master_files || []);
-            renderOpenLoans(data.open_loans || []);
-            renderHistory(data.history || []);
-            if (overviewUpdated) {
-              overviewUpdated.textContent = `最終更新: ${formatTimestamp(data.fetched_at)}`;
-            }
-            bindActionButtons();
+          const response = await fetch(overviewUrl, { cache: 'no-store' });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const err = new Error((data && data.error) || response.statusText || 'unknown error');
             if (!silent) {
-              setResult('工具管理データを更新しました。', false);
+              setResult(`概要更新に失敗しました: ${err.message}`, true);
             }
-            return data;
-          } catch (error) {
-            if (!silent) {
-              setResult(`概要更新に失敗しました: ${error.message || error}`, true);
-            }
-            throw error;
+            throw err;
           }
+          applyOverviewPayload(data, { silent });
+          return data;
         };
 
         const runOverviewRefresh = async () => {
@@ -924,6 +927,7 @@
               applyStatus('waiting_user');
               appendNfcLog('状態をリセットしました');
               fetchScanStatus();
+              lastSeenEventId = null;
             } catch (error) {
               setMessage(error.message || 'リセットに失敗しました', true);
               appendNfcLog(`リセットエラー: ${error.message || error}`, false);
@@ -964,6 +968,7 @@
               socketInstance.on('transaction_error', handleSocketEvent);
               socketInstance.on('state_reset', handleSocketEvent);
               socketInstance.on('scan_error', handleSocketEvent);
+              socketInstance.on('toolmgmt_overview', (payload) => applyOverviewPayload(payload, { silent: true }));
               socketInstance.on('error', handleSocketError);
             } catch (error) {
               appendNfcLog(`Socket接続エラー: ${error.message || error}`, false);

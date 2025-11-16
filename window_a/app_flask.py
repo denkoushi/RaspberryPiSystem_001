@@ -305,6 +305,16 @@ def build_toolmgmt_overview(limit_open: int = 20, limit_history: int = 20):
     return overview
 
 
+def broadcast_toolmgmt_overview(limit_open: int = 20, limit_history: int = 20) -> dict:
+    """Fetch and broadcast the latest overview so clients can update without polling."""
+    overview = build_toolmgmt_overview(limit_open=limit_open, limit_history=limit_history)
+    try:
+        socketio.emit("toolmgmt_overview", overview, broadcast=True)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[toolmgmt_overview] broadcast failed: {exc}")
+    return overview
+
+
 def _proxy_toolmgmt_request(method: str, path: str, *, allow_statuses: Optional[Iterable[int]] = None, **kwargs):
     client = _create_raspi_client()
     if not client.is_configured():
@@ -1141,6 +1151,7 @@ def scan_monitor():
                                     "loan_id": loan_id,
                                 },
                             )
+                            broadcast_toolmgmt_overview()
                             print(f"✅ {message}")
 
                             def reset_state():
@@ -1566,6 +1577,7 @@ def manual_return_loan(loan_id):
         return jsonify({"error": "invalid_response"}), 502
 
     log_api_action("manual_return", detail={"loan_id": loan_id})
+    broadcast_toolmgmt_overview()
     return jsonify(response)
 
 
@@ -1589,6 +1601,7 @@ def api_create_loan():
         return jsonify({"error": "invalid_response"}), 502
 
     log_api_action("create_loan", detail={"tool_uid": body.get("tool_uid"), "loan_id": body.get("loan_id")})
+    broadcast_toolmgmt_overview()
     return jsonify(body), raw_response.status_code
 
 
@@ -1621,6 +1634,7 @@ def delete_open_loan_api(loan_id):
         return jsonify({"error": "invalid_response"}), 502
 
     log_api_action("delete_open_loan", detail={"loan_id": loan_id, "tool_uid": body.get("tool_uid")})
+    broadcast_toolmgmt_overview()
     return jsonify(body)
 
 @app.route('/api/usb_sync', methods=['POST'])
