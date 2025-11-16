@@ -276,8 +276,17 @@
           <p class="helper-text">
             ボタンを押すと連続スキャンを開始します。利用者タグ → 工具タグ の順にかざすと、自動で Pi5 へ貸出登録します。
           </p>
-          <p class="status-ok" data-nfc-status>準備完了</p>
-          <button type="button" data-nfc-scan class="primary">NFC でスキャン</button>
+          <p class="status-fail" data-nfc-status>● 停止中</p>
+          <div class="nfc-controls">
+            <button type="button" class="primary" data-nfc-start>スキャン開始</button>
+            <button type="button" data-nfc-stop disabled>停止</button>
+            <button type="button" data-nfc-reset>リセット</button>
+          </div>
+          <div class="nfc-display">
+            <p>利用者 UID: <span data-nfc-user>-</span></p>
+            <p>工具 UID: <span data-nfc-tool>-</span></p>
+          </div>
+          <p class="helper-text" data-nfc-message>スキャン待機中です。</p>
           <div class="nfc-sequence">
             <strong>読み取り履歴</strong>
             <ul data-nfc-log></ul>
@@ -379,6 +388,7 @@
         <pre>{{ station_config | tojson(indent=2) }}</pre>
       </section>
     </main>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" crossorigin="anonymous"></script>
     <script>
       const socketClientConfig = {{ socket_client_config | tojson }};
       console.log("Socket client config:", socketClientConfig);
@@ -626,61 +636,64 @@
         }
 
         const nfcPanel = document.querySelector('[data-nfc-actions]');
-        if (nfcPanel && token) {
-          const nfcStatus = nfcPanel.querySelector('[data-nfc-status]');
-          const nfcButton = nfcPanel.querySelector('[data-nfc-scan]');
-          const nfcLog = nfcPanel.querySelector('[data-nfc-log]');
+        if (nfcPanel) {
+          const token = nfcPanel.dataset.apiToken;
+          const headerName = nfcPanel.dataset.apiHeader || 'X-API-Token';
+          const statusEl = nfcPanel.querySelector('[data-nfc-status]');
+          const messageEl = nfcPanel.querySelector('[data-nfc-message]');
+          const logEl = nfcPanel.querySelector('[data-nfc-log]');
+          const userEl = nfcPanel.querySelector('[data-nfc-user]');
+          const toolEl = nfcPanel.querySelector('[data-nfc-tool]');
+          const startBtn = nfcPanel.querySelector('[data-nfc-start]');
+          const stopBtn = nfcPanel.querySelector('[data-nfc-stop]');
+          const resetBtn = nfcPanel.querySelector('[data-nfc-reset]');
+          let socketInstance = null;
+          let scanActive = false;
 
           const appendNfcLog = (message, success = true) => {
-            if (!nfcLog) return;
+            if (!logEl) return;
             const li = document.createElement('li');
             const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
             li.textContent = `[${time}] ${message}`;
             li.classList.toggle('status-fail', !success);
-            nfcLog.prepend(li);
-            while (nfcLog.children.length > 10) {
-              nfcLog.removeChild(nfcLog.lastChild);
+            logEl.prepend(li);
+            while (logEl.children.length > 10) {
+              logEl.removeChild(logEl.lastChild);
             }
           };
 
-          const updateNfcStatus = (message, isError = false) => {
-            if (!nfcStatus) return;
-            nfcStatus.textContent = message;
-            nfcStatus.classList.toggle('status-fail', isError);
-            nfcStatus.classList.toggle('status-ok', !isError);
-          };
-
-          const performLoanCreate = async (borrowerUid, toolUid) => {
-            try {
-              const response = await fetch('/api/loans', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  [headerName]: token,
-                },
-                body: JSON.stringify({
-                  borrower_uid: borrowerUid,
-                  tool_uid: toolUid,
-                }),
-              });
-              const data = await response.json().catch(() => ({}));
-              if (!response.ok) {
-                const err = (data && data.error) || response.statusText || 'unknown';
-                throw new Error(err);
-              }
-              appendNfcLog(`貸出登録: ${borrowerUid} -> ${toolUid} (loan_id=${data.loan_id})`, true);
-              updateNfcStatus('貸出登録に成功しました', false);
-              setResult('NFC から貸出を登録しました。', false);
-              refreshOverview();
-            } catch (error) {
-              appendNfcLog(`貸出登録エラー: ${error.message || error}`, false);
-              updateNfcStatus('貸出登録に失敗しました', true);
-              setResult(`エラー: ${error.message || error}`, true);
+          const setStatus = (text, variant = 'info') => {
+            if (!statusEl) return;
+            statusEl.textContent = text;
+            statusEl.classList.remove('status-ok', 'status-fail');
+            if (variant === 'ok') {
+              statusEl.classList.add('status-ok');
+            } else if (variant === 'fail') {
+              statusEl.classList.add('status-fail');
             }
           };
 
-          const scanOnce = async () => {
-            const response = await fetch('/api/scan_tag', {
+          const setMessage = (text, isError = false) => {
+            if (!messageEl) return;
+            messageEl.textContent = text;
+            messageEl.classList.toggle('status-fail', isError);
+            messageEl.classList.toggle('status-ok', !isError);
+          };
+
+          const setDisplays = (userUid = '', toolUid = '') => {
+            if (userEl) userEl.textContent = userUid || '-';
+            if (toolEl) toolEl.textContent = toolUid || '-';
+          };
+
+          const updateButtons = () => {
+            if (startBtn) startBtn.disabled = !token || scanActive;
+            if (stopBtn) stopBtn.disabled = !token || !scanActive;
+            if (resetBtn) resetBtn.disabled = !token;
+          };
+
+          const callNfcEndpoint = async (path) => {
+            if (!token) throw new Error('APIトークンが未設定です');
+            const response = await fetch(path, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -688,37 +701,122 @@
               },
             });
             const data = await response.json().catch(() => ({}));
-            if (!response.ok || (data && data.status !== 'success')) {
-              const err = (data && data.status) || response.statusText || 'unknown';
-              throw new Error(err);
+            if (!response.ok) {
+              throw new Error((data && data.error) || response.statusText || 'request_failed');
             }
-            return data.uid;
+            return data;
           };
 
-          const handleScan = async () => {
-            nfcButton.disabled = true;
+          const handleStart = async () => {
             try {
-              updateNfcStatus('利用者タグを読み取っています...', false);
-              appendNfcLog('利用者タグ待機中', true);
-              const borrowerUid = await scanOnce();
-              appendNfcLog(`利用者 UID: ${borrowerUid}`, true);
-
-              updateNfcStatus('工具タグを読み取っています。次に工具タグをかざしてください。', false);
-              appendNfcLog('工具タグ待機中', true);
-              const toolUid = await scanOnce();
-              appendNfcLog(`工具 UID: ${toolUid}`, true);
-
-              updateNfcStatus('貸出登録中...', false);
-              await performLoanCreate(borrowerUid, toolUid);
+              await callNfcEndpoint('/api/start_scan');
+              scanActive = true;
+              updateButtons();
+              setStatus('● スキャン待機中', 'ok');
+              setMessage('利用者タグをかざしてください', false);
+              appendNfcLog('スキャンを開始しました');
+              initNfcSocket();
             } catch (error) {
-              appendNfcLog(`NFC エラー: ${error.message || error}`, false);
-              updateNfcStatus('NFC 読み取りに失敗しました', true);
-            } finally {
-              nfcButton.disabled = false;
+              setMessage(error.message || 'スキャン開始に失敗しました', true);
+              appendNfcLog(`スキャン開始エラー: ${error.message || error}`, false);
             }
           };
 
-          nfcButton.addEventListener('click', handleScan);
+          const handleStop = async () => {
+            try {
+              await callNfcEndpoint('/api/stop_scan');
+            } catch (error) {
+              appendNfcLog(`スキャン停止エラー: ${error.message || error}`, false);
+            } finally {
+              scanActive = false;
+              updateButtons();
+              setStatus('● 停止中', 'fail');
+              setMessage('スキャンを停止しました', true);
+            }
+          };
+
+          const handleReset = async () => {
+            try {
+              await callNfcEndpoint('/api/reset');
+              setDisplays('', '');
+              setMessage('リセットしました', false);
+              appendNfcLog('状態をリセットしました');
+            } catch (error) {
+              setMessage(error.message || 'リセットに失敗しました', true);
+              appendNfcLog(`リセットエラー: ${error.message || error}`, false);
+            }
+          };
+
+          const handleSocketScanUpdate = (payload = {}) => {
+            if (payload.user_uid) {
+              userEl.textContent = payload.user_uid;
+            }
+            if (payload.tool_uid) {
+              toolEl.textContent = payload.tool_uid;
+            }
+            if (payload.message) {
+              setMessage(payload.message, false);
+              appendNfcLog(payload.message);
+            }
+          };
+
+          const handleSocketTransaction = (payload = {}) => {
+            const msg = payload.message || '貸出登録が完了しました';
+            setMessage(msg, false);
+            appendNfcLog(msg);
+            if (typeof refreshOverview === 'function') {
+              refreshOverview();
+            }
+          };
+
+          const handleSocketReset = (payload = {}) => {
+            setDisplays('', '');
+            if (payload.message) {
+              setMessage(payload.message, false);
+              appendNfcLog(payload.message);
+            }
+          };
+
+          const handleSocketError = (payload) => {
+            const msg =
+              (payload && typeof payload === 'object' && payload.message) ||
+              (typeof payload === 'string' ? payload : 'NFC エラー');
+            setMessage(msg, true);
+            appendNfcLog(msg, false);
+          };
+
+          const initNfcSocket = () => {
+            if (socketInstance || !window.io || !socketClientConfig.base) return;
+            try {
+              socketInstance = window.io(socketClientConfig.base, {
+                path: socketClientConfig.path || '/socket.io',
+                withCredentials: false,
+                autoConnect: socketClientConfig.auto !== false,
+                transports: ['websocket'],
+              });
+              socketInstance.on('connect', () => appendNfcLog('Socket接続', true));
+              socketInstance.on('disconnect', () => appendNfcLog('Socket切断', false));
+              socketInstance.on('scan_update', handleSocketScanUpdate);
+              socketInstance.on('transaction_complete', handleSocketTransaction);
+              socketInstance.on('state_reset', handleSocketReset);
+              socketInstance.on('error', handleSocketError);
+            } catch (error) {
+              appendNfcLog(`Socket接続エラー: ${error.message || error}`, false);
+            }
+          };
+
+          if (startBtn) startBtn.addEventListener('click', handleStart);
+          if (stopBtn) stopBtn.addEventListener('click', handleStop);
+          if (resetBtn) resetBtn.addEventListener('click', handleReset);
+
+          if (!token) {
+            setStatus('APIトークンが未設定です', 'fail');
+            setMessage('APIトークンを設定してください', true);
+          } else {
+            initNfcSocket();
+            setMessage('スキャンを開始すると利用者タグを待機します', false);
+          }
+          updateButtons();
         }
       });
     </script>

@@ -633,3 +633,7 @@ sudo systemctl status toolmgmt.service -n 20 --no-pager
 ### 2025-11-15 22:35 JST 2連続スキャンの UI 調整
 - Dashboard の「NFC でスキャン」ボタンを 1 度押すと、利用者タグ → 工具タグの 2 回を連続でポーリングするように JavaScript を更新。利用者タグを読み取ると自動的に次の `/api/scan_tag` を発行し、そのまま工具タグを読み取ってから Pi5 `/api/v1/loans` へ登録するため、旧システムと同じ操作感になった。
 - ステータス表示と読み取りログも連続スキャンに合わせて整理。成功時は `貸出登録に成功しました` を表示し、Pi5 REST から 201 応答を受けた場合でもエラーメッセージにならないようにした。
+
+### 2025-11-16 08:20 JST 常時スキャンボタン復活
+- Pi4 サービスを root 実行に切り替えて pcscd の認可問題を回避し、`/api/start_scan` / `/api/stop_scan` / `/api/reset` で NFC 監視を制御できるように戻した。Dashboard の NFC セクションには「開始/停止/リセット」ボタンと Socket.IO ベースの状態表示を追加。
+- `scan_monitor()` は Pi5 `/api/v1/loans` を直接呼び出して貸出登録を行い、結果を `scan_update` / `transaction_complete` / `state_reset` イベントとしてブラウザへ通知する。貸出成功時は loan_id 付きでログに残り、エラー時は `loan_already_open` など API から返ったメッセージをそのまま表示する。

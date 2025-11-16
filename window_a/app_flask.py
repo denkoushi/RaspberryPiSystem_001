@@ -798,6 +798,36 @@ def insert_scan(conn, uid, role=None):
     with conn, conn.cursor() as cur:
         cur.execute("INSERT INTO scan_events(tag_uid, role_hint) VALUES (%s,%s)", (uid, role))
 
+
+class RemoteLoanError(Exception):
+    """Raised when the remote Pi5 API rejects an NFC-triggered loan request."""
+
+    def __init__(self, message: str, payload: Optional[dict] = None) -> None:
+        super().__init__(message)
+        self.payload = payload or {}
+
+
+def perform_remote_loan(borrower_uid: str, tool_uid: str) -> dict:
+    """Proxy Pi5 `/api/v1/loans` to register a new loan."""
+    client = _create_raspi_client()
+    if not client.is_configured():
+        raise RemoteLoanError("pi5_not_configured")
+
+    try:
+        response = client.post_json(
+            "/api/v1/loans",
+            payload={"borrower_uid": borrower_uid, "tool_uid": tool_uid},
+            allow_statuses=(200, 201, 400),
+        )
+    except RaspiServerAuthError as exc:
+        raise RemoteLoanError(str(exc)) from exc
+    except RaspiServerClientError as exc:
+        raise RemoteLoanError(str(exc)) from exc
+
+    if isinstance(response, dict) and response.get("error"):
+        raise RemoteLoanError(response["error"], response)
+    return response or {}
+
 def borrow_or_return(conn, user_uid, tool_uid):
     """貸出中なら返却、未貸出なら貸出を登録"""
     with conn, conn.cursor() as cur:
@@ -965,43 +995,61 @@ def scan_monitor():
                         scan_state["tool_uid"] = uid
                         scan_state["message"] = f"🛠️ 工具読取: {name_of_tool(conn, uid)} ({uid})"
                         insert_scan(conn, uid, "tool")
-                        
-                        # 両方揃った場合は自動実行
                         try:
-                            action, info = borrow_or_return(conn, scan_state["user_uid"], scan_state["tool_uid"])
-                            if action == "borrow":
-                                message = f"✅ 貸出：{name_of_tool(conn, scan_state['tool_uid'])} → {name_of_user(conn, scan_state['user_uid'])}"
-                            else:
-                                message = f"✅ 返却：{name_of_tool(conn, scan_state['tool_uid'])} by {name_of_user(conn, scan_state['user_uid'])}（借用者: {name_of_user(conn, info.get('prev_user',''))}）"
-                            
-                            socketio.emit('transaction_complete', {
-                                'user_uid': scan_state["user_uid"],
-                                'user_name': name_of_user(conn, scan_state["user_uid"]),
-                                'tool_uid': scan_state["tool_uid"],
-                                'tool_name': name_of_tool(conn, scan_state["tool_uid"]),
-                                'message': message,
-                                'action': action
-                            })
-                            
-                            print(f"✅ 処理完了: {message}")
-                            
-                            # 3秒後にリセット
+                            remote_result = perform_remote_loan(scan_state["user_uid"], scan_state["tool_uid"])
+                            loan_id = remote_result.get("loan_id")
+                            user_name = name_of_user(conn, scan_state["user_uid"])
+                            tool_name = name_of_tool(conn, scan_state["tool_uid"])
+                            message = f"✅ 貸出登録: {tool_name} → {user_name}"
+                            if loan_id:
+                                message += f" (loan_id={loan_id})"
+                            socketio.emit(
+                                'transaction_complete',
+                                {
+                                    'user_uid': scan_state["user_uid"],
+                                    'user_name': user_name,
+                                    'tool_uid': scan_state["tool_uid"],
+                                    'tool_name': tool_name,
+                                    'message': message,
+                                    'action': 'borrow',
+                                    'loan_id': loan_id,
+                                },
+                            )
+                            log_api_action(
+                                "scan_auto_loan",
+                                detail={
+                                    "user_uid": scan_state["user_uid"],
+                                    "tool_uid": scan_state["tool_uid"],
+                                    "loan_id": loan_id,
+                                },
+                            )
+                            print(f"✅ {message}")
+
                             def reset_state():
                                 time.sleep(3)
                                 scan_state["user_uid"] = ""
                                 scan_state["tool_uid"] = ""
                                 scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
-                                socketio.emit('state_reset', {
-                                    'message': scan_state["message"]
-                                })
+                                socketio.emit('state_reset', {'message': scan_state["message"]})
                                 print("🔄 次の処理待ち")
-                            
+
                             threading.Thread(target=reset_state, daemon=True).start()
-                            
-                        except Exception as e:
-                            error_msg = f"❌ エラー: {e}"
+
+                        except RemoteLoanError as exc:
+                            error_msg = f"❌ 貸出登録エラー: {exc}"
+                            log_api_action(
+                                "scan_auto_loan",
+                                status="error",
+                                detail={
+                                    "user_uid": scan_state["user_uid"],
+                                    "tool_uid": scan_state["tool_uid"],
+                                    "error": exc.payload.get("error") if isinstance(exc.payload, dict) else str(exc),
+                                },
+                            )
                             print(error_msg)
-                            socketio.emit('error', {'message': error_msg})
+                            socketio.emit('error', {'message': error_msg, 'detail': exc.payload})
+                            # allow re-scan of tool after error
+                            scan_state["tool_uid"] = ""
                             
                 finally:
                     conn.close()
