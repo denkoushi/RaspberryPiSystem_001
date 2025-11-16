@@ -707,6 +707,7 @@
           const scanStatusUrl = '/api/scan_status';
           let scanStatusTimer = null;
           let lastSeenEventId = null;
+          let pendingLoanRefreshTimer = null;
 
           const appendNfcLog = (message, success = true) => {
             if (!logEl) return;
@@ -796,8 +797,17 @@
             if (event.user_uid || event.tool_uid) {
               setDisplays(event.user_uid || userEl.textContent, event.tool_uid || toolEl.textContent);
             }
-            if (eventStatus === 'loan_registered') {
-              triggerOverviewRefresh();
+            const shouldTriggerLoanRefresh =
+              eventStatus === 'loan_registered' ||
+              (eventType === 'tool_scanned' && scanActive);
+            if (shouldTriggerLoanRefresh) {
+              if (pendingLoanRefreshTimer) {
+                clearTimeout(pendingLoanRefreshTimer);
+              }
+              pendingLoanRefreshTimer = setTimeout(() => {
+                pendingLoanRefreshTimer = null;
+                triggerOverviewRefresh();
+              }, 800);
             }
             switch (eventType) {
               case 'transaction_complete': {
@@ -805,7 +815,6 @@
                   setMessage(message, false);
                   appendNfcLog(message);
                 }
-                triggerOverviewRefresh();
                 break;
               }
               case 'transaction_error':
