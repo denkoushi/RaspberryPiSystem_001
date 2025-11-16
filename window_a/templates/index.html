@@ -782,7 +782,7 @@
             }
             const seq = Number(event.event_id ?? event.seq);
             if (Number.isFinite(seq)) {
-              if (lastSeenEventId && seq <= lastSeenEventId) {
+              if (lastSeenEventId !== null && seq < lastSeenEventId) {
                 return;
               }
               lastSeenEventId = seq;
@@ -795,6 +795,9 @@
             }
             if (event.user_uid || event.tool_uid) {
               setDisplays(event.user_uid || userEl.textContent, event.tool_uid || toolEl.textContent);
+            }
+            if (eventStatus === 'loan_registered') {
+              triggerOverviewRefresh();
             }
             switch (eventType) {
               case 'transaction_complete': {
