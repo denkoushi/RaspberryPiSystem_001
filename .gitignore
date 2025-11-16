@@ -12,3 +12,7 @@ client_window_a/coverage/
 # ルート共通
 .DS_Store
 /tmp/
+
+# Window A 実行時に生成されるローカル設定
+window_a/config/window-a.env
+window_a/config/pi5-hostname

@@ -215,13 +215,17 @@ LAN を切り替えた直後など、Pi4 から Pi5 の PostgreSQL へ接続で�
    PGPASSWORD=app psql -h 192.168.xxx.xxx -p 15432 -U app -d sensordb -c '\dt'
    ```
    ここで成功すればネットワークと認証は問題ない。
-3. **ホスト名解決と `DATABASE_URL` の整合性**  
-   - `/etc/hosts` で `raspi-server.local` を Pi5 の現行 IP に向ける。  
-     LAN が変わると IP も変わるため、更新を忘れると Pi4 だけ古い IP を参照し続ける。  
-   - もしくは `window_a/config/window-a.env` の `DATABASE_URL` を直接 IP ベースに書き換える（例: `postgresql://app:app@192.168.128.128:15432/sensordb`）。  
-     編集後は `sudo systemctl restart toolmgmt.service` を実行し `sudo journalctl -u toolmgmt.service -n 40 --no-pager` でエラーが出ていないかを確認する。
+3. **ホスト名解決と `window_a/config/pi5-hostname`**  
+   - `window_a/config/window-a.env` で `PI5_HOST_FILE` をデフォルトの `window_a/config/pi5-hostname` にしておけば、ファイルの 1 行目を書き換えるだけで `RASPI_SERVER_BASE`・`RASPI_SERVER_SOCKET_URL`・`DATABASE_URL` が自動で更新される。  
+     ```bash
+     echo "192.168.10.230" > ~/RaspberryPiSystem_001/window_a/config/pi5-hostname
+     sudo systemctl restart toolmgmt.service
+     sudo journalctl -u toolmgmt.service -n 40 --no-pager
+     ```
+   - 既存の `/etc/hosts` 運用を続けたい場合は `PI5_HOST_OVERRIDE=0` にして、従来どおり手動で `RASPI_SERVER_BASE` や `DATABASE_URL` を書き換える（例: `postgresql://app:app@192.168.128.128:15432/sensordb`）。
 4. **再発防止**  
-   - Pi5 の IP が変わる運用が続く場合は、Pi4 の `/etc/hosts` を更新する手順または上記 `DATABASE_URL` の書き換え手順を `docs/test-notes/2025-11/window-a-demo.md` に都度記録し、LAN 切替え後は必ず実施するようチェックリスト化する。
+   - LAN を切り替えるたびに `hostname -I` で Pi5 の IP を確認し、`pi5-hostname` を更新した上で `toolmgmt.service` を再起動する手順を `docs/test-notes/2025-11/window-a-demo.md` に追記する。  
+   - `/etc/hosts` を併用する場合も、最新 IP を記録しておき、Pi4 を移動させる前後で必ずチェックする。
 
 このチェックリストに従うことで、今回発生したような「Pi4 から psql は通るのに systemd 経由では接続できない」トラブルを短時間で再現・修正できる。
 

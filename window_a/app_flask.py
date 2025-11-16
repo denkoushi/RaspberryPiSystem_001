@@ -59,6 +59,72 @@ if ENV_FILE.exists() and not os.getenv("PYTEST_CURRENT_TEST"):
     applied = apply_env_file(str(ENV_FILE), environ)
     environ.update(applied)
 
+
+def _parse_bool(value: Optional[str], default: bool = True) -> bool:
+    """Return True unless the string explicitly expresses a false-ish value."""
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "off", "no", ""}
+
+
+_DEFAULT_PI5_HOST_FILE = (Path(__file__).resolve().parent / "config" / "pi5-hostname").resolve()
+
+
+def _apply_pi5_host_overrides() -> None:
+    """Update RaspberryPiServer/DB endpoints using PI5_HOST or a host file.
+
+    Pi5 の IP が環境によって変わるケースで、window-a.env を書き換えずに
+    一箇所のホスト定義だけで済ませるための仕組み。
+    """
+    if not _parse_bool(os.getenv("PI5_HOST_OVERRIDE", "1"), True):
+        return
+
+    host_value = (os.getenv("PI5_HOST") or "").strip()
+    host_file = os.getenv("PI5_HOST_FILE", str(_DEFAULT_PI5_HOST_FILE))
+    if not host_value and host_file:
+        try:
+            host_value = Path(host_file).read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            host_value = ""
+    if not host_value:
+        return
+
+    api_scheme = (os.getenv("PI5_API_SCHEME") or "http").strip() or "http"
+    api_port = (os.getenv("PI5_API_PORT") or os.getenv("PI5_PORT") or "8501").strip()
+    socket_scheme = (os.getenv("PI5_SOCKET_SCHEME") or api_scheme).strip() or api_scheme
+    socket_port = (os.getenv("PI5_SOCKET_PORT") or api_port).strip()
+    db_port = (os.getenv("PI5_DB_PORT") or os.getenv("DB_PORT") or "15432").strip()
+    db_user = (os.getenv("PI5_DB_USER") or os.getenv("DB_USER") or "app").strip()
+    db_password = os.getenv("PI5_DB_PASSWORD") or os.getenv("DB_PASSWORD") or "app"
+    db_name = (os.getenv("PI5_DB_NAME") or os.getenv("DB_NAME") or "sensordb").strip() or "sensordb"
+
+    def _make_base(scheme: str, host: str, port: str) -> str:
+        cleaned_port = port.strip()
+        if cleaned_port:
+            return f"{scheme}://{host}:{cleaned_port}"
+        return f"{scheme}://{host}"
+
+    base_url = _make_base(api_scheme, host_value, api_port)
+    socket_url = _make_base(socket_scheme, host_value, socket_port)
+    os.environ["RASPI_SERVER_BASE"] = base_url.rstrip("/")
+    os.environ["RASPI_SERVER_SOCKET_URL"] = socket_url.rstrip("/")
+
+    db_url = f"postgresql://{db_user}:{db_password}@{host_value}:{db_port}/{db_name}"
+    os.environ["DATABASE_URL"] = db_url
+    os.environ["DB_HOST"] = host_value
+    os.environ["DB_PORT"] = db_port
+    os.environ["DB_NAME"] = db_name
+    os.environ["DB_USER"] = db_user
+    os.environ["DB_PASSWORD"] = db_password
+    os.environ["CURRENT_PI5_HOST"] = host_value
+    print(
+        f"[pi5-host] applied dynamic host override host={host_value} api={base_url} db={db_name}@{host_value}:{db_port}",
+        flush=True,
+    )
+
+
+_apply_pi5_host_overrides()
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 def _resolve_doc_viewer_url() -> str:
@@ -95,12 +161,6 @@ def _normalize_socket_base(value: Optional[str]) -> str:
     if not value:
         return ""
     return value.rstrip("/")
-
-
-def _parse_bool(value: Optional[str], default: bool = True) -> bool:
-    if value is None:
-        return default
-    return value.strip().lower() not in {"0", "false", "off", "no", ""}
 
 
 ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), True)

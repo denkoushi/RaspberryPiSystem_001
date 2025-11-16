@@ -1,0 +1,9 @@
+# ここには Pi5 (RaspberryPiServer) の現在の IP またはホスト名を 1 行で記述する。
+# 例:
+#   192.168.10.230
+#   raspi-server.local
+#
+# 運用手順:
+#   cp window_a/config/pi5-hostname.sample window_a/config/pi5-hostname
+#   echo "192.168.10.230" > window_a/config/pi5-hostname
+#   sudo systemctl restart toolmgmt.service
