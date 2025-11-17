@@ -31,12 +31,14 @@
   - Pi5 で `/api/v1/loans` の POST ルートを `server/src/raspberrypiserver/api/tool_management.py`（`strict_slashes=False`）に追加し、`curl -i http://127.0.0.1:8501/api/v1/loans -X POST -d '{}'` が 200 になることを実機確認。Window A の `scan_auto_loan` も 200 を受信し、404 で止まる事象は解消。
   - Pi4 `window_a/app_flask.py` を改修し、スキャンスレッドを `threading.Event` で管理、スレッド専用 DB / NFC セッションを採用、`RemoteLoanError` 時は `user_uid`・`tool_uid` をリセットしたうえで `_enter_scan_error(..., stop_loop=False)` でループ継続。`logger.exception("[scan_update] error")` で例外内容をすべて記録。
   - `/api/scan_status` は常に最新イベント (`last_event`) を返し、`last_tx_event` をサブフィールドで提供するよう修正。UI が各スキャンステップを順次受け取れるようになり、ブラウザリロード無しで連続貸出・返却が可能になった。
-  - `docs/test-notes/2025-11/window-a-demo.md` と `docs/system/restart-checklist.md` に Git pull → systemctl restart → `curl` → NFC テストまでの手順・結果を追記済み。
+  - `docs/test-notes/2025-11/window-a-demo.md` と `docs/system/restart-checklist.md` に Git pull → systemctl restart → `curl` → NFC テストまでの手順・結果を追記済み。再起動ルーチンは運用手順として定着済み。
+- **共通ルーチン（運用中）**:
+  - Pi5 を再起動したら 3〜5 秒待ってから `curl -i http://127.0.0.1:8501/api/v1/loans` と `curl -s http://127.0.0.1:8501/api/scan_status | jq` を実行し、200 応答を確認する。Pi4 の `toolmgmt.service` 再起動は Pi5 正常化後に実施する。
+  - Pi4 / Pi5 それぞれで `git pull` → service restart → 利用者→工具×3 の連続スキャンを 1 セッションとして実施し、結果を `docs/test-notes/2025-11/window-a-demo.md` に記録する（2025-11-17 日中分まで記録済み）。
+  - `scan_error` / `error_count` を `journalctl -u toolmgmt.service` と `/api/scan_status` で監視し、異常時はログと再現状況をテストノートへ追記する。
 - **直近 TODO**:
-  1. Pi4 / Pi5 それぞれで `git pull` → `sudo systemctl restart toolmgmt.service`／`sudo systemctl restart raspberrypiserver.service` → `curl http://127.0.0.1:8501/api/v1/loans` → ブラウザ連続スキャン（利用者→工具×3 セット）を 1 セッションとして定型化。手順と結果を毎回 `docs/test-notes/2025-11/window-a-demo.md` に追記し、`docs/system/next-steps.md` のステータスを更新する。
-  2. `scan_error` がゼロで推移するかを `journalctl -u toolmgmt.service -n 120` と `/api/scan_status` の `error_count` で観測し、異常が出たらログと再発手順を記録する。
-  3. UI で `status` を `idle` / `scanning` / `error` に正規化し、`status="error"` 時はメッセージ + 「再開」ボタンを表示する。必要な文言を `window_a/templates/index.html` に追加し、動作をテストノートへ記録する。
-  4. 連続スキャンテストが安定したら `main` へマージし、次フェーズの sub ブランチ（例: `feature/window-a-auto-retry`）を `git switch -c` で切ったうえで追加改修を行う。
+  1. UI で `status` を `idle` / `scanning` / `error` に正規化し、`status="error"` 時はメッセージ + 「再開」ボタンを表示する。必要な文言を `window_a/templates/index.html` に追加し、動作をテストノートへ記録する。
+  2. UI 改修を含む連続スキャンテストが安定したら `main` へ反映済みコードに対して次サブブランチ（例: `feature/window-a-auto-retry`）を `git switch -c` で切り、エラー自動リトライやステータス通知改善を進める。
 
 ### C. 本番デプロイ体制整備タスク
 - **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。

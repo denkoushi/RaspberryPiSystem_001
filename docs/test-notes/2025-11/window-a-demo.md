@@ -50,6 +50,18 @@
   - RemoteLoanError をテストするために Pi5 を意図的に止めた場合でも、`user_uid` / `tool_uid` はリセットされ `status=error` → 「再開」ボタンを押すだけで再度スキャン開始できることを確認。
   - 連続テストのログは本節をテンプレートにして随時追記する。ブラウザ操作前に必ず `git pull` と systemd restart を入れること。
 
+### 2025-11-17 13:10 前後のサービス再起動ログ
+- **Pi5 (raspi-server)**  
+  - `cd ~/RaspberryPiSystem_001 && git pull` → `sudo systemctl restart raspberrypiserver.service` を実行。`git pull` は差分なし。  
+  - `journalctl -u raspberrypiserver.service -n 60 --no-pager` で確認したところ、12:58 頃の貸出テストでは `POST /api/v1/loans` が 201 (貸出成功) と 400（入力エラー）を交互に記録し、13:00 以降も貸出・削除 API が正常応答している。  
+  - 13:10 および 13:13 に systemd の Stop→Start ログが出ており、再起動直後に `curl -i http://127.0.0.1:8501/api/v1/loans` を投げたが、Socket.IO がまだ立ち上がる前だったため `curl: (7) Failed to connect to 127.0.0.1 port 8501` で失敗。**待機 5 秒後に同じ curl を再実行して 200 / 201 を確認すること**を再発防止として明記。  
+  - 13:13:27 には `GET /api/scan_status` が 404 を返したログがあり、Pi4 からのポーリングが Pi5 再起動中に当たったと推測。Pi5 起動後に `/api/scan_status` へ直接 curl して 200 を確認しておく。
+- **Pi4 (Window A)**  
+  - `cd ~/RaspberryPiSystem_001 && git pull` → `sudo systemctl restart toolmgmt.service` を実行。`git pull` は差分なし。  
+  - `journalctl -u toolmgmt.service -n 120 --no-pager` では 13:12〜13:14 に `/api/scan_status` への GET 200 が 1 秒間隔で連続しており、Pi5 再起動中も HTTP 200 で応答（裏では Pi5 404 を `api_actions.log` が受け取る可能性あり）。13:14:25 に `toolmgmt.service` を再起動したログと、起動直後に `curl` で `/api/scan_status` を取得できたことを確認。  
+  - 次回からは Pi5 を先に再起動し、`curl /api/v1/loans` が 200 を返すまで待ってから Pi4 のサービスを再起動する運用に徹する。
+- **運用まとめ**: 以降の再起動時も本節の順序（Pi5 → 5 秒待ち → curl 応答確認 → Pi4 再起動 → 3 連続スキャン）を実施し、各セッション結果を随時追記する。
+
 ## Window A 実機テスト手順（開発中の暫定版）
 1. Pi5 の API が 200 を返すことを `curl` で確認（詳細は `docs/system/restart-checklist.md` を参照）。
 2. Pi4 の `toolmgmt.service` を再起動し、`journalctl -u toolmgmt.service -n 40` で 404 / scan_update エラーが出ていないか確認。
