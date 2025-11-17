@@ -1,5 +1,37 @@
 # Window A デモテストメモ (2025-11-05)
 
+## 2025-11-17 Pi 再起動後の復旧ログ
+- **状況**: Pi4/ Pi5 をシャットダウン→再起動したところ、Pi4 の `toolmgmt.service` が 404 を受けて起動に失敗し、Pi5 からも `/api/v1/loans`・`/api/toolmgmt/overview`・`/api/logistics/jobs` が 404 になった。復旧まで約 2 時間。
+- **原因**:
+  - Pi5 で `main` ブランチのまま `git pull` / `systemctl restart` を行ったため、互換 API を追加した `feature/repo-structure-plan` のコードが読み込まれていなかった。
+  - 旧環境で生成された `server/src/raspberrypiserver.egg-info/*` が変更扱いのままで、作業ブランチ切替や `git pull` が正しく反映されていなかった。
+  - Pi4 側では Pi5 API を前提に `/api/toolmgmt/overview` を同期呼び出ししているため、Pi5 が 404 のままだと `toolmgmt.service` が即座に再起動してしまう。
+- **復旧手順**（実際に行った手順と今後の定型手順）:
+  1. Pi5 で `~/RaspberryPiSystem_001` を開き、常に `feature/repo-structure-plan` を checkout → `git pull`。`server/src/raspberrypiserver.egg-info` が変更扱いのときは `pip uninstall raspberrypiserver -y && git checkout -- src/raspberrypiserver.egg-info/* && pip install -e '.[dev]'` を実行してから pull。
+  2. `sudo systemctl restart raspberrypiserver.service` → `sudo ss -ltnp | grep 8501` → `curl http://127.0.0.1:8501/api/v1/loans` / `/api/toolmgmt/overview` / `/api/logistics/jobs` で 200 を確認。
+  3. Pi4 で `git pull` → `sudo systemctl restart toolmgmt.service`。`journalctl -u toolmgmt.service -n 40` で 404 や `scan_update failed to resolve names` が出ていないか確認。
+  4. ブラウザで NFC スキャン→貸出一覧自動更新を確認し、結果を本ファイルに追記。
+- **再発防止**:
+  - Pi5 を再起動する前に `git status -sb` を確認してブランチと差分をゼロにしておく。
+  - systemd ユニットの `WorkingDirectory` と `git pull` を行うディレクトリを必ず一致させる（`/home/denkon5ssd/RaspberryPiSystem_001/server`）。
+  - 再起動チェックリストを `docs/system/next-steps.md` に記載し、運用時は必ず順番に実施する。
+
+### 2025-11-17 スキャンループ安定化対応
+- `window_a/app_flask.py` の `scan_monitor` を改修し、例外クラスを `logger.exception` で出す・DB／NFC のエラー回数を監視・`threading.Event` でスキャン多重起動を防止。
+- `/api/start_scan` はすでにスキャン中のときは `status=already_running` を返すように変更し、`/api/scan_status` には `last_error` / `error_count` を追加。
+- `insert_scan` が `conn` をクローズしてしまい再読込できなくなっていたため、コネクションを共有しても閉じないよう修正。
+- `scan_update`／`scan_error` で名前解決に失敗したときは `scan_state["last_error"]` に記録し、UI が `status="error"` を受け取った場合は再開ボタンを押すようガイダンスする。
+- 今後のテスト: ブラウザで「スキャン開始」を押し、利用者→工具を連続で 3 セット読ませて再現しないことを確認する。
+
+## Window A 実機テスト手順（開発中の暫定版）
+1. Pi5 の API が 200 を返すことを `curl` で確認（詳細は `docs/system/restart-checklist.md` を参照）。
+2. Pi4 の `toolmgmt.service` を再起動し、`journalctl -u toolmgmt.service -n 40` で 404 / scan_update エラーが出ていないか確認。
+3. Chromium で Dashboard を開き、以下を順番に実行して結果をこのファイルへ記録する。
+   - 「スキャン開始」→利用者タグ→工具タグ（貸出 UID 表示と貸出一覧の自動更新を確認）。
+   - 手動返却・貸出削除ボタンを押して `/api/toolmgmt/overview` の再取得ログが出るか確認。
+   - DocumentViewer / logistics jobs / part locations の表示が更新されているか確認。
+4. 取得したログ（`/api/scan_status` 出力、ブラウザ Console、`api_actions.log` など）を添付し、異常があれば次のアクションを `docs/system/next-steps.md` に反映する。
+
 ## REST 応答確認
 - `docker compose up -d` で PostgreSQL 起動 → `./scripts/init_db.sh`, `seed_backlog.py`, `drain_backlog.py` で `TEST-001`〜`TEST-005` を投入。
 - `server/config/local.toml` を作成し、`SCAN_REPOSITORY_BACKEND = "db"`／`database.dsn = "postgresql://app:app@localhost:15432/sensordb"` を指定。

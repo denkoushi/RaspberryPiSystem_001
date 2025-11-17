@@ -20,9 +20,12 @@ try:
 except Exception:  # pragma: no cover - tests provide stub without CardType
     AnyCardType = None
 try:
-    from smartcard.Exceptions import NoCardException
+    from smartcard.Exceptions import NoCardException, CardConnectionException
 except Exception:  # pragma: no cover - fallback when smartcard not installed
     class NoCardException(Exception):
+        """Stub exception used when pyscard is not installed."""
+
+    class CardConnectionException(Exception):
         """Stub exception used when pyscard is not installed."""
 
 from smartcard.util import toHexString
@@ -707,6 +710,9 @@ DB = build_db_config()
 GET_UID = [0xFF, 0xCA, 0x00, 0x00, 0x00]  # PC/SC: GET DATA (UID/IDm)
 
 # グローバル状態
+logger = logging.getLogger(__name__)
+SCAN_MAX_ERROR_RETRIES = 3
+scan_loop_event = threading.Event()
 scan_state = {
     "active": False,
     "user_uid": "",
@@ -718,6 +724,8 @@ scan_state = {
     "event_seq": 0,
     "last_event": None,
     "last_tx_event": None,
+    "last_error": "",
+    "error_count": 0,
 }
 
 
@@ -755,6 +763,28 @@ def _publish_scan_event(payload: dict, extra_channels: Optional[Iterable[str]] =
         except Exception as exc:  # pylint: disable=broad-except
             print(f"[scan_event] emit {channel} failed: {exc}")
     return event
+
+
+def _set_scan_status(status: str, message: Optional[str] = None) -> None:
+    if message is not None:
+        scan_state["message"] = message
+    scan_state["status"] = status
+
+
+def _enter_scan_error(
+    message: str,
+    detail: Optional[dict] = None,
+    conn=None,
+    error_code: Optional[str] = None,
+    stop_loop: bool = True,
+) -> None:
+    scan_state["active"] = False
+    scan_state["last_error"] = message
+    scan_state["error_count"] = int(scan_state.get("error_count", 0)) + 1
+    _set_scan_status("error", message)
+    _emit_scan_error(message, detail=detail, conn=conn, error_code=error_code)
+    if stop_loop:
+        scan_loop_event.clear()
 
 
 def _emit_scan_update(
@@ -969,8 +999,9 @@ def delete_tool_name(conn, name):
         cur.execute("DELETE FROM tool_master WHERE name=%s", (name,))
 
 def insert_scan(conn, uid, role=None):
-    with conn, conn.cursor() as cur:
+    with conn.cursor() as cur:
         cur.execute("INSERT INTO scan_events(tag_uid, role_hint) VALUES (%s,%s)", (uid, role))
+    conn.commit()
 
 
 class RemoteLoanError(Exception):
@@ -1121,6 +1152,9 @@ def read_one_uid(timeout=3):
                 return toHexString(data).replace(" ", "")
         except NoCardException:
             return None
+        except CardConnectionException:
+            # Re-raise so上位でリトライ/エラー処理できる
+            raise
         except Exception as exc:  # pylint: disable=broad-except
             # タイムアウトは正常動作なので黙殺、その他はログに出す
             if "Time-out" in str(exc) or "Command timeout" in str(exc):
@@ -1131,144 +1165,189 @@ def read_one_uid(timeout=3):
 def scan_monitor():
     """バックグラウンドでNFCスキャンを監視"""
     global scan_state
-    
+    db_error_retries = 0
+    nfc_error_retries = 0
+
     while True:
-        if not scan_state["active"]:
+        if not scan_loop_event.is_set():
+            scan_state["active"] = False
             if scan_state.get("status") != "idle":
-                scan_state["status"] = "idle"
-                scan_state["message"] = "⏹️ スキャン停止中"
+                _set_scan_status("idle", "⏹️ スキャン停止中")
                 _emit_scan_update("idle", scan_state["message"], event_type="idle")
             time.sleep(0.5)
             continue
 
         try:
             uid = read_one_uid(timeout=1)
-            if uid:
-                # 連続スキャン防止
-                current_time = time.time()
-                if uid == scan_state["last_scanned_uid"] and (current_time - scan_state["last_scan_time"]) < 2:
-                    continue
-                    
-                scan_state["last_scanned_uid"] = uid
-                scan_state["last_scan_time"] = current_time
-                
-                conn = get_conn()
-                try:
-                    # ユーザーがまだ設定されていない場合
-                    if not scan_state["user_uid"]:
-                        scan_state["user_uid"] = uid
-                        user_name = name_of_user(conn, uid)
-                        scan_state["message"] = f"👤 ユーザー読取: {user_name} ({uid})"
-                        scan_state["status"] = "waiting_tool"
-                        insert_scan(conn, uid, "user")
-
-                        _emit_scan_update(
-                            "waiting_tool",
-                            scan_state["message"],
-                            conn,
-                            extra={"phase": "user"},
-                            event_type="user_scanned",
-                        )
-
-                    # ユーザーが設定済みで工具がまだの場合
-                    elif not scan_state["tool_uid"]:
-                        scan_state["tool_uid"] = uid
-                        tool_name = name_of_tool(conn, uid)
-                        scan_state["message"] = f"🛠️ 工具読取: {tool_name} ({uid})"
-                        scan_state["status"] = "tool_scanned"
-                        insert_scan(conn, uid, "tool")
-                        _emit_scan_update(
-                            "tool_scanned",
-                            scan_state["message"],
-                            conn,
-                            extra={"phase": "tool"},
-                            event_type="tool_scanned",
-                        )
-                        try:
-                            remote_result = perform_remote_loan(scan_state["user_uid"], scan_state["tool_uid"])
-                            loan_id = remote_result.get("loan_id")
-                            user_name = name_of_user(conn, scan_state["user_uid"])
-                            tool_name = name_of_tool(conn, scan_state["tool_uid"])
-                            message = f"✅ 貸出登録: {tool_name} → {user_name}"
-                            if loan_id:
-                                message += f" (loan_id={loan_id})"
-                            scan_state["status"] = "loan_registered"
-                            _publish_scan_event(
-                                {
-                                    "type": "transaction_complete",
-                                    "status": "loan_registered",
-                                    "user_uid": scan_state["user_uid"],
-                                    "user_name": user_name,
-                                    "tool_uid": scan_state["tool_uid"],
-                                    "tool_name": tool_name,
-                                    "message": message,
-                                    "action": "borrow",
-                                    "loan_id": loan_id,
-                                },
-                                extra_channels=["transaction_complete", "scan_update"],
-                            )
-                            log_api_action(
-                                "scan_auto_loan",
-                                detail={
-                                    "user_uid": scan_state["user_uid"],
-                                    "tool_uid": scan_state["tool_uid"],
-                                    "loan_id": loan_id,
-                                },
-                            )
-                            broadcast_toolmgmt_overview()
-                            print(f"✅ {message}")
-
-                            def reset_state():
-                                time.sleep(3)
-                                scan_state["user_uid"] = ""
-                                scan_state["tool_uid"] = ""
-                                scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
-                                scan_state["status"] = "waiting_user"
-                                _emit_scan_update(
-                                    "waiting_user",
-                                    scan_state["message"],
-                                    event_type="state_reset",
-                                    extra_channels=["state_reset"],
-                                )
-                                print("🔄 次の処理待ち")
-
-                            threading.Thread(target=reset_state, daemon=True).start()
-
-                        except RemoteLoanError as exc:
-                            error_msg = f"❌ 貸出登録エラー: {exc}"
-                            error_code = exc.payload.get("error") if isinstance(exc.payload, dict) else None
-                            log_api_action(
-                                "scan_auto_loan",
-                                status="error",
-                                detail={
-                                    "user_uid": scan_state["user_uid"],
-                                    "tool_uid": scan_state["tool_uid"],
-                                    "error": error_code or str(exc),
-                                },
-                            )
-                            print(error_msg)
-                            scan_state["message"] = error_msg
-                            scan_state["status"] = "error"
-                            _emit_scan_error(
-                                error_msg,
-                                detail=exc.payload,
-                                conn=conn,
-                                error_code=error_code,
-                                event_type="transaction_error",
-                                extra_channels=["transaction_error"],
-                            )
-                            # allow re-scan of tool after error
-                            scan_state["tool_uid"] = ""
-
-                finally:
-                    conn.close()
-                    
-        except Exception as e:
-            # 重要でないエラーは表示しない
-            if "Time-out" not in str(e) and "Command timeout" not in str(e):
-                print(f"スキャンループエラー: {e}")
+        except CardConnectionException as exc:
+            logger.exception("[scan_monitor] card connection error")
+            nfc_error_retries += 1
+            if nfc_error_retries >= SCAN_MAX_ERROR_RETRIES:
+                _enter_scan_error(
+                    "NFC リーダーとの接続に失敗しました。スキャンを再開してください。",
+                    error_code="nfc_connection",
+                )
+                nfc_error_retries = 0
             time.sleep(1)
-        
+            continue
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.exception("[scan_monitor] unexpected NFC error")
+            nfc_error_retries += 1
+            if nfc_error_retries >= SCAN_MAX_ERROR_RETRIES:
+                _enter_scan_error(
+                    "NFC スキャンで予期しないエラーが発生しました。スキャンを再開してください。",
+                    error_code="nfc_unknown",
+                )
+                nfc_error_retries = 0
+            time.sleep(1)
+            continue
+
+        if not uid:
+            time.sleep(0.1)
+            continue
+
+        nfc_error_retries = 0
+
+        conn = None
+        try:
+            conn = get_conn()
+            db_error_retries = 0
+
+            current_time = time.time()
+            if uid == scan_state["last_scanned_uid"] and (current_time - scan_state["last_scan_time"]) < 2:
+                continue
+
+            scan_state["last_scanned_uid"] = uid
+            scan_state["last_scan_time"] = current_time
+
+            if not scan_state["user_uid"]:
+                scan_state["user_uid"] = uid
+                user_name = name_of_user(conn, uid)
+                scan_state["error_count"] = 0
+                scan_state["last_error"] = ""
+                _set_scan_status("waiting_tool", f"👤 ユーザー読取: {user_name} ({uid})")
+                insert_scan(conn, uid, "user")
+                _emit_scan_update(
+                    "waiting_tool",
+                    scan_state["message"],
+                    conn,
+                    extra={"phase": "user"},
+                    event_type="user_scanned",
+                )
+
+            elif not scan_state["tool_uid"]:
+                scan_state["tool_uid"] = uid
+                tool_name = name_of_tool(conn, uid)
+                _set_scan_status("tool_scanned", f"🛠️ 工具読取: {tool_name} ({uid})")
+                insert_scan(conn, uid, "tool")
+                _emit_scan_update(
+                    "tool_scanned",
+                    scan_state["message"],
+                    conn,
+                    extra={"phase": "tool"},
+                    event_type="tool_scanned",
+                )
+                try:
+                    remote_result = perform_remote_loan(scan_state["user_uid"], scan_state["tool_uid"])
+                    loan_id = remote_result.get("loan_id")
+                    user_name = name_of_user(conn, scan_state["user_uid"])
+                    tool_name = name_of_tool(conn, scan_state["tool_uid"])
+                    message = f"✅ 貸出登録: {tool_name} → {user_name}"
+                    if loan_id:
+                        message += f" (loan_id={loan_id})"
+                    _set_scan_status("loan_registered", message)
+                    _publish_scan_event(
+                        {
+                            "type": "transaction_complete",
+                            "status": "loan_registered",
+                            "user_uid": scan_state["user_uid"],
+                            "user_name": user_name,
+                            "tool_uid": scan_state["tool_uid"],
+                            "tool_name": tool_name,
+                            "message": message,
+                            "action": "borrow",
+                            "loan_id": loan_id,
+                        },
+                        extra_channels=["transaction_complete", "scan_update"],
+                    )
+                    log_api_action(
+                        "scan_auto_loan",
+                        detail={
+                            "user_uid": scan_state["user_uid"],
+                            "tool_uid": scan_state["tool_uid"],
+                            "loan_id": loan_id,
+                        },
+                    )
+                    broadcast_toolmgmt_overview()
+                    print(f"✅ {message}")
+
+                    def reset_state():
+                        time.sleep(3)
+                        scan_state["user_uid"] = ""
+                        scan_state["tool_uid"] = ""
+                        _set_scan_status("waiting_user", "📡 スキャン待機中... ユーザータグをかざしてください")
+                        _emit_scan_update(
+                            "waiting_user",
+                            scan_state["message"],
+                            event_type="state_reset",
+                            extra_channels=["state_reset"],
+                        )
+                        print("🔄 次の処理待ち")
+
+                    threading.Thread(target=reset_state, daemon=True).start()
+
+                except RemoteLoanError as exc:
+                    error_msg = f"❌ 貸出登録エラー: {exc}"
+                    error_code = exc.payload.get("error") if isinstance(exc.payload, dict) else None
+                    log_api_action(
+                        "scan_auto_loan",
+                        status="error",
+                        detail={
+                            "user_uid": scan_state["user_uid"],
+                            "tool_uid": scan_state["tool_uid"],
+                            "error": error_code or str(exc),
+                        },
+                    )
+                    print(error_msg)
+                    scan_state["tool_uid"] = ""
+                    _enter_scan_error(
+                        error_msg,
+                        detail=exc.payload,
+                        conn=conn,
+                        error_code=error_code,
+                        stop_loop=False,
+                    )
+
+        except psycopg.Error:
+            if conn:
+                conn.close()
+            logger.exception("[scan_monitor] database error")
+            db_error_retries += 1
+            if db_error_retries >= SCAN_MAX_ERROR_RETRIES:
+                _enter_scan_error(
+                    "DB 接続に失敗しました。スキャンを再開してください。",
+                    error_code="db_connection",
+                )
+                db_error_retries = 0
+            time.sleep(1)
+            continue
+        except Exception:  # pylint: disable=broad-except
+            if conn:
+                conn.close()
+            logger.exception("[scan_monitor] unexpected error")
+            db_error_retries += 1
+            if db_error_retries >= SCAN_MAX_ERROR_RETRIES:
+                _enter_scan_error(
+                    "スキャン処理でエラーが続いています。スキャンを再開してください。",
+                    error_code="scan_general",
+                )
+                db_error_retries = 0
+            time.sleep(1)
+            continue
+        finally:
+            if conn:
+                conn.close()
+
         time.sleep(0.1)
 
 # =========================
@@ -1314,13 +1393,18 @@ def index():
 @require_api_token("start_scan")
 def start_scan():
     global scan_state
+    if scan_loop_event.is_set():
+        return jsonify({"status": "already_running", "message": scan_state.get("message", "")}), 200
     scan_state["active"] = True
     scan_state["user_uid"] = ""
     scan_state["tool_uid"] = ""
     scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
     scan_state["status"] = "waiting_user"
+    scan_state["last_error"] = ""
+    scan_state["error_count"] = 0
     print("🟢 自動スキャン開始")
     log_api_action("start_scan", detail={"message": scan_state["message"]})
+    scan_loop_event.set()
     _emit_scan_update(
         "waiting_user",
         scan_state["message"],
@@ -1333,6 +1417,7 @@ def start_scan():
 @require_api_token("stop_scan")
 def stop_scan():
     global scan_state
+    scan_loop_event.clear()
     scan_state["active"] = False
     scan_state["message"] = "⏹️ スキャン停止"
     scan_state["status"] = "stopped"
@@ -1354,6 +1439,8 @@ def reset_state():
     scan_state["tool_uid"] = ""
     scan_state["message"] = "🔄 リセット完了"
     scan_state["status"] = "waiting_user"
+    scan_state["last_error"] = ""
+    scan_state["error_count"] = 0
     print("🧹 状態リセット")
     log_api_action("reset_state")
     _emit_scan_update(
@@ -1375,6 +1462,8 @@ def api_scan_status():
         "message": scan_state.get("message"),
         "status": scan_state.get("status"),
         "event_seq": scan_state.get("event_seq"),
+        "last_error": scan_state.get("last_error"),
+        "error_count": scan_state.get("error_count"),
     }
     event = scan_state.get("last_tx_event") or scan_state.get("last_event")
     return jsonify({"state": state_snapshot, "event": event})

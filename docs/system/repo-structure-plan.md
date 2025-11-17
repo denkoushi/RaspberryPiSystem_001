@@ -27,6 +27,12 @@
    - Mac からの変更は feature ブランチ→PR→main マージのみ
    - Pi 側で作業する場合も `~/RaspberryPiSystem_001` で `git checkout <branch>` を使用し、旧ディレクトリは参照専用にする。
 
+## 本番リリース運用（新規タスク）
+- 開発用の `feature/repo-structure-plan` と分離したリリースタグ（例: `release-window-a-v1`）を作成し、Pi4 / Pi5 / Pi Zero にはタグ単位で配布する。
+- systemd ユニットはリリースタグの `.venv` を参照し、再起動時に自動起動することを `docs/system/restart-checklist.md` の手順で検証する。
+- git pull や `pip install -e` は開発チームのみが実施し、現場オペレータには「再起動 → 自動起動を確認する」手順だけを提示する。
+- リリース手順・確認項目を別途 `docs/system/release-guide.md`（未作成）にまとめ、本番移行前までに完成させる。
+
 ## 標準ユーザーと clone パス
 | デバイス | 役割 | 実行ユーザー | Git clone / 作業ディレクトリ | 補足 |
 | --- | --- | --- | --- | --- |

@@ -12,6 +12,38 @@
 | 実機検証 | 進行中 | Pi Zero mirrorctl 連携：`mirrorctl@tools01.service` を常駐させ、バーコード A/B → Pi5 → Window A の e2e を再確認する。電子ペーパー表示や drain-only、HEADLESS モードなど旧システム要件を `docs/system/window-a-toolmgmt.md` に反映。 | docs/system/pi-zero-integration.md, docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/window-a-toolmgmt.md |
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（2025-11-14 10:36 Pi Zero 実機＋Window A ブラウザ常時起動で `client.log` に Socket.IO イベントが記録されることを確認。今後はブラウザ起動手順を忘れず実施） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md, docs/test-notes/2025-11/window-a-demo.md |
+| 実機検証 | 新規 | Pi4/Pi5 再起動時の復旧手順を定型化する。Pi5 は必ず `feature/repo-structure-plan` を checkout→`git pull`→`sudo systemctl restart raspberrypiserver.service`→curl で 200 を確認し、Pi4 も同じブランチで `toolmgmt.service` を再起動してログ確認→スキャンテストまで行う。※これは開発期間中の暫定手順であり、本番リリース時は固定タグ＋自動起動のみで運用できるよう準備する。 | docs/system/restart-checklist.md, docs/test-notes/2025-11/window-a-demo.md:2025-11-17 |
+| 実機検証 | 新規 | Window A のスキャンループ安定化（詳細は下記セクション参照）。 | window_a/app_flask.py, docs/test-notes/2025-11/window-a-demo.md |
+| 体制整備 | 新規 | 本番運用フェーズ向けに「git pull を現場に要求しない」デプロイ方法を整備する。リリース用タグの作成、配布手順、systemd 自動起動確認、復旧チェックリストをまとめ、オペレータは再起動だけで済む状態にする。 | docs/system/repo-structure-plan.md, docs/system/restart-checklist.md |
+
+---
+
+### A. 再起動手順定型化タスク（実機検証）
+- **最新状況**: 2025-11-17 の Pi4/Pi5 同時再起動で 404 → 503 → 再起動ループが発生し、復旧まで 2 時間。原因と対策は `docs/test-notes/2025-11/window-a-demo.md` 冒頭に記録。
+- **やること**:
+  1. `docs/system/restart-checklist.md` に沿って Pi5→Pi4 の順で `git pull` / systemctl restart / curl をルーチン化。
+  2. Pi Zero / DocumentViewer もワークツリー統一後は同じチェックリストに追記する。
+  3. 再起動テストのたびに `docs/test-notes` へログを記録し、本表のステータスを更新。
+
+### B. Window A スキャンループ安定化タスク
+- **現象**: ブラウザをリロードすると 2 枚分の NFC スキャンは成功するが、その後 `scan_update failed to resolve names: the connection is closed` → 再起動ループ。`POST /api/start_scan` を連打すると同じ例外が発生し続ける。
+- **実装計画**:
+  1. `scan_monitor` / `scan_update` で発生する例外に `logger.exception("[scan_update] error")` を追加し、例外クラスとスタックトレースを必ず記録する。
+  2. スキャンループ専用の DB セッション（または psycopg 接続）を作成し、HTTP リクエストとは共有しない。例外発生時は `session.close()` → `session = Session()` で再生成し、同じ例外が 3 回続いたら `scan_error` 状態に遷移してループを抜ける。
+  3. `smartcard.Exceptions.CardConnectionException` の場合は `card.disconnect()` → `time.sleep(0.5)` → `waitforcard()` → `card.connect()` の再接続フローを実装。復帰できなければ `scan_error`。
+  4. `POST /api/start_scan` は `threading.Event` で「スキャン中」フラグを管理し、既に実行中なら新たにスレッドを立ち上げず、停止→再起動を明示的に行うように変更。
+  5. `/api/scan_status` の JSON に `status`（`idle`/`scanning`/`error`）と `error_message`／`last_error` を追加し、`processScanEvent` が `error` を受け取ったら UI にメッセージを出し「再開」ボタンを有効化する。
+  6. 実装後、ブラウザの連続スキャン（利用者→工具を複数回）を実施し、`docs/test-notes/2025-11/window-a-demo.md` に検証ログと結果を追記する。
+
+### C. 本番デプロイ体制整備タスク
+- **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。
+- **手順案**:
+  1. 主要モジュールごとにリリースタグ（例: `release/window_a_v1`）を作成し、Pi4/Pi5/PiZero にはタグを checkout 済みのワークツリーを配布。
+  2. systemd ユニットの `ExecStart` をリリースタグ専用 `.venv` に向け、`Restart=always` を設定。
+  3. `docs/system/restart-checklist.md` を「開発モード」と「本番モード」に分け、本番では「電源投入→自動起動確認」だけで済む手順に縮退させる。
+  4. リリースガイド（未作成）に配布手順・確認手順・ロールバック手順を整理し、`docs/system/repo-structure-plan.md` と連携させる。
+
+---
 | 実機検証 | 解消 | Pi4 ↔ Pi5 の PostgreSQL 接続は `pi5-hostname` 経由で自動更新できるよう強化。`window_a/config/window-a.env` で `PI5_HOST_FILE` を指定しておけば IP 変更時はファイルを書き換えて `toolmgmt.service` を再起動するだけで済む。手順を `docs/system/window-a-toolmgmt.md` 12章と `docs/test-notes/2025-11/window-a-demo.md` に追記済み。 | docs/system/window-a-toolmgmt.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 進行中 | Window A Dashboard の DocumentViewer/Socket 表示を定常化する。`DOCUMENT_VIEWER_URL=http://127.0.0.1:5000` を設定し、USB バーコードで PDF 切替が動作するか `docs/test-notes/2025-11/window-a-demo.md` にログを残す（2025-11-14 14:25 から監視開始、2025-11-15 16:40 確認済み）。 | window_a/config/window-a.env, document_viewer/README.md, docs/test-notes/2025-11/window-a-demo.md |
 | コード実装 | 進行中 | Window A Dashboard の工具管理ペインを Pi5 REST API ベースに刷新。TM-DIST → importer → Dashboard → Pi5 `/api/v1/loans` 連携に加え、NFC からの貸出登録（利用者→工具）も実装済み。今後は本番 CSV／DocumentViewer USB／Pi4 NFC／tools01 ハンディ実装を本番データで検証し、UI 文言（成功時表示など）を整える。 | window_a/app_flask.py, window_a/templates/index.html, docs/system/window-a-toolmgmt.md, server/src/raspberrypiserver/api/tool_management.py |
