@@ -8,6 +8,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlsplit
 
 from flask import (
     Flask,
@@ -116,6 +117,19 @@ def _build_socket_script_url() -> str | None:
         path = f"/{path}"
     script_path = f"{path.rstrip('/')}/socket.io.js"
     return f"{base}{script_path}"
+
+
+def _extract_origin(value: Optional[str]) -> str:
+    """Return scheme://netloc if value looks like URL."""
+    if not value:
+        return ""
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return ""
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return ""
 
 
 def find_document_filename(part_number: str) -> Optional[str]:
@@ -257,6 +271,17 @@ def disable_cache(response):
 
 @app.route("/")
 def index():
+    requested_socket_base = request.args.get("socket_base", "").strip()
+    requested_socket_path = request.args.get("socket_path", "").strip()
+    socket_fallbacks = [
+        base
+        for base in [
+            requested_socket_base,
+            _extract_origin(request.referrer),
+        ]
+        if base
+    ]
+
     return render_template(
         "index.html",
         api_base=API_BASE,
@@ -271,6 +296,9 @@ def index():
             "socketEvents": SOCKET_EVENTS,
             "acceptDeviceIds": ACCEPT_DEVICE_IDS,
             "acceptLocationCodes": ACCEPT_LOCATION_CODES,
+            "socketFallbackBases": socket_fallbacks,
+            "socketPathOverride": requested_socket_path,
+            "parentOriginHint": _extract_origin(request.referrer),
         },
     )
 

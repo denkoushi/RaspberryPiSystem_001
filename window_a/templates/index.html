@@ -114,8 +114,20 @@
       <section>
         <h2>DocumentViewer</h2>
         {% if doc_viewer_url %}
-          <p class="helper-text">URL: {{ doc_viewer_url }}</p>
-          <iframe src="{{ doc_viewer_url }}" title="Document Viewer"></iframe>
+          {% set viewer_src = doc_viewer_url %}
+          {% if socket_client_config.base %}
+            {% if '?' in viewer_src %}
+              {% set viewer_src = viewer_src + '&' %}
+            {% else %}
+              {% set viewer_src = viewer_src + '?' %}
+            {% endif %}
+            {% set viewer_src = viewer_src + 'socket_base=' + (socket_client_config.base | urlencode) %}
+            {% if socket_client_config.path %}
+              {% set viewer_src = viewer_src + '&socket_path=' + (socket_client_config.path | urlencode) %}
+            {% endif %}
+          {% endif %}
+          <p class="helper-text">URL: {{ viewer_src }}</p>
+          <iframe src="{{ viewer_src }}" title="Document Viewer"></iframe>
         {% else %}
           <p class="status-fail">DOCUMENT_VIEWER_URL が未設定です。</p>
         {% endif %}

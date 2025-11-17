@@ -1,13 +1,63 @@
 (() => {
   const config = window.DOCVIEWER_CONFIG || {};
-  const apiBaseRaw = typeof config.apiBase === 'string' ? config.apiBase.trim() : '';
-  const apiBase = apiBaseRaw.endsWith('/') ? apiBaseRaw.slice(0, -1) : apiBaseRaw;
+  const normalizeBase = (value) => {
+    if (typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+  };
+  const extractOrigin = (value) => {
+    if (typeof value !== 'string' || !value.trim()) return '';
+    try {
+      return new URL(value, window.location.href).origin;
+    } catch (_) {
+      return '';
+    }
+  };
+
+  const apiBase = normalizeBase(config.apiBase);
   const apiToken = typeof config.apiToken === 'string' ? config.apiToken.trim() : '';
-  const socketBaseRaw = typeof config.socketBase === 'string' ? config.socketBase.trim() : '';
-  const socketBase = socketBaseRaw.endsWith('/') ? socketBaseRaw.slice(0, -1) : socketBaseRaw;
-  const rawSocketPath = typeof config.socketPath === 'string' ? config.socketPath.trim() : '';
-  const socketPath = rawSocketPath ? (rawSocketPath.startsWith('/') ? rawSocketPath : `/${rawSocketPath}`) : '/socket.io';
   const socketAutoOpen = config.socketAutoOpen !== false;
+  const rawSocketPath = typeof config.socketPath === 'string' ? config.socketPath.trim() : '';
+  const socketPathOverrideRaw = typeof config.socketPathOverride === 'string' ? config.socketPathOverride.trim() : '';
+  const socketFallbackBasesRaw = Array.isArray(config.socketFallbackBases) ? config.socketFallbackBases : [];
+
+  const resolveSocketPath = () => {
+    const candidates = [socketPathOverrideRaw, rawSocketPath, '/socket.io'];
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'string') continue;
+      const trimmed = candidate.trim();
+      if (!trimmed) continue;
+      return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    }
+    return '/socket.io';
+  };
+
+  const resolveSocketBase = () => {
+    const seen = new Set();
+    const candidates = [];
+    const pushCandidate = (value) => {
+      const normalized = normalizeBase(value);
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+      candidates.push(normalized);
+    };
+    pushCandidate(config.socketBase);
+    socketFallbackBasesRaw.forEach(pushCandidate);
+    pushCandidate(apiBase);
+    const fromConfigHint = normalizeBase(config.parentOriginHint);
+    pushCandidate(fromConfigHint);
+    pushCandidate(extractOrigin(document.referrer));
+    if (typeof window.location.origin === 'string') {
+      pushCandidate(window.location.origin);
+    }
+    return candidates[0] || '';
+  };
+
+  const socketBase = resolveSocketBase();
+  const socketPath = resolveSocketPath();
   const normalizeList = (value) => {
     if (!Array.isArray(value)) return [];
     return value

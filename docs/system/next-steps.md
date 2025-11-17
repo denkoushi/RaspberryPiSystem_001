@@ -40,6 +40,18 @@
   1. UI で `status` を `idle` / `scanning` / `error` に正規化し、`status="error"` 時はメッセージ + 「再開」ボタンを表示する。必要な文言を `window_a/templates/index.html` に追加し、動作をテストノートへ記録する。
   2. UI 改修を含む連続スキャンテストが安定したら `main` へ反映済みコードに対して次サブブランチ（例: `feature/window-a-auto-retry`）を `git switch -c` で切り、エラー自動リトライやステータス通知改善を進める。
 
+### D. DocumentViewer Socket ステータス復旧タスク
+- **現象**: Window A Dashboard の DocumentViewer 埋め込みビューで Socket ステータスが黄色（`Socket: 接続中…`）のまま緑 (`Socket: LIVE`) に遷移しない。NFC ループ改修とは別で DocumentViewer から Pi5 `/socket.io` への接続が完了していない。
+- **原因仮説**:
+  - `document_viewer/config/docviewer.env` の `VIEWER_SOCKET_BASE` が `raspi-server.local` など旧ホスト名のままであり、Pi5 再構築後の `192.168.10.223:8501` へ到達できていない。
+  - DocumentViewer フロントエンドが、親ウィンドウ（Window A Dashboard）に埋め込まれた場合でも `window.location.origin` を参照できないため、Pi4 側の `/etc/hosts` や DNS 解決が崩れたときに自動追従できない。
+  - Pi5 側の Socket.IO パス（`/socket.io`）や namespace が config/default.toml と docviewer.env でずれている可能性。
+- **改修方針**:
+  1. Pi4 で `journalctl -u document-viewer.service` と `/var/log/document-viewer/client.log` を取得し、Socket 接続ログ／エラーを確認する。
+  2. `document_viewer/config/docviewer.env`（および `/etc/default/docviewer`）に `VIEWER_SOCKET_BASE=http://192.168.10.223:8501` を設定し、Pi5 の IP 変更時にはこのファイルも更新する手順を `docs/system/restart-checklist.md` に追記する。
+  3. DocumentViewer フロントエンド (`app/static/app.js`) にフォールバックを追加し、`socketBase` が空の場合は `window.top.location.origin`（iframe 親）や `document.referrer` から同一オリジンを推定する。これにより、Window A Dashboard 内での表示時に Pi5 ホスト名を自動解決できるようにする。
+  4. 上記変更を applied 後 `sudo systemctl restart document-viewer.service` → Chromium で Socket ステータスが緑になることを確認し、`docs/test-notes/2025-11/window-a-demo.md` に再接続ログと設定値を記録する。
+
 ### C. 本番デプロイ体制整備タスク
 - **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。
 - **手順案**:

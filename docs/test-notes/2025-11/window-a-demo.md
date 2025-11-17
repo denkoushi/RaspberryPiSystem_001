@@ -62,6 +62,20 @@
   - 次回からは Pi5 を先に再起動し、`curl /api/v1/loans` が 200 を返すまで待ってから Pi4 のサービスを再起動する運用に徹する。
 - **運用まとめ**: 以降の再起動時も本節の順序（Pi5 → 5 秒待ち → curl 応答確認 → Pi4 再起動 → 3 連続スキャン）を実施し、各セッション結果を随時追記する。
 
+### 2025-11-17 DocumentViewer Socket ステータス課題
+- **症状**: Window A Dashboard 内の DocumentViewer iframe で Socket ステータスが常時「Socket: 接続中…」（黄色）となり、緑の `Socket: LIVE` 表示に遷移しない。DocumentViewer 単体で開いても Socket が「接続準備中…」→「接続中…」のまま 30 秒以上変化しない。
+- **ログ確認タスク**:
+  1. Pi4 (tools02) で `sudo journalctl -u document-viewer.service -n 120 --no-pager` と `sudo tail -n 80 /var/log/document-viewer/client.log` を取得し、`Socket.IO event:` が記録されているか／`connect_error` が出ていないか確認。
+  2. `/etc/default/docviewer`（または `~/RaspberryPiSystem_001/document_viewer/config/docviewer.env`）を開き、`VIEWER_SOCKET_BASE` / `VIEWER_SOCKET_PATH` / `VIEWER_SOCKET_AUTO_OPEN` が Pi5 (`http://192.168.10.223:8501`, `/socket.io`) を指しているかを記録。旧 `raspi-server.local` のままであれば IP ベースに更新する。
+  3. 上記設定を編集後 `sudo systemctl restart document-viewer.service` → `sudo journalctl -u document-viewer.service -n 40` の結果と、ブラウザ上のステータスが緑に変わるかを確認して追記。
+- **コード改修タスク**:
+  - `window_a/templates/index.html` の DocumentViewer iframe に `socket_base` / `socket_path` クエリを付与し、親画面で利用している `socket_client_config.base/path` を明示的に渡す。
+  - `document_viewer/app/viewer.py` でクエリ引数や `request.referrer` から得たオリジンを `docviewer_config.socketFallbackBases` / `socketPathOverride` としてテンプレートへ渡し、`document_viewer/app/static/app.js` の接続ロジックが順番に試行できるようにする。
+  - 変更後 `pytest document_viewer/tests/test_viewer_app.py` を実行し、DocumentViewer 単体テストがすべて成功することを確認。テスト結果とブラウザ表示のスクリーンショットを本ファイルへ追記する。
+- **実装結果（2025-11-17 14:10 JST）**:
+  - 上記コード改修を適用し、`pytest document_viewer/tests/test_viewer_app.py` は PASS。Window A Dashboard で DocumentViewer を再読み込みすると `socket_base=http://192.168.10.223:8501` が iframe に付与され、5 秒以内にステータスが `Socket: LIVE`（緑）へ遷移することを確認した。
+  - `/var/log/document-viewer/client.log` にも `Socket.IO event:` が追記され続けており、Pi5 からのイベントを受信できている。スクリーンショットは `/pi-zero-logs/2025-11-17-documentviewer-socket.png` を参照。
+
 ## Window A 実機テスト手順（開発中の暫定版）
 1. Pi5 の API が 200 を返すことを `curl` で確認（詳細は `docs/system/restart-checklist.md` を参照）。
 2. Pi4 の `toolmgmt.service` を再起動し、`journalctl -u toolmgmt.service -n 40` で 404 / scan_update エラーが出ていないか確認。
