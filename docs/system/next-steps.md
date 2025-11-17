@@ -52,6 +52,14 @@
   3. DocumentViewer フロントエンド (`app/static/app.js`) にフォールバックを追加し、`socketBase` が空の場合は `window.top.location.origin`（iframe 親）や `document.referrer` から同一オリジンを推定する。これにより、Window A Dashboard 内での表示時に Pi5 ホスト名を自動解決できるようにする。
   4. 上記変更を applied 後 `sudo systemctl restart document-viewer.service` → Chromium で Socket ステータスが緑になることを確認し、`docs/test-notes/2025-11/window-a-demo.md` に再接続ログと設定値を記録する。
 
+### E. DocumentViewer PDF 不在時の UX 改善
+- **現象**: `TEST-001` のように存在しない PDF を入力すると、DocumentViewer 画面が 60 秒ほど真っ暗なままになり、遅れて「該当資料が見つからない」メッセージが出る。利用者から見ると「検索中なのか、失敗なのか」が判別しづらい。
+- **方針**:
+  1. `document_viewer/app/static/app.js` の REST ハンドリング（`lookupDocument` → `displayError`）で 404 を受け取った瞬間にエラーメッセージを表示し、5 秒で待機画面へ戻す。Socket イベント待ちにしない。
+  2. Socket.IO の `handleSocketPayload` では `payload.resetAfter` に上限（例: 5〜10 秒）を設け、`payload.message` があれば UI に表示する。これによりバックエンドからの `state="error"` でも即座にフィードバックできる。
+  3. `window_a/templates/index.html` の DocumentViewer セクションに「PDF は Pi5 上の `document_viewer/documents/` を参照」と注釈を追記し、Pi4 で PDF が見つからない場合の連絡先を明示する。
+  4. 実装後 `pytest document_viewer/tests/test_viewer_app.py` を実行し、結果と操作ログを `docs/test-notes/2025-11/window-a-demo.md` へ追記する。
+
 ### C. 本番デプロイ体制整備タスク
 - **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。
 - **手順案**:

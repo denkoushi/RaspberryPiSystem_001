@@ -300,7 +300,8 @@
       }
     } catch (error) {
       console.error(error);
-      displayError(trimmed, error.message || '該当資料が見つかりません');
+      const detail = (error && error.message) || '該当資料が見つかりません';
+      displayError(trimmed, `${detail}。Pi5 の DocumentViewer (document_viewer/documents) を確認してください。`, 5);
     } finally {
       if (barcodeInput) {
         barcodeInput.value = '';
@@ -408,10 +409,10 @@
     attachSocketListeners();
   };
 
-  const displayError = (partNumber, message) => {
+  const displayError = (partNumber, message, seconds = 5) => {
     errorMessage.textContent = `部品番号「${partNumber}」: ${message}`;
     setState('error');
-    startErrorCountdown();
+    startErrorCountdown(seconds);
   };
 
   const startErrorCountdown = (seconds = 5) => {

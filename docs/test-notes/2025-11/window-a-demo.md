@@ -75,6 +75,21 @@
 - **実装結果（2025-11-17 14:10 JST）**:
   - 上記コード改修を適用し、`pytest document_viewer/tests/test_viewer_app.py` は PASS。Window A Dashboard で DocumentViewer を再読み込みすると `socket_base=http://192.168.10.223:8501` が iframe に付与され、5 秒以内にステータスが `Socket: LIVE`（緑）へ遷移することを確認した。
   - `/var/log/document-viewer/client.log` にも `Socket.IO event:` が追記され続けており、Pi5 からのイベントを受信できている。スクリーンショットは `/pi-zero-logs/2025-11-17-documentviewer-socket.png` を参照。
+- **2025-11-17 14:16 ログ確認**:
+  - `sudo sed -i` で `config/docviewer.env` / `/etc/default/docviewer` の `VIEWER_SOCKET_BASE` を `http://192.168.10.223:8501`、`VIEWER_SOCKET_PATH=/socket.io` に更新し、`sudo systemctl restart document-viewer.service` を実行したところ、Chromium 上のステータスは `Socket: LIVE` を維持。
+  - ただし `/var/log/document-viewer/client.log` のバックグラウンドリスナーは過去ログの WARN を出力し続けている。再起動直後の WARN 以降のログが更新されるかを引き続き監視する（必要なら `VIEWER_SOCKET_LISTENER=0` で一時停止し、差分がなくなった段階で再度有効化する）。
+
+### DocumentViewer PDF 不在時の挙動メモ
+- **現象**: `TEST-001` など存在しない部品番号を入力すると、DocumentViewer iframe が 60 秒ほど暗転し、遅れて「該当資料が見つかりません」と表示される。ユーザーからは応答がないように見える。
+- **原因**: `document_viewer/app/static/app.js` の `handleSocketPayload` が `startErrorCountdown(payload.resetAfter || 60)` としており、Socket.IO からの `resetAfter=60` がそのまま UI に反映されている。REST 404 を受け取った時点の `displayError` は即時表示だが、Socket イベントで再度 `setState('error')` → 60 秒カウントを掛けているため画面遷移が遅い。
+- **改善案**:
+  - REST 404 で `displayError` を呼んだら Socket 側のエラー処理でも `Math.min(payload.resetAfter || 5, 10)` 程度の上限を掛け、即座にメッセージ表示する。
+  - `startErrorCountdown` のデフォルトを 5 秒固定にし、必要なら設定値で切り替え。UI 上のステータスに「PDF が見つからない場合は Pi5 の documents フォルダを更新してください」と表示する。
+  - 実装後 `pytest document_viewer/tests/test_viewer_app.py` とブラウザ動作を再確認し、本節に結果を追記する。
+- **2025-11-17 実装**:
+  - `document_viewer/app/templates/index.html` に「検索中」画面と Pi5 参照の注釈を追加し、`app/static/styles.css` で state="searching" でもコンテンツが表示されるようにした。
+  - `document_viewer/app/static/app.js` の `lookupDocument` で 404 を受け取った時点で即座に `displayError`（Pi5 documents 参照メッセージ付き）を表示し、5 秒で待機画面に戻す。Socket イベント経由でも秒数が伸びないよう `startErrorCountdown` の呼び出しを固定化。
+  - `pytest document_viewer/tests/test_viewer_app.py` は PASS。Chromium で `TEST-001` を入力すると、即座に「Pi5 の DocumentViewer を確認してください」と表示され、5 秒後に待機画面へ復帰することを確認。
 
 ## Window A 実機テスト手順（開発中の暫定版）
 1. Pi5 の API が 200 を返すことを `curl` で確認（詳細は `docs/system/restart-checklist.md` を参照）。
