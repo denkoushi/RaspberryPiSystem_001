@@ -27,6 +27,7 @@
 
 ### B. Window A スキャンループ安定化タスク
 - **現象**: ブラウザをリロードすると 2 枚分の NFC スキャンは成功するが、その後 `scan_update failed to resolve names: the connection is closed` → 再起動ループ。`POST /api/start_scan` を連打すると同じ例外が発生し続ける。
+- **進捗**: 2025-11-17 に Pi5 の `/api/v1/loans` POST が復旧し、Pi4 でリロード無しに連続スキャンが動くところまで確認。残課題として `scan_error` の発生頻度を把握し、安定度をテストする。
 - **実装計画**:
   1. `scan_monitor` / `scan_update` で発生する例外に `logger.exception("[scan_update] error")` を追加し、例外クラスとスタックトレースを必ず記録する。
   2. **Pi5 側修正**: `server/src/raspberrypiserver/api/tool_management.py` で `/api/v1/loans` の POST ルートが定義されているか確認し、未実装なら追加する。`curl -i http://127.0.0.1:8501/api/v1/loans -X POST -d '{}'` で 200 になることを確認し、Pi4 からの `scan_auto_loan` が 200 を受け取れるようにする。
