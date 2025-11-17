@@ -1394,6 +1394,7 @@ def index():
 def start_scan():
     global scan_state
     if scan_loop_event.is_set():
+        logger.info("start_scan requested while already running")
         return jsonify({"status": "already_running", "message": scan_state.get("message", "")}), 200
     scan_state["active"] = True
     scan_state["user_uid"] = ""

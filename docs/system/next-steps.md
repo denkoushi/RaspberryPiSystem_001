@@ -13,7 +13,7 @@
 | コード実装 | 完了 | 手動スモーク用 `scripts/smoke_scan.sh` 作成とテスト追加 | server/scripts/smoke_scan.sh, tests/test_broadcast_service.py |
 | 実機検証 | 進行中 | Pi Zero → Pi5 → Window A 統合テスト（2025-11-14 10:36 Pi Zero 実機＋Window A ブラウザ常時起動で `client.log` に Socket.IO イベントが記録されることを確認。今後はブラウザ起動手順を忘れず実施） | docs/test-notes/2025-11/pi-zero-test-plan.md, docs/system/pi-zero-integration.md, docs/test-notes/2025-11/window-a-demo.md |
 | 実機検証 | 新規 | Pi4/Pi5 再起動時の復旧手順を定型化する。Pi5 は必ず `feature/repo-structure-plan` を checkout→`git pull`→`sudo systemctl restart raspberrypiserver.service`→curl で 200 を確認し、Pi4 も同じブランチで `toolmgmt.service` を再起動してログ確認→スキャンテストまで行う。※これは開発期間中の暫定手順であり、本番リリース時は固定タグ＋自動起動のみで運用できるよう準備する。 | docs/system/restart-checklist.md, docs/test-notes/2025-11/window-a-demo.md:2025-11-17 |
-| 実機検証 | 新規 | Window A のスキャンループ安定化（詳細は下記セクション参照）。 | window_a/app_flask.py, docs/test-notes/2025-11/window-a-demo.md |
+| 実機検証 | 新規 | Window A のスキャンループ安定化（詳細は下記セクション参照）。Pi5 側で `/api/v1/loans` の POST ルートを確実に提供し、Pi4 側はリモートエラー時に固まらないよう状態遷移を改修する。 | server/src/raspberrypiserver/api/tool_management.py, window_a/app_flask.py, docs/test-notes/2025-11/window-a-demo.md |
 | 体制整備 | 新規 | 本番運用フェーズ向けに「git pull を現場に要求しない」デプロイ方法を整備する。リリース用タグの作成、配布手順、systemd 自動起動確認、復旧チェックリストをまとめ、オペレータは再起動だけで済む状態にする。 | docs/system/repo-structure-plan.md, docs/system/restart-checklist.md |
 
 ---
@@ -29,11 +29,12 @@
 - **現象**: ブラウザをリロードすると 2 枚分の NFC スキャンは成功するが、その後 `scan_update failed to resolve names: the connection is closed` → 再起動ループ。`POST /api/start_scan` を連打すると同じ例外が発生し続ける。
 - **実装計画**:
   1. `scan_monitor` / `scan_update` で発生する例外に `logger.exception("[scan_update] error")` を追加し、例外クラスとスタックトレースを必ず記録する。
-  2. スキャンループ専用の DB セッション（または psycopg 接続）を作成し、HTTP リクエストとは共有しない。例外発生時は `session.close()` → `session = Session()` で再生成し、同じ例外が 3 回続いたら `scan_error` 状態に遷移してループを抜ける。
-  3. `smartcard.Exceptions.CardConnectionException` の場合は `card.disconnect()` → `time.sleep(0.5)` → `waitforcard()` → `card.connect()` の再接続フローを実装。復帰できなければ `scan_error`。
-  4. `POST /api/start_scan` は `threading.Event` で「スキャン中」フラグを管理し、既に実行中なら新たにスレッドを立ち上げず、停止→再起動を明示的に行うように変更。
-  5. `/api/scan_status` の JSON に `status`（`idle`/`scanning`/`error`）と `error_message`／`last_error` を追加し、`processScanEvent` が `error` を受け取ったら UI にメッセージを出し「再開」ボタンを有効化する。
-  6. 実装後、ブラウザの連続スキャン（利用者→工具を複数回）を実施し、`docs/test-notes/2025-11/window-a-demo.md` に検証ログと結果を追記する。
+  2. **Pi5 側修正**: `server/src/raspberrypiserver/api/tool_management.py` で `/api/v1/loans` の POST ルートが定義されているか確認し、未実装なら追加する。`curl -i http://127.0.0.1:8501/api/v1/loans -X POST -d '{}'` で 200 になることを確認し、Pi4 からの `scan_auto_loan` が 200 を受け取れるようにする。
+  3. スキャンループ専用の DB セッション（または psycopg 接続）を作成し、HTTP リクエストとは共有しない。例外発生時は `session.close()` → `session = Session()` で再生成し、同じ例外が 3 回続いたら `scan_error` 状態に遷移してループを抜ける。
+  4. `smartcard.Exceptions.CardConnectionException` の場合は `card.disconnect()` → `time.sleep(0.5)` → `waitforcard()` → `card.connect()` の再接続フローを実装。復帰できなければ `scan_error`。
+  5. `POST /api/start_scan` は `threading.Event` で「スキャン中」フラグを管理し、既に実行中なら新たにスレッドを立ち上げず、停止→再起動を明示的に行うように変更。
+  6. `/api/scan_status` の JSON に `status`（`idle`/`scanning`/`error`）と `error_message`／`last_error` を追加し、`processScanEvent` が `error` を受け取ったら UI にメッセージを出し「再開」ボタンを有効化する。
+  7. Pi4 側はリモート API エラー時に `user_uid` / `tool_uid` をクリアし、UI に `scan_error` と再開手段を提示する。ブラウザ連続スキャンを実施し、`docs/test-notes/2025-11/window-a-demo.md` に検証ログと結果を追記する。
 
 ### C. 本番デプロイ体制整備タスク
 - **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。
