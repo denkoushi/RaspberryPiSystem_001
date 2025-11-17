@@ -22,10 +22,7 @@
 - `insert_scan` が `conn` をクローズしてしまい再読込できなくなっていたため、コネクションを共有しても閉じないよう修正。
 - `scan_update`／`scan_error` で名前解決に失敗したときは `scan_state["last_error"]` に記録し、UI が `status="error"` を受け取った場合は再開ボタンを押すようガイダンスする。
 - 今後のテスト: ブラウザで「スキャン開始」を押し、利用者→工具を連続で 3 セット読ませて再現しないことを確認する。
-- 2025-11-17 13:35: Pi4 側で再度テストしたところ「ブラウザリロード無しでも複数回の貸出が反映される」状態になった。Pi5 `/api/v1/loans` への POST が 200 を返すようになったことで、貸出登録後に `waiting_user` へ戻る挙動が確認できた。ただし、まれに `scan_error` 状態に落ちるケースがあるため、次のテストで連続スキャン 3 セットの安定度を評価予定。以下の追加対応を進める:
-  1. `/api/scan_status` で `last_event` をそのまま返し、`last_tx_event` は別フィールドに分ける。（2 回目以降の `user_scanned` / `state_reset` が UI に届くようにする）
-  2. Pi5 側 `/api/v1/loans` の POST ルートが確実に動作するコードへ更新し、curl 経由で 200 を確認してから `scan_auto_loan` を再テストする。
-  3. RemoteLoanError 時も `user_uid`/`tool_uid` をクリアし `scan_error` へ遷移、UI で再開できるよう状態遷移図を更新する。
+- 2025-11-17 13:35: Pi4 側で再度テストしたところ「ブラウザリロード無しでも複数回の貸出が反映される」状態になった。Pi5 `/api/v1/loans` への POST が 200 を返すようになったことで、貸出登録後に `waiting_user` へ戻る挙動が確認でき、`/api/scan_status` も最新イベントを返すように修正済み。現状は連続スキャンでも問題なく動作。
 - 2025-11-17 11:15: Pi4 で再度テストしたところ、「1回目の貸出登録は成功するが2回目で `user_uid`/`tool_uid` がリセットされず止まる」事象は継続。`/api/scan_status` は `status=tool_scanned` のまま、`api_actions.log` には `scan_auto_loan` の 404 が記録されている（Pi5 から `/api/v1/loans` の POST が見つからず 404 を返す）。Pi5 の GET `/api/v1/loans` は 200 なので、POST ルートの未整備または古いブランチが稼働している可能性が高い。次手順は Pi5 実行ブランチの確認と `/api/v1/loans` POST の応答を確認して復旧させること。
 
 ## Window A 実機テスト手順（開発中の暫定版）
