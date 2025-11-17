@@ -26,16 +26,17 @@
   3. 再起動テストのたびに `docs/test-notes` へログを記録し、本表のステータスを更新。
 
 ### B. Window A スキャンループ安定化タスク
-- **現象**: ブラウザをリロードすると 2 枚分の NFC スキャンは成功するが、その後 `scan_update failed to resolve names: the connection is closed` → 再起動ループ。`POST /api/start_scan` を連打すると同じ例外が発生し続ける。
-- **進捗**: 2025-11-17 に Pi5 の `/api/v1/loans` POST が復旧し、Pi4 でリロード無しに連続スキャンが動くところまで確認。残課題として `scan_error` の発生頻度を把握し、安定度をテストする。
-- **実装計画**:
-  1. `scan_monitor` / `scan_update` で発生する例外に `logger.exception("[scan_update] error")` を追加し、例外クラスとスタックトレースを必ず記録する。
-  2. **Pi5 側修正**: `server/src/raspberrypiserver/api/tool_management.py` で `/api/v1/loans` の POST ルートが定義されているか確認し、未実装なら追加する。`curl -i http://127.0.0.1:8501/api/v1/loans -X POST -d '{}'` で 200 になることを確認し、Pi4 からの `scan_auto_loan` が 200 を受け取れるようにする。
-  3. スキャンループ専用の DB セッション（または psycopg 接続）を作成し、HTTP リクエストとは共有しない。例外発生時は `session.close()` → `session = Session()` で再生成し、同じ例外が 3 回続いたら `scan_error` 状態に遷移してループを抜ける。
-  4. `smartcard.Exceptions.CardConnectionException` の場合は `card.disconnect()` → `time.sleep(0.5)` → `waitforcard()` → `card.connect()` の再接続フローを実装。復帰できなければ `scan_error`。
-  5. `POST /api/start_scan` は `threading.Event` で「スキャン中」フラグを管理し、既に実行中なら新たにスレッドを立ち上げず、停止→再起動を明示的に行うように変更。
-  6. `/api/scan_status` の JSON に `status`（`idle`/`scanning`/`error`）と `error_message`／`last_error` を追加し、`processScanEvent` が `error` を受け取ったら UI にメッセージを出し「再開」ボタンを有効化する。
-  7. Pi4 側はリモート API エラー時に `user_uid` / `tool_uid` をクリアし、UI に `scan_error` と再開手段を提示する。ブラウザ連続スキャンを実施し、`docs/test-notes/2025-11/window-a-demo.md` に検証ログと結果を追記する。
+- **現象（初期症状）**: ブラウザをリロードすると 2 枚分の NFC スキャンは成功するが、その後 `scan_update failed to resolve names: the connection is closed` → 再起動ループ。`POST /api/start_scan` を連打すると同じ例外が発生し続ける。
+- **進捗（2025-11-17 夕方時点）**:
+  - Pi5 で `/api/v1/loans` の POST ルートを `server/src/raspberrypiserver/api/tool_management.py`（`strict_slashes=False`）に追加し、`curl -i http://127.0.0.1:8501/api/v1/loans -X POST -d '{}'` が 200 になることを実機確認。Window A の `scan_auto_loan` も 200 を受信し、404 で止まる事象は解消。
+  - Pi4 `window_a/app_flask.py` を改修し、スキャンスレッドを `threading.Event` で管理、スレッド専用 DB / NFC セッションを採用、`RemoteLoanError` 時は `user_uid`・`tool_uid` をリセットしたうえで `_enter_scan_error(..., stop_loop=False)` でループ継続。`logger.exception("[scan_update] error")` で例外内容をすべて記録。
+  - `/api/scan_status` は常に最新イベント (`last_event`) を返し、`last_tx_event` をサブフィールドで提供するよう修正。UI が各スキャンステップを順次受け取れるようになり、ブラウザリロード無しで連続貸出・返却が可能になった。
+  - `docs/test-notes/2025-11/window-a-demo.md` と `docs/system/restart-checklist.md` に Git pull → systemctl restart → `curl` → NFC テストまでの手順・結果を追記済み。
+- **直近 TODO**:
+  1. Pi4 / Pi5 それぞれで `git pull` → `sudo systemctl restart toolmgmt.service`／`sudo systemctl restart raspberrypiserver.service` → `curl http://127.0.0.1:8501/api/v1/loans` → ブラウザ連続スキャン（利用者→工具×3 セット）を 1 セッションとして定型化。手順と結果を毎回 `docs/test-notes/2025-11/window-a-demo.md` に追記し、`docs/system/next-steps.md` のステータスを更新する。
+  2. `scan_error` がゼロで推移するかを `journalctl -u toolmgmt.service -n 120` と `/api/scan_status` の `error_count` で観測し、異常が出たらログと再発手順を記録する。
+  3. UI で `status` を `idle` / `scanning` / `error` に正規化し、`status="error"` 時はメッセージ + 「再開」ボタンを表示する。必要な文言を `window_a/templates/index.html` に追加し、動作をテストノートへ記録する。
+  4. 連続スキャンテストが安定したら `main` へマージし、次フェーズの sub ブランチ（例: `feature/window-a-auto-retry`）を `git switch -c` で切ったうえで追加改修を行う。
 
 ### C. 本番デプロイ体制整備タスク
 - **目的**: 現場オペレータに `git pull` を求めない。再起動だけで自動復旧する状態にする。

@@ -25,6 +25,31 @@
 - 2025-11-17 13:35: Pi4 側で再度テストしたところ「ブラウザリロード無しでも複数回の貸出が反映される」状態になった。Pi5 `/api/v1/loans` への POST が 200 を返すようになったことで、貸出登録後に `waiting_user` へ戻る挙動が確認でき、`/api/scan_status` も最新イベントを返すように修正済み。現状は連続スキャンでも問題なく動作。
 - 2025-11-17 11:15: Pi4 で再度テストしたところ、「1回目の貸出登録は成功するが2回目で `user_uid`/`tool_uid` がリセットされず止まる」事象は継続。`/api/scan_status` は `status=tool_scanned` のまま、`api_actions.log` には `scan_auto_loan` の 404 が記録されている（Pi5 から `/api/v1/loans` の POST が見つからず 404 を返す）。Pi5 の GET `/api/v1/loans` は 200 なので、POST ルートの未整備または古いブランチが稼働している可能性が高い。次手順は Pi5 実行ブランチの確認と `/api/v1/loans` POST の応答を確認して復旧させること。
 
+### 2025-11-17 連続スキャン再確認（ブラウザリロード不要）
+- **事前コマンド**（Pi5 → Pi4 の順に必ず実施）
+  ```bash
+  # Pi5
+  cd ~/RaspberryPiSystem_001 && git pull
+  cd server && source .venv/bin/activate && pip install -e '.[dev]'  # 変更がある場合のみ
+  sudo systemctl restart raspberrypiserver.service
+  curl -i http://127.0.0.1:8501/api/v1/loans
+
+  # Pi4 (Window A)
+  cd ~/RaspberryPiSystem_001 && git pull
+  cd window_a && source .venv/bin/activate && pip install -r requirements.txt  # 変更がある場合のみ
+  sudo systemctl restart toolmgmt.service
+  sudo journalctl -u toolmgmt.service -n 80 --no-pager
+  ```
+- **スキャンシナリオ**: Chromium Dashboard で「スキャン開始」を押し、利用者→工具タグを 3 連続で読み込み。各ループ間でブラウザリロードは行わず、`/api/scan_status` を `curl -s http://127.0.0.1:8501/api/scan_status | jq` で並行監視。
+- **結果**:
+  - 3 ループとも `state.status` は `waiting_user → user_scanned → waiting_tool → tool_scanned → transaction_complete → waiting_user` を循環し、`active=true` を維持。
+  - `event` フィールドは毎回 `event_seq` を +1 更新しつつ最新イベントを返す。`last_tx_event` には最後の貸出完了イベントが残るが、UI は `event` を読むため全ステップが描画された。
+  - `api_actions.log` には 3 件の `scan_auto_loan` が `status=success` として並び、404 は再現せず。
+  - `journalctl` には `logger.exception` 由来の新規エラーは出ておらず、`error_count` も 0 のまま。
+- **メモ**:
+  - RemoteLoanError をテストするために Pi5 を意図的に止めた場合でも、`user_uid` / `tool_uid` はリセットされ `status=error` → 「再開」ボタンを押すだけで再度スキャン開始できることを確認。
+  - 連続テストのログは本節をテンプレートにして随時追記する。ブラウザ操作前に必ず `git pull` と systemd restart を入れること。
+
 ## Window A 実機テスト手順（開発中の暫定版）
 1. Pi5 の API が 200 を返すことを `curl` で確認（詳細は `docs/system/restart-checklist.md` を参照）。
 2. Pi4 の `toolmgmt.service` を再起動し、`journalctl -u toolmgmt.service -n 40` で 404 / scan_update エラーが出ていないか確認。
