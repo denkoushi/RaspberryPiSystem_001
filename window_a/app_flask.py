@@ -778,7 +778,11 @@ def _enter_scan_error(
     error_code: Optional[str] = None,
     stop_loop: bool = True,
 ) -> None:
-    scan_state["active"] = False
+    if stop_loop:
+        scan_state["active"] = False
+    else:
+        # ソフトエラー時はスキャン自体は継続する
+        scan_state["active"] = True
     scan_state["last_error"] = message
     scan_state["error_count"] = int(scan_state.get("error_count", 0)) + 1
     _set_scan_status("error", message)
@@ -1309,6 +1313,7 @@ def scan_monitor():
                         },
                     )
                     print(error_msg)
+                    scan_state["user_uid"] = ""
                     scan_state["tool_uid"] = ""
                     _enter_scan_error(
                         error_msg,
@@ -1466,8 +1471,9 @@ def api_scan_status():
         "last_error": scan_state.get("last_error"),
         "error_count": scan_state.get("error_count"),
     }
-    event = scan_state.get("last_tx_event") or scan_state.get("last_event")
-    return jsonify({"state": state_snapshot, "event": event})
+    event = scan_state.get("last_event")
+    last_tx = scan_state.get("last_tx_event")
+    return jsonify({"state": state_snapshot, "event": event, "last_tx_event": last_tx})
 
 @app.route('/api/loans')
 def get_loans():

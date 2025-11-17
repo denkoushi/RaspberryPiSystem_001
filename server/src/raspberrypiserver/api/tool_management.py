@@ -45,14 +45,14 @@ def _loans_response():
     )
 
 
-@toolmgmt_bp.get("/api/loans")
-@toolmgmt_bp.get("/api/v1/loans")
+@toolmgmt_bp.route("/api/loans", methods=["GET"], strict_slashes=False)
+@toolmgmt_bp.route("/api/v1/loans", methods=["GET"], strict_slashes=False)
 def api_loans_list():
     return _loans_response()
 
 
-@toolmgmt_bp.post("/api/loans")
-@toolmgmt_bp.post("/api/v1/loans")
+@toolmgmt_bp.route("/api/loans", methods=["POST"], strict_slashes=False)
+@toolmgmt_bp.route("/api/v1/loans", methods=["POST"], strict_slashes=False)
 def api_loans_create():
     service = _get_service()
     if not service:
