@@ -84,3 +84,11 @@ def test_logistics_jobs_uses_configured_json_provider(monkeypatch):
     resp = client.get("/api/logistics/jobs")
     assert resp.status_code == 200
     assert resp.get_json()["items"][0]["job_id"] == "X-1"
+
+
+def test_logistics_jobs_v1_alias() -> None:
+    app = create_app()
+    client: FlaskClient = app.test_client()
+    resp = client.get("/api/v1/logistics/jobs")
+    assert resp.status_code == 200
+    assert resp.get_json()["items"]

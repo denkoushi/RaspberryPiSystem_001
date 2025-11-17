@@ -130,3 +130,25 @@ def test_tool_loans_create_requires_fields() -> None:
     resp = client.post("/api/loans", json={})
 
     assert resp.status_code == 400
+
+
+def test_toolmgmt_overview_returns_payload() -> None:
+    app = create_app()
+
+    class FakeService:
+        def list_open_loans(self, limit=20):  # noqa: ARG002
+            return [{"id": 1, "tool_name": "ハンマー"}]
+
+        def list_recent_history(self, limit=20):  # noqa: ARG002
+            return [{"action": "貸出", "tool_name": "ハンマー"}]
+
+    app.config["TOOLMGMT_SERVICE"] = FakeService()
+    client: FlaskClient = app.test_client()
+
+    resp = client.get("/api/toolmgmt/overview?open_limit=10&history_limit=5")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["open_loans"][0]["tool_name"] == "ハンマー"
+    assert data["open_limit"] == 10
+    assert data["history_limit"] == 5

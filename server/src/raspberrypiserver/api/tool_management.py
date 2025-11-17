@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from flask import Blueprint, current_app, jsonify, request
 
 from raspberrypiserver.services import (
@@ -107,3 +109,29 @@ def _delete_loan_response(loan_id: int):
 @toolmgmt_bp.delete("/api/v1/loans/<int:loan_id>")
 def api_delete_loan(loan_id: int):
     return _delete_loan_response(loan_id)
+
+
+def _build_overview_payload(open_limit: int, history_limit: int):
+    service = _get_service()
+    if not service:
+        return None
+    open_loans = service.list_open_loans(open_limit)
+    history = service.list_recent_history(history_limit)
+    return {
+        "open_loans": open_loans,
+        "history": history,
+        "open_limit": open_limit,
+        "history_limit": history_limit,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@toolmgmt_bp.get("/api/toolmgmt/overview")
+@toolmgmt_bp.get("/api/v1/toolmgmt/overview")
+def api_toolmgmt_overview():
+    open_limit = _normalize_limit(request.args.get("open_limit"), 20, 1000)
+    history_limit = _normalize_limit(request.args.get("history_limit"), 20, 1000)
+    payload = _build_overview_payload(open_limit, history_limit)
+    if payload is None:
+        return jsonify({"error": "tool_management_unavailable"}), 503
+    return jsonify(payload)

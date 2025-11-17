@@ -19,9 +19,7 @@ def _get_limit() -> int:
     return max(1, min(limit, 500))
 
 
-@logistics_bp.get("/logistics/jobs")
-def list_logistics_jobs():
-    """Return logistics jobs from the configured provider."""
+def _list_jobs_response():
     provider = current_app.config.get("LOGISTICS_PROVIDER")
     limit = _get_limit()
     items: Iterable[dict] = []
@@ -30,3 +28,15 @@ def list_logistics_jobs():
     elif current_app.config.get("LOGISTICS_JOBS"):
         items = current_app.config.get("LOGISTICS_JOBS")[:limit]
     return jsonify({"items": list(items)})
+
+
+@logistics_bp.get("/logistics/jobs")
+def list_logistics_jobs():
+    """Return logistics jobs from the configured provider."""
+    return _list_jobs_response()
+
+
+@logistics_bp.get("/v1/logistics/jobs")
+def list_logistics_jobs_v1():
+    """Alias for /api/logistics/jobs (legacy Pi4 compatibility)."""
+    return _list_jobs_response()
