@@ -88,7 +88,7 @@
   - 実装後 `pytest document_viewer/tests/test_viewer_app.py` とブラウザ動作を再確認し、本節に結果を追記する。
 - **2025-11-17 実装**:
   - `document_viewer/app/templates/index.html` に「検索中」画面と Pi5 参照の注釈を追加し、`app/static/styles.css` で state="searching" でもコンテンツが表示されるようにした。
-  - `document_viewer/app/static/app.js` の `lookupDocument` で 404 を受け取った時点で即座に `displayError`（Pi5 documents 参照メッセージ付き）を表示し、5 秒で待機画面に戻す。Socket イベント経由でも秒数が伸びないよう `startErrorCountdown` の呼び出しを固定化。
+  - `document_viewer/app/static/app.js` の `lookupDocument` で 404／タイムアウトを受け取った時点で即座に `displayError`（Pi5 documents 参照メッセージ付き）を表示し、5 秒で待機画面に戻す。`AbortController` で 8 秒の API タイムアウトを設け、Socket イベント経由でも秒数が伸びないよう `startErrorCountdown` の呼び出しを固定化。
   - `pytest document_viewer/tests/test_viewer_app.py` は PASS。Chromium で `TEST-001` を入力すると、即座に「Pi5 の DocumentViewer を確認してください」と表示され、5 秒後に待機画面へ復帰することを確認。
 
 ## Window A 実機テスト手順（開発中の暫定版）

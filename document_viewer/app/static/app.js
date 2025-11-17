@@ -17,6 +17,10 @@
 
   const apiBase = normalizeBase(config.apiBase);
   const apiToken = typeof config.apiToken === 'string' ? config.apiToken.trim() : '';
+  const requestTimeoutMs =
+    typeof config.requestTimeoutMs === 'number' && config.requestTimeoutMs > 0
+      ? config.requestTimeoutMs
+      : 8000;
   const socketAutoOpen = config.socketAutoOpen !== false;
   const rawSocketPath = typeof config.socketPath === 'string' ? config.socketPath.trim() : '';
   const socketPathOverrideRaw = typeof config.socketPathOverride === 'string' ? config.socketPathOverride.trim() : '';
@@ -274,9 +278,16 @@
 
     setState('searching');
 
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeoutId =
+      controller && requestTimeoutMs > 0
+        ? setTimeout(() => controller.abort(), requestTimeoutMs)
+        : null;
+
     try {
       const response = await fetch(buildApiUrl(`/api/documents/${encodeURIComponent(trimmed)}`), {
         headers: buildHeaders(),
+        signal: controller ? controller.signal : undefined,
       });
 
       if (!response.ok) {
@@ -300,9 +311,15 @@
       }
     } catch (error) {
       console.error(error);
-      const detail = (error && error.message) || '該当資料が見つかりません';
+      let detail = (error && error.message) || '該当資料が見つかりません';
+      if (error && error.name === 'AbortError') {
+        detail = 'Pi5 DocumentViewer API の応答がタイムアウトしました';
+      }
       displayError(trimmed, `${detail}。Pi5 の DocumentViewer (document_viewer/documents) を確認してください。`, 5);
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       if (barcodeInput) {
         barcodeInput.value = '';
       }

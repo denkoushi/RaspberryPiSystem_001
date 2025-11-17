@@ -56,7 +56,7 @@
 - **現象**: `TEST-001` のように存在しない PDF を入力すると、DocumentViewer 画面が 60 秒ほど真っ暗なままになり、遅れて「該当資料が見つからない」メッセージが出る。利用者から見ると「検索中なのか、失敗なのか」が判別しづらい。
 - **方針**:
   1. `document_viewer/app/static/app.js` の REST ハンドリング（`lookupDocument` → `displayError`）で 404 を受け取った瞬間にエラーメッセージを表示し、5 秒で待機画面へ戻す。Socket イベント待ちにしない。
-  2. Socket.IO の `handleSocketPayload` では `payload.resetAfter` に上限（例: 5〜10 秒）を設け、`payload.message` があれば UI に表示する。これによりバックエンドからの `state="error"` でも即座にフィードバックできる。
+  2. Pi5 への問い合わせが宙ぶらりんにならないよう、`AbortController` を使って 8 秒でタイムアウトさせ、タイムアウト時も即座にエラー表示する。
   3. `window_a/templates/index.html` の DocumentViewer セクションに「PDF は Pi5 上の `document_viewer/documents/` を参照」と注釈を追記し、Pi4 で PDF が見つからない場合の連絡先を明示する。
   4. 実装後 `pytest document_viewer/tests/test_viewer_app.py` を実行し、結果と操作ログを `docs/test-notes/2025-11/window-a-demo.md` へ追記する。
 
